@@ -1,0 +1,6 @@
+Rôle : Configuration projet Python Contenu :
+
+    Métadonnées : name, version, authors
+    Dépendances : pytest, coverage, sphinx, pygobject, keras, scikit-learn
+    Scripts : [project.scripts] shatranj = "shatranj.__main__:main"
+    Config pytest, black, coverage

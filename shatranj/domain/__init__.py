@@ -43,6 +43,8 @@ Conditions de fin de partie :
     - Pat (Stalemate) : Aucun coup légal mais pas en échec → Nul
     - Timeout : Temps écoulé en mode blitz → Défaite
 
+"""
+    
 # TODO: Importer les classes principales lors de l'implémentation
 # from shatranj.domain.core.game import Game
 # from shatranj.domain.core.board import Board
