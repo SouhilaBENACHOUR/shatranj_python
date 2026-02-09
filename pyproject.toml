@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shatranj"
+version = "0.1.0"
+description = "Shatranj game in Python"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Equipe Shatranj" }]
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["shatranj*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+  "-v",
+  "--cov=shatranj",
+  "--cov-report=term-missing",
+  "--cov-report=html"
+  # "--cov-fail-under=85"
+]
+[tool.coverage.run]
+branch = true
+source = ["shatranj"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true

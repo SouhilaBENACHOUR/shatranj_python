@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# Test / coverage artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.hypothesis/
+
+# Editor / backups
+*.save
