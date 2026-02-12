@@ -23,11 +23,15 @@ class MoveGenerator:
                 moves.append(Move(sq, to_sq, PAWN, color))
 
             # capture diagonals
+            from_file = sq % 8
             for diag in (sq + 7 * direction, sq + 9 * direction):
-                if 0 <= diag < 64:
-                    target = board.get_piece_at(diag)
-                    if target is not None and target[1] != color:
-                        moves.append(Move(sq, diag, PAWN, color, captured_piece=target[0]))
+                if not (0 <= diag < 64):
+                    continue
+                if abs((diag % 8) - from_file) != 1:
+                    continue
+                target = board.get_piece_at(diag)
+                if target is not None and target[1] != color:
+                    moves.append(Move(sq, diag, PAWN, color, captured_piece=target[0]))
 
         return moves
 
