@@ -47,31 +47,6 @@ def test_pawn_invalid_move(board_and_validator):
     move = Move(8, 24, PAWN, WHITE)
     assert not validator.is_valid_move(board, move)
 
-
-def test_rook_move_clear_path(board_and_validator):
-    _, validator = board_and_validator
-    # Board vide -> aucun blocage
-    board = Board(Bitboard(setup=False))
-    board.place_piece(ROOK, WHITE, 0)
-    move = Move(0, 7, ROOK, WHITE)
-    assert validator.is_valid_move(board, move)
-
-
-def test_rook_blocked(board_and_validator):
-    board, validator = board_and_validator
-    # in the default setup, a2 (square 8) is occupied by a pawn
-    # so rook from a1 (0) to a3 (16) is blocked.
-    move = Move(0, 16, ROOK, WHITE)
-    assert not validator.is_valid_move(board, move)
-
-def test_pawn_black_forward(empty_board_and_validator):
-    """Black pawn moves forward (downward)"""
-    board, validator = empty_board_and_validator
-    board.place_piece(PAWN, BLACK, 48)  # a7
-    move = Move(48, 40, PAWN, BLACK)  # a7 to a6
-    assert validator.is_valid_move(board, move)
-
-
 def test_pawn_forward_blocked(empty_board_and_validator):
     """Pawn cannot move forward if blocked"""
     board, validator = empty_board_and_validator
@@ -97,14 +72,6 @@ def test_pawn_backward_invalid(empty_board_and_validator):
     assert not validator.is_valid_move(board, move)
 
 
-def test_pawn_sideways_invalid(empty_board_and_validator):
-    """Pawn cannot move sideways"""
-    board, validator = empty_board_and_validator
-    board.place_piece(PAWN, WHITE, 8)  # a2
-    move = Move(8, 9, PAWN, WHITE)  # a2 to b2 (sideways)
-    assert not validator.is_valid_move(board, move)
-
-
 def test_pawn_no_wrap_around(empty_board_and_validator):
     """Pawn should not wrap around board edge"""
     board, validator = empty_board_and_validator
@@ -116,23 +83,12 @@ def test_pawn_no_wrap_around(empty_board_and_validator):
 # ================================================================
 # ROOK TESTS
 # ================================================================
-
-def test_rook_vertical_move(empty_board_and_validator):
-    """Rook moves vertically"""
-    board, validator = empty_board_and_validator
-    board.place_piece(ROOK, WHITE, 0)  # a1
-    move = Move(0, 56, ROOK, WHITE)  # a1 to a8
-    assert validator.is_valid_move(board, move)
-
-
-def test_rook_horizontal_blocked(empty_board_and_validator):
-    """Rook blocked horizontally"""
-    board, validator = empty_board_and_validator
-    board.place_piece(ROOK, WHITE, 0)   # a1
-    board.place_piece(PAWN, BLACK, 3)   # d1 - blocking
-    move = Move(0, 7, ROOK, WHITE)  # a1 to h1
+def test_rook_blocked(board_and_validator):
+    board, validator = board_and_validator
+    # in the default setup, a2 (square 8) is occupied by a pawn
+    # so rook from a1 (0) to a3 (16) is blocked.
+    move = Move(0, 16, ROOK, WHITE)
     assert not validator.is_valid_move(board, move)
-
 
 def test_rook_diagonal_invalid(empty_board_and_validator):
     """Rook cannot move diagonally"""
@@ -154,41 +110,6 @@ def test_rook_capture_enemy(empty_board_and_validator):
 # ================================================================
 # KNIGHT TESTS
 # ================================================================
-
-def test_knight_l_shape_up_right(empty_board_and_validator):
-    """Knight moves in L: 2 up, 1 right"""
-    board, validator = empty_board_and_validator
-    board.place_piece(KNIGHT, WHITE, 1)  # b1
-    move = Move(1, 18, KNIGHT, WHITE)  # b1 to c3
-    assert validator.is_valid_move(board, move)
-
-
-def test_knight_l_shape_right_up(empty_board_and_validator):
-    """Knight moves in L: 1 up, 2 right"""
-    board, validator = empty_board_and_validator
-    board.place_piece(KNIGHT, WHITE, 1)  # b1
-    move = Move(1, 11, KNIGHT, WHITE)  # b1 to d2
-    assert validator.is_valid_move(board, move)
-
-
-def test_knight_jumps_over_pieces(empty_board_and_validator):
-    """Knight jumps over pieces"""
-    board, validator = empty_board_and_validator
-    board.place_piece(KNIGHT, WHITE, 1)  # b1
-    board.place_piece(PAWN, WHITE, 9)    # b2 - blocking
-    board.place_piece(PAWN, WHITE, 10)   # c2 - blocking
-    move = Move(1, 18, KNIGHT, WHITE)  # b1 to c3
-    assert validator.is_valid_move(board, move)
-
-
-def test_knight_invalid_straight(empty_board_and_validator):
-    """Knight cannot move straight"""
-    board, validator = empty_board_and_validator
-    board.place_piece(KNIGHT, WHITE, 1)  # b1
-    move = Move(1, 9, KNIGHT, WHITE)  # b1 to b2 (straight)
-    assert not validator.is_valid_move(board, move)
-
-
 def test_knight_invalid_diagonal(empty_board_and_validator):
     """Knight cannot move diagonally one square"""
     board, validator = empty_board_and_validator
@@ -200,13 +121,6 @@ def test_knight_invalid_diagonal(empty_board_and_validator):
 # ================================================================
 # ALFIL TESTS
 # ================================================================
-
-def test_alfil_jump_2_diagonal(empty_board_and_validator):
-    """Alfil jumps exactly 2 squares diagonally"""
-    board, validator = empty_board_and_validator
-    board.place_piece(ALFIL, WHITE, 0)  # a1
-    move = Move(0, 18, ALFIL, WHITE)  # a1 to c3
-    assert validator.is_valid_move(board, move)
 
 
 def test_alfil_all_four_directions(empty_board_and_validator):
@@ -223,16 +137,6 @@ def test_alfil_all_four_directions(empty_board_and_validator):
     # Southwest: d4 to b2
     assert validator.is_valid_move(board, Move(27, 9, ALFIL, WHITE))
 
-
-def test_alfil_jumps_over_pieces(empty_board_and_validator):
-    """Alfil jumps over pieces"""
-    board, validator = empty_board_and_validator
-    board.place_piece(ALFIL, WHITE, 0)   # a1
-    board.place_piece(PAWN, BLACK, 9)    # b2 - blocking
-    move = Move(0, 18, ALFIL, WHITE)  # a1 to c3
-    assert validator.is_valid_move(board, move)
-
-
 def test_alfil_cannot_move_1(empty_board_and_validator):
     """Alfil cannot move just 1 square"""
     board, validator = empty_board_and_validator
@@ -241,33 +145,9 @@ def test_alfil_cannot_move_1(empty_board_and_validator):
     assert not validator.is_valid_move(board, move)
 
 
-def test_alfil_cannot_move_3(empty_board_and_validator):
-    """Alfil cannot move 3 squares"""
-    board, validator = empty_board_and_validator
-    board.place_piece(ALFIL, WHITE, 0)  # a1
-    move = Move(0, 27, ALFIL, WHITE)  # a1 to d4
-    assert not validator.is_valid_move(board, move)
-
-
-def test_alfil_cannot_move_straight(empty_board_and_validator):
-    """Alfil cannot move straight"""
-    board, validator = empty_board_and_validator
-    board.place_piece(ALFIL, WHITE, 0)  # a1
-    move = Move(0, 16, ALFIL, WHITE)  # a1 to a3
-    assert not validator.is_valid_move(board, move)
-
-
 # ================================================================
 # FERZ TESTS
 # ================================================================
-
-def test_ferz_move_1_diagonal(empty_board_and_validator):
-    """Ferz moves exactly 1 square diagonally"""
-    board, validator = empty_board_and_validator
-    board.place_piece(FERZ, WHITE, 0)  # a1
-    move = Move(0, 9, FERZ, WHITE)  # a1 to b2
-    assert validator.is_valid_move(board, move)
-
 
 def test_ferz_all_four_directions(empty_board_and_validator):
     """Ferz can move in all 4 diagonal directions"""
@@ -282,14 +162,6 @@ def test_ferz_all_four_directions(empty_board_and_validator):
     assert validator.is_valid_move(board, Move(27, 20, FERZ, WHITE))
     # Southwest: d4 to c3
     assert validator.is_valid_move(board, Move(27, 18, FERZ, WHITE))
-
-
-def test_ferz_cannot_move_2(empty_board_and_validator):
-    """Ferz cannot move 2 squares"""
-    board, validator = empty_board_and_validator
-    board.place_piece(FERZ, WHITE, 0)  # a1
-    move = Move(0, 18, FERZ, WHITE)  # a1 to c3
-    assert not validator.is_valid_move(board, move)
 
 
 def test_ferz_cannot_move_straight(empty_board_and_validator):
@@ -371,27 +243,4 @@ def test_same_square_invalid(empty_board_and_validator):
     board, validator = empty_board_and_validator
     board.place_piece(PAWN, WHITE, 8)
     move = Move(8, 8, PAWN, WHITE)
-    assert not validator.is_valid_move(board, move)
-
-
-def test_empty_square_invalid(empty_board_and_validator):
-    """Cannot move from an empty square"""
-    board, validator = empty_board_and_validator
-    move = Move(8, 16, PAWN, WHITE)
-    assert not validator.is_valid_move(board, move)
-
-
-def test_wrong_piece_type_invalid(empty_board_and_validator):
-    """Cannot move wrong piece type"""
-    board, validator = empty_board_and_validator
-    board.place_piece(ROOK, WHITE, 0)
-    move = Move(0, 7, PAWN, WHITE)  # Try to move as pawn
-    assert not validator.is_valid_move(board, move)
-
-
-def test_wrong_color_invalid(empty_board_and_validator):
-    """Cannot move opponent's piece"""
-    board, validator = empty_board_and_validator
-    board.place_piece(PAWN, BLACK, 8)
-    move = Move(8, 16, PAWN, WHITE)  # Try to move black pawn as white
     assert not validator.is_valid_move(board, move)

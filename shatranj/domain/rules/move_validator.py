@@ -10,8 +10,7 @@ class MoveValidator:
 
         origin = board.get_piece_at(move.from_square)
         if origin is None:
-            return False  #nothing to move
-
+            return False  #nothing to mov
         piece_type, color = origin
         if (piece_type, color) != (move.piece_type, move.color):
             return False  # check if that square have the same piece we want to move
@@ -20,7 +19,6 @@ class MoveValidator:
         if target is not None and target[1] == color:
             return False  # can't capture our own piece
 
-        # Dispatch by piece type (only pawn and rook implemented here)
         if piece_type == PAWN:
             return self._pawn_ok(board, move.from_square, move.to_square, color)
 
