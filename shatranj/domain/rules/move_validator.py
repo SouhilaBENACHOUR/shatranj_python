@@ -1,6 +1,6 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, PAWN, ROOK
+from shatranj.utils.constants import WHITE, PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH
 
 
 class MoveValidator:
@@ -27,25 +27,61 @@ class MoveValidator:
         if piece_type == ROOK:
             return self._rook_ok(board, move.from_square, move.to_square)
 
+        if piece_type == KNIGHT:
+            return self._knight_ok(move.from_square, move.to_square)
+        
+        if piece_type == ALFIL:
+            return self._alfil_ok(move.from_square, move.to_square)
+        
+        if piece_type == FERZ:
+            return self._ferz_ok(move.from_square, move.to_square)
+        
+        if piece_type == SHAH:
+            return self._shah_ok(move.from_square, move.to_square)
+        
         return False  # other pieces not implemented
 
-    def _pawn_ok(self, board: Board, frm: int, to: int, color: str) -> bool:
-        # White goes "up" (+8), black goes "down" (-8)
-        direction = 1 if color == WHITE else -1
-        one_step = 8 * direction
+    # ------------------------------------------------------------------ #
+    #  PAWN                                                                #
+    # ------------------------------------------------------------------ #
 
-        # Move forward 1: destination must be empty
-        if to == frm + one_step:
+    def _pawn_ok(self, board: Board, frm: int, to: int, color: str) -> bool:
+        """
+        Pawn movement rules:
+          - Forward: 1 square straight ahead, must be empty
+          - Capture: 1 square diagonally forward, must contain enemy piece
+       
+        We use divmod to get rank and file separately, preventing edge-wrapping bugs.
+        """
+        frm_rank, frm_file = divmod(frm, 8)
+        to_rank,  to_file  = divmod(to,  8)
+
+        direction = 1 if color == WHITE else -1  # White moves up, Black moves down
+        rank_diff = to_rank - frm_rank   # Signed: +1 forward, -1 backward
+        file_diff = abs(to_file - frm_file)
+
+        # Forward move: 1 rank forward, same file, empty square
+        if rank_diff == direction and file_diff == 0:
             return board.get_piece_at(to) is None
 
-        # Capture diagonally: destination must contain an enemy piece
-        if to in (frm + 7 * direction, frm + 9 * direction):
+        # Diagonal capture: 1 rank forward, 1 file difference, enemy piece
+        if rank_diff == direction and file_diff == 1:
             target = board.get_piece_at(to)
             return target is not None and target[1] != color
 
         return False
 
+    # ------------------------------------------------------------------ #
+    #  ROOK                                                                #
+    # ------------------------------------------------------------------ #
+
     def _rook_ok(self, board: Board, frm: int, to: int) -> bool:
+        
+        """
+        Rook moves horizontally or vertically any distance.
+        Cannot jump over pieces - we check all intermediate squares.
+        """
+        
         #   rank = square // 8  (row 0..7)
         #   file = square % 8   (column 0..7)
         #  divmod(28, 8) = (3, 4)
@@ -82,3 +118,71 @@ class MoveValidator:
         #valid rook move 
         return True
 
+    # ------------------------------------------------------------------ #
+    #  KNIGHT                                                              #
+    # ------------------------------------------------------------------ #
+
+    def _knight_ok(self, frm: int, to: int) -> bool:
+        """
+        Knight moves in L-shape: (±1, ±2) or (±2, ±1).
+        Can jump over pieces.
+        """
+        frm_rank, frm_file = divmod(frm, 8)
+        to_rank,  to_file  = divmod(to,  8)
+
+        rank_diff = abs(to_rank - frm_rank)
+        file_diff = abs(to_file - frm_file)
+
+        return (rank_diff == 2 and file_diff == 1) or \
+               (rank_diff == 1 and file_diff == 2)
+
+    # ------------------------------------------------------------------ #
+    #  ALFIL                                                               #
+    # ------------------------------------------------------------------ #
+
+    def _alfil_ok(self, frm: int, to: int) -> bool:
+        """
+        Alfil jumps exactly 2 squares diagonally.
+        Can jump over pieces. Stays on same color squares.
+        """
+        frm_rank, frm_file = divmod(frm, 8)
+        to_rank,  to_file  = divmod(to,  8)
+
+        rank_diff = abs(to_rank - frm_rank)
+        file_diff = abs(to_file - frm_file)
+
+        return rank_diff == 2 and file_diff == 2
+
+    # ------------------------------------------------------------------ #
+    #  FERZ                                                                #
+    # ------------------------------------------------------------------ #
+
+    def _ferz_ok(self, frm: int, to: int) -> bool:
+        """
+        Ferz moves exactly 1 square diagonally.
+        Ancestor of the modern Queen.
+        """
+        frm_rank, frm_file = divmod(frm, 8)
+        to_rank,  to_file  = divmod(to,  8)
+
+        rank_diff = abs(to_rank - frm_rank)
+        file_diff = abs(to_file - frm_file)
+
+        return rank_diff == 1 and file_diff == 1
+
+    # ------------------------------------------------------------------ #
+    #  SHAH                                                                #
+    # ------------------------------------------------------------------ #
+
+    def _shah_ok(self, frm: int, to: int) -> bool:
+        """
+        Shah (King) moves exactly 1 square in any direction (8 possibilities).
+        Using max(rank_diff, file_diff) == 1 elegantly covers all directions.
+        """
+        frm_rank, frm_file = divmod(frm, 8)
+        to_rank,  to_file  = divmod(to,  8)
+
+        rank_diff = abs(to_rank - frm_rank)
+        file_diff = abs(to_file - frm_file)
+
+        return max(rank_diff, file_diff) == 1
