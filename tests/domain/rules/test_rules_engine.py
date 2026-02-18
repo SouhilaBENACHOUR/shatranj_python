@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 
-from shatranj.data.bitboards.bitboard import Bitboard
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
@@ -51,7 +50,7 @@ def make_generator(moves: list[Move]):
 
 
 def test_is_valid_move_delegates_to_validator():
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
     move = Move(8, 16, PAWN, WHITE)
     validator = make_validator({(8, 16)})
     engine = RulesEngine(validator=validator)
@@ -59,7 +58,7 @@ def test_is_valid_move_delegates_to_validator():
 
 
 def test_generate_pseudo_legal_moves_aggregates_all_generators():
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
     move = Move(8, 16, PAWN, WHITE)
     generator, called_methods = make_generator([move])
     engine = RulesEngine(generator=generator)
@@ -70,7 +69,7 @@ def test_generate_pseudo_legal_moves_aggregates_all_generators():
 
 
 def test_generate_legal_moves_filters_with_validator():
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
     board.place_piece(PAWN, WHITE, 8)
     board.place_piece(PAWN, BLACK, 17)
 
@@ -83,7 +82,7 @@ def test_generate_legal_moves_filters_with_validator():
 
 
 def test_has_legal_moves_with_real_generator_and_validator():
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
     board.place_piece(ROOK, WHITE, 0)
     board.place_piece(KNIGHT, BLACK, 10)
     engine = RulesEngine()

@@ -1,11 +1,10 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.rules.move_generator import MoveGenerator
 from shatranj.utils.constants import WHITE, BLACK,PAWN,ROOK,KNIGHT, FERZ, SHAH, ALFIL
-from shatranj.data.bitboards.bitboard import Bitboard
 
 def test_generate_pawn_capture():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(PAWN, WHITE, 8)   # a2
     board.place_piece(PAWN, BLACK, 17)  # b3
@@ -15,7 +14,7 @@ def test_generate_pawn_capture():
 
 def test_generate_rook_moves():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(ROOK, WHITE, 0)  # a1
     moves = gen.generate_rook_moves(board, WHITE)
@@ -29,7 +28,7 @@ def test_generate_rook_moves():
 
 def test_generate_knight_moves():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(KNIGHT, WHITE, 27)  # d4
     moves = gen.generate_knight_moves(board, WHITE)
@@ -44,7 +43,7 @@ def test_generate_knight_moves():
 
 def test_generate_knight_no_wrap():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(KNIGHT, WHITE, 7)  # h1 - corner, wrap risk
     moves = gen.generate_knight_moves(board, WHITE)
@@ -56,7 +55,7 @@ def test_generate_knight_no_wrap():
 
 def test_generate_knight_capture():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(KNIGHT, WHITE, 27)  # d4
     board.place_piece(PAWN,   BLACK, 44)  # enemy on f6
@@ -71,7 +70,7 @@ def test_generate_knight_capture():
 
 def test_generate_ferz_moves():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(FERZ, WHITE, 27)  # d4
     moves = gen.generate_ferz_moves(board, WHITE)
@@ -85,7 +84,7 @@ def test_generate_ferz_moves():
 
 def test_generate_ferz_no_wrap():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(FERZ, WHITE, 7)  # h1 - corner, wrap risk
     moves = gen.generate_ferz_moves(board, WHITE)
@@ -98,7 +97,7 @@ def test_generate_ferz_no_wrap():
 
 def test_generate_shah_moves():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(SHAH, WHITE, 27)  # d4
     moves = gen.generate_shah_moves(board, WHITE)
@@ -108,7 +107,7 @@ def test_generate_shah_moves():
 
 def test_generate_shah_no_wrap():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(SHAH, WHITE, 7)  # h1 - corner, wrap risk
     moves = gen.generate_shah_moves(board, WHITE)
@@ -120,7 +119,7 @@ def test_generate_shah_no_wrap():
 
 def test_generate_alfil_moves():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(ALFIL, WHITE, 27)  # d4
     moves = gen.generate_alfil_moves(board, WHITE)
@@ -134,7 +133,7 @@ def test_generate_alfil_moves():
 
 def test_generate_alfil_no_wrap():
     gen = MoveGenerator()
-    board = Board(Bitboard(setup=False))
+    board = Board(setup=False)
 
     board.place_piece(ALFIL, WHITE, 7)  # h1 - corner, wrap risk
     moves = gen.generate_alfil_moves(board, WHITE)

@@ -1,58 +1,115 @@
-from typing import Optional, Tuple
-from shatranj.data.bitboards.bitboard import Bitboard
+from shatranj.data.bitboards.bitboard import clear_bit_at, get_bit_at, set_bit_at
+from shatranj.utils.constants import (
+    ALFIL,
+    BLACK,
+    BOARD_SIZE,
+    FERZ,
+    FILES,
+    KNIGHT,
+    NUM_SQUARES,
+    PAWN,
+    RANKS,
+    ROOK,
+    SHAH,
+    WHITE,
+)
+
+
+PIECES = (SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN)
+COLORS = (WHITE, BLACK)
+START_BACK_RANK = (ROOK, KNIGHT, ALFIL, FERZ, SHAH, ALFIL, KNIGHT, ROOK)
 
 
 class Board:
-    def __init__(self, bitboard: Optional[Bitboard] = None) -> None:
-        # If bitboard is None -> create a new Bitboard()
-        self._bitboard = bitboard if bitboard is not None else Bitboard()
+    def __init__(self, setup: bool = True) -> None:
+        self._boards = {(piece, color): 0 for piece in PIECES for color in COLORS}
+        if setup:
+            self.setup_starting_position()
 
-    def get_piece_at(self, square: int) -> Optional[Tuple[str, str]]:
-        # returns the piece on a square, if any.
-        #   either a tuple (piece, color) OR None
-        return self._bitboard.get_piece_at(square)
+    def clear(self) -> None:
+        for key in self._boards:
+            self._boards[key] = 0
+
+    def setup_starting_position(self) -> None:
+        self.clear()
+
+        for file_idx, piece in enumerate(START_BACK_RANK):
+            self.set_piece(piece, WHITE, file_idx)
+            self.set_piece(PAWN, WHITE, file_idx + BOARD_SIZE)
+            self.set_piece(piece, BLACK, file_idx + (NUM_SQUARES - BOARD_SIZE))
+            self.set_piece(PAWN, BLACK, file_idx + (NUM_SQUARES - 2 * BOARD_SIZE))
+
+    def set_piece(self, piece: str, color: str, square: int) -> None:
+        self.clear_piece(square)
+        key = (piece, color)
+        self._boards[key] = set_bit_at(self._boards[key], square)
 
     def place_piece(self, piece: str, color: str, square: int) -> None:
-        self._bitboard.set_piece(piece, color, square)
+        self.set_piece(piece, color, square)
+
+    def clear_piece(self, square: int) -> None:
+        for key in self._boards:
+            self._boards[key] = clear_bit_at(self._boards[key], square)
 
     def remove_piece(self, square: int) -> None:
-        self._bitboard.clear_piece(square)
+        self.clear_piece(square)
+
+    def get_piece_at(self, square: int) -> tuple[str, str] | None:
+        for (piece, color), bitboard in self._boards.items():
+            if get_bit_at(bitboard, square):
+                return piece, color
+        return None
 
     def move_piece(self, from_square: int, to_square: int) -> None:
-
         if from_square == to_square:
             raise ValueError("can't move to the same square")
 
-        # Try to find a piece at the origin square.
         found = self.get_piece_at(from_square)
-
-        # If there is no piece there we cannot move anything
         if found is None:
             raise ValueError("no piece on from_square")
 
-        # Unpack the tuple (piece, color)
         piece, color = found
+        self.clear_piece(from_square)
+        self.set_piece(piece, color, to_square)
 
-        # we clear the origin square, then place the piece on the destination square
-        # this move function acts like a capture overwrite it dosn't verify rules
-        self._bitboard.clear_piece(from_square)
-        self._bitboard.set_piece(piece, color, to_square)
+    @property
+    def white_pieces(self) -> int:
+        bitboard = 0
+        for piece in PIECES:
+            bitboard |= self._boards[(piece, WHITE)]
+        return bitboard
+
+    @property
+    def black_pieces(self) -> int:
+        bitboard = 0
+        for piece in PIECES:
+            bitboard |= self._boards[(piece, BLACK)]
+        return bitboard
+
+    @property
+    def all_pieces(self) -> int:
+        return self.white_pieces | self.black_pieces
 
     @property
     def white_occupancy(self) -> int:
-        # This is a read-only "property" we can do
-        #   board.white_occupancy
-        # instead of
-        #   board.white_occupancy()
-        # returns an int bitboard where bits=1 are occupied squares
-        return self._bitboard.white_pieces
+        return self.white_pieces
 
     @property
     def black_occupancy(self) -> int:
-        # for BLACK pieces
-        return self._bitboard.black_pieces
+        return self.black_pieces
 
     @property
     def occupancy(self) -> int:
-        #   white_pieces | black_pieces
-        return self._bitboard.all_pieces
+        return self.all_pieces
+
+    @staticmethod
+    def square_to_algebraic(square: int) -> str:
+        if not 0 <= square < NUM_SQUARES:
+            raise ValueError("must be in [0, 63]")
+        return FILES[square % BOARD_SIZE] + RANKS[square // BOARD_SIZE]
+
+    @staticmethod
+    def algebraic_to_square(pos: str) -> int:
+        if len(pos) != 2 or pos[0] not in FILES or pos[1] not in RANKS:
+            raise ValueError("pos must be like 'e4'")
+        return FILES.index(pos[0]) + BOARD_SIZE * RANKS.index(pos[1])

@@ -1,15 +1,15 @@
 import pytest
-from shatranj.data.bitboards import operations as ops
+from shatranj.data.bitboards import bitboard as ops
 
 
 def test_check_square_invalid():
     # check_square() should reject out-of-range square indices
     with pytest.raises(ValueError):
         ops.check_square(-1)
-
     with pytest.raises(ValueError):
         ops.check_square(64)
-
+    assert ops.check_square(4)
+    
 
 def test_set_get_clear():
     # start from an empty bitboard

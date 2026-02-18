@@ -1,10 +1,13 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH
-
+from shatranj.utils.constants import WHITE, PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH, NUM_SQUARES
 
 class MoveValidator:
     def is_valid_move(self, board: Board, move: Move) -> bool:
+        if not (0 <= move.from_square < NUM_SQUARES):
+            return False
+        if not (0 <= move.to_square < NUM_SQUARES):
+            return False
         if move.from_square == move.to_square:
             return False
 
@@ -37,7 +40,7 @@ class MoveValidator:
         if piece_type == SHAH:
             return self._shah_ok(move.from_square, move.to_square)
         
-        return False  # other pieces not implemented
+        return False  #all pieces implemented 
 
     # ------------------------------------------------------------------ #
     #  PAWN                                                                #

@@ -3,7 +3,6 @@ from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.move_validator import MoveValidator
 from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH
-from shatranj.data.bitboards.bitboard import Bitboard
 
 
 @pytest.fixture
@@ -14,7 +13,7 @@ def board_and_validator():
 @pytest.fixture
 def empty_board_and_validator():
     """Empty board for testing without initial setup"""
-    return Board(Bitboard(setup=False)), MoveValidator()
+    return Board(setup=False), MoveValidator()
 
 
 # ================================================================
