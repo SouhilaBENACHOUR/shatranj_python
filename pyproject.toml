@@ -5,11 +5,47 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "shatranj"
 version = "0.1.0"
-description = "Shatranj game in Python"
+description = "Shatranj (Indian Chess) game implementation in Python with AI, GUI, and network support"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Equipe Shatranj" }]
-dependencies = []
+license = { text = "Academic Project" }
+authors = [
+    { name = "EL GHALI Ayman" },
+    { name = "MARCHOUD Souhail" },
+    { name = "MEKLAT Sarah" },
+    { name = "DRIES Amina" },
+    { name = "BENACHOUR Souhila" }
+]
+keywords = ["shatranj", "chess", "game", "ai", "bitboards", "mcts"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Topic :: Games/Entertainment :: Board Games",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "pygobject>=3.42.0",
+    "scikit-learn>=1.3.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.7.0",
+    "flake8>=6.1.0",
+    "isort>=5.12.0",
+    "sphinx>=7.1.0",
+]
+
+[project.scripts]
+shatranj = "shatranj.__main__:main"
+
+[project.urls]
+Repository = "https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -17,17 +53,75 @@ include = ["shatranj*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 addopts = [
   "-v",
+  "-ra",
+  "--strict-markers",
   "--cov=shatranj",
   "--cov-report=term-missing",
-  "--cov-report=html"
+  "--cov-report=html",
+  "--cov-branch",
+  "--tb=short",
   # "--cov-fail-under=85"
 ]
+markers = [
+    "slow: tests lents à exécuter",
+    "integration: tests d'intégration",
+    "unit: tests unitaires",
+    "network: tests nécessitant le réseau",
+]
+
 [tool.coverage.run]
 branch = true
 source = ["shatranj"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
 
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
