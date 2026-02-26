@@ -14,3 +14,4 @@ htmlcov/
 
 # Editor / backups
 *.save
+*.egg-info/
