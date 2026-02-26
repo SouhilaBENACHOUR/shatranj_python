@@ -42,7 +42,7 @@ dev = [
 ]
 
 [project.scripts]
-shatranj = "shatranj.__main__:main"
+shatranj = "shatranj.main:main"
 
 [project.urls]
 Repository = "https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python"
