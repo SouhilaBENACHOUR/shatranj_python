@@ -22,6 +22,8 @@ import sys       # Pour sys.exit() et sys.stderr
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import WHITE, BLACK
+from shatranj.domain.core.board import Board
+from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN
 
 # Import de nos propres modules
 # On utilise des imports relatifs car on est dans le même package
@@ -569,8 +571,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_load(self, args: list[str]) -> None:
         """
-        Charge une partie depuis un fichier.
-
+        Load a game from a file.
         Usage : load FILE
         """
         if not args:
@@ -578,8 +579,141 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             return
 
         path = args[0]
-        print(f"[load] Loading from '{path}'... (not yet implemented)")
-        # TODO: implémenter le parseur de fichier .shatranj (F20)
+
+        try:
+            with open(path, "r", encoding="ascii") as f:
+                lines = [line.strip() for line in f.readlines()]
+        except OSError as err:
+            self._error(f"Could not open '{path}': {err}")
+            return
+
+        # Remove comments and empty lines
+        lines = [l for l in lines if l and not l.startswith("#")]
+
+        try:
+            # --- Find sections ---
+            idx_settings = lines.index("[settings]")
+            idx_game     = lines.index("[game]")
+            idx_history  = lines.index("[history]")
+
+            # --- Read [settings] ---
+            for line in lines[idx_settings + 1 : idx_game]:
+                if "=" in line:
+                    key, _, val = line.partition("=")
+                    key = key.strip().lower()
+                    val = val.strip().lower()
+                    if key == "verbose":
+                        self._verbose = val in ("true", "1", "yes")
+                    elif key == "debug":
+                        self._debug = val in ("true", "1", "yes")
+
+            # --- Read [game] ---
+            game_lines = lines[idx_game + 1 : idx_history]
+
+            # First line = current player color
+            color_letter = game_lines[0].strip().upper()
+            if color_letter not in ("W", "B"):
+                self._error(f"Invalid player color: '{color_letter}'")
+                return
+            current_color = WHITE if color_letter == "W" else BLACK
+
+            # Next 8 lines = the board (rank 8 at top, rank 1 at bottom)
+            board_lines = game_lines[1:9]
+            if len(board_lines) != 8:
+                self._error("Invalid board format: expected 8 rows")
+                return
+
+            # Map piece symbols to (piece_type, color)
+            SYMBOL_MAP = {
+                "K": (SHAH,   WHITE), "F": (FERZ,   WHITE),
+                "R": (ROOK,   WHITE), "A": (ALFIL,  WHITE),
+                "N": (KNIGHT, WHITE), "P": (PAWN,   WHITE),
+                "k": (SHAH,   BLACK), "f": (FERZ,   BLACK),
+                "r": (ROOK,   BLACK), "a": (ALFIL,  BLACK),
+                "n": (KNIGHT, BLACK), "p": (PAWN,   BLACK),
+            }
+
+            new_board = Board(setup=False)
+
+            for rank_idx, board_line in enumerate(board_lines):
+                # rank 8 is at top (rank_idx=0) -> rank=7
+                # rank 1 is at bottom (rank_idx=7) -> rank=0
+                rank = 7 - rank_idx
+                symbols = board_line.split()
+                if len(symbols) != 8:
+                    self._error(f"Invalid board row {rank_idx + 1}: '{board_line}'")
+                    return
+                for file_idx, symbol in enumerate(symbols):
+                    if symbol == "_":
+                        continue  # empty square
+                    if symbol not in SYMBOL_MAP:
+                        self._error(f"Unknown piece symbol: '{symbol}' at row {rank_idx + 1}")
+                        return
+                    piece, color = SYMBOL_MAP[symbol]
+                    square = rank * 8 + file_idx
+                    new_board.place_piece(piece, color, square)
+
+            # --- Read [history] ---
+            from shatranj.domain.core.move import Move
+
+            history_moves = []
+            for line in lines[idx_history + 1:]:
+                # Format: "W e2-e3 B e7-e6"
+                tokens = line.split()
+                i = 0
+                while i + 1 < len(tokens):
+                    color_tok = tokens[i].upper()
+                    move_tok  = tokens[i + 1]
+                    i += 2
+
+                    color = WHITE if color_tok == "W" else BLACK
+
+                    # Parse "e2-e3" or "e2xe3"
+                    if len(move_tok) != 5 or move_tok[2] not in ("-", "x"):
+                        self._error(f"Invalid move in history: '{move_tok}'")
+                        return
+
+                    try:
+                        from_sq = Board.algebraic_to_square(move_tok[0:2])
+                        to_sq   = Board.algebraic_to_square(move_tok[3:5])
+                    except ValueError as err:
+                        self._error(f"Invalid square in history: {err}")
+                        return
+
+                    # Determine if it's a capture
+                    captured = None
+                    if move_tok[2] == "x":
+                        captured = "unknown"
+
+                    # Get piece type from the reconstructed board
+                    piece_info = new_board.get_piece_at(from_sq)
+                    if piece_info is not None:
+                        piece_type = piece_info[0]
+                    else:
+                        piece_type = PAWN  # fallback
+
+                    history_moves.append(Move(from_sq, to_sq, piece_type, color, captured))
+
+            # --- Build GameState from loaded data ---
+            from shatranj.presentation.cli.game_state import GameState
+
+            new_state = GameState.__new__(GameState)
+            new_state.board = new_board
+            new_state.current_color = current_color
+            new_state._history = [(move, {}) for move in history_moves]
+            new_state._redo_stack = []
+
+            self._state = new_state
+            self._saved = True
+
+            print(f"Game loaded from '{path}'.")
+            print_board(self._state.board)
+            print(f"\nIt's {self._state.current_color}'s turn.")
+
+        except ValueError as err:
+            self._error(f"Error parsing file '{path}': {err}")
+        except Exception as err:
+            self._error(f"Unexpected error loading '{path}': {err}")
 
     def _do_save(self, args: list[str]) -> None:
         """
