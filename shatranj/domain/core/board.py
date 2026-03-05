@@ -114,17 +114,6 @@ class Board:
         if len(pos) != 2 or pos[0] not in FILES or pos[1] not in RANKS:
             raise ValueError("pos must be like 'e4'")
         return FILES.index(pos[0]) + BOARD_SIZE * RANKS.index(pos[1])
-    
-    def find_shah(self, color: str) -> int | None:
-     """
-     Retourne la case du Shah de la couleur donnée
-     """
-     bitboard = self._boards[(SHAH, color)]
-     if bitboard == 0:
-        return None
-     return get_lsb(bitboard)
-    
-   
 
     def find_shah(self, color: str) -> int | None:
         """

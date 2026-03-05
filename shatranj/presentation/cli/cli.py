@@ -24,6 +24,7 @@ from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import WHITE, BLACK
 from shatranj.domain.core.board import Board
 from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN
+from shatranj.domain.ai.ai_player import AIPlayer
 
 # Import de nos propres modules
 # On utilise des imports relatifs car on est dans le même package
@@ -68,6 +69,7 @@ class CLI:
         self._running = False
         self._saved = True          # Rien à sauvegarder au démarrage
         self._verbose = verbose
+        self._ai_player: AIPlayer | None = None
         self._debug = debug
 
         # Configuration de readline pour la complétion Tab (F18)
@@ -265,14 +267,17 @@ class CLI:
 
     def _do_play_move(self, text: str) -> None:
         """
-        Joue un coup saisi par l'utilisateur.
+        Joue un coup saisi par l'utilisateur,
+        puis fait jouer l'IA si c'est son tour.
 
         Étapes :
           1. Vérifier qu'une partie est en cours
           2. Parser le coup (notation algébrique -> Move)
-          3. Vérifier que le coup est légal (RulesEngine)
-          4. Appliquer le coup (GameState)
-          5. Afficher le plateau mis à jour
+          3. Vérifier que c'est le bon joueur
+          4. Vérifier que le coup est légal
+          5. Appliquer le coup
+          6. Vérifier si la partie est terminée
+          7. Faire jouer l'IA si c'est son tour
         """
         if self._state is None:
             self._error("No game in progress. Type 'new' to start a game.")
@@ -280,28 +285,108 @@ class CLI:
 
         move = self._parse_move(text)
         if move is None:
-            return  # L'erreur a déjà été affichée par _parse_move
+            return
 
-        # Vérification que c'est le bon joueur qui joue
+        # vérification que c'est le bon joueur qui joue
         if move.color != self._state.current_color:
             self._error(
                 f"It's {self._state.current_color}'s turn, not {move.color}'s."
             )
             return
 
-        # Vérification de la légalité du coup
+        # vérification de la légalité du coup
         if not self._engine.is_valid_move(self._state.board, move):
             self._error(f"Illegal move: {text}")
             return
 
-        # Application du coup
+        # applique le coup du joueur
         self._state.apply_move(move)
-        self._saved = False  # La partie a été modifiée, pas encore sauvegardée
+        self._saved = False
 
-        # Affichage du plateau après le coup
+        # affiche le plateau mis à jour
         print_board(self._state.board)
         print(f"\nIt's now {self._state.current_color}'s turn.")
 
+        # vérifie si la partie est terminée après le coup du joueur
+        if self._check_game_over():
+            return
+
+        # si c'est le tour de l'IA → elle joue automatiquement
+        if (
+            self._ai_player is not None
+            and self._state.current_color == self._ai_player.color
+        ):
+            self._do_ai_move()
+
+    def _check_game_over(self) -> bool:
+        """
+        Vérifie si la partie est terminée après un coup.
+        Retourne True si la partie est finie, False sinon.
+
+        Cas possibles en Shatranj :
+          - Mat       → le joueur courant est en échec et n'a aucun coup légal
+          - Pat       → pas en échec mais aucun coup (victoire pour l'adversaire)
+          - Bare King → le joueur courant n'a plus que son Shah
+        """
+        current  = self._state.current_color
+        opponent = BLACK if current == WHITE else WHITE
+
+        # mat → le joueur courant a perdu
+        if self._engine.is_checkmate(self._state.board, current):
+            print(f"\nCheckmate! {opponent} wins!")
+            self._state = None
+            return True
+
+        # pat → victoire pour celui qui l'a provoqué (règle Shatranj)
+        if self._engine.is_stalemate(self._state.board, current):
+            print(f"\nStalemate! {opponent} wins! (Shatranj rules)")
+            self._state = None
+            return True
+
+        # bare king → le joueur courant n'a plus que son Shah
+        if self._engine.is_bare_king(self._state.board, current):
+            print(f"\nBare King! {opponent} wins!")
+            self._state = None
+            return True
+
+        return False  # partie continue
+
+    def _do_ai_move(self) -> None:
+        """
+        Fait jouer l'IA.
+
+        1. L'IA calcule le meilleur coup avec Minimax
+        2. Si aucun coup → fin de partie
+        3. Sinon on applique le coup et on affiche le plateau
+        4. On vérifie si la partie est terminée après le coup de l'IA
+        """
+        if self._ai_player is None or self._state is None:
+            return
+
+        print("AI is thinking...")
+        move = self._ai_player.choose_move(self._state.board)
+
+        # aucun coup disponible → fin de partie
+        if move is None:
+            self._check_game_over()
+            return
+
+        # affiche le coup joué par l'IA en notation algébrique
+        from_alg = Board.square_to_algebraic(move.from_square)
+        to_alg   = Board.square_to_algebraic(move.to_square)
+        sep      = "x" if move.captured_piece else "-"
+        print(f"AI plays: {from_alg}{sep}{to_alg}")
+
+        # applique le coup sur le board
+        self._state.apply_move(move)
+        self._saved = False
+
+        # affiche le plateau mis à jour
+        print_board(self._state.board)
+        print(f"\nIt's now {self._state.current_color}'s turn.")
+
+        # vérifie si la partie est terminée après le coup de l'IA
+        self._check_game_over()
     def _do_new(self, args: list[str]) -> None:
         """
         Lance une nouvelle partie.
@@ -316,10 +401,30 @@ class CLI:
 
         self._state = GameState()
         self._saved = True
-        print("New game started! White plays first.")
+        self._ai_player = None  # reset l'IA
+
+
+        # configure l'IA si demandé : "new ai black" ou "new ai white"
+        if len(args) >= 2 and args[0].lower() == "ai":
+           ai_color = args[1].upper()
+           if ai_color == "BLACK":
+              self._ai_player = AIPlayer(color=BLACK, depth=3)
+              print("New game started! You play WHITE, AI plays BLACK.")
+           elif ai_color == "WHITE":
+               self._ai_player = AIPlayer(color=WHITE, depth=3)
+               print("New game started! AI plays WHITE, you play BLACK.")
+           else:
+                self._error(f"Unknown color: '{args[1]}'. Use 'black' or 'white'.")
+                return
+        else:        
+            print("New game started! White plays first.")
+
         print()
         print_board(self._state.board)
         print()
+        # si l'IA joue blanc, elle joue en premier
+        if self._ai_player and self._ai_player.color == WHITE:
+            self._do_ai_move()
 
     def _do_quit(self, args: list[str]) -> None:
         """
