@@ -654,8 +654,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     new_board.place_piece(piece, color, square)
 
             # --- Read [history] ---
-            from shatranj.domain.core.move import Move
-
+            
             history_moves = []
             for line in lines[idx_history + 1:]:
                 # Format: "W e2-e3 B e7-e6"

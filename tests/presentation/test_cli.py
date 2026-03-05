@@ -222,3 +222,332 @@ class TestMoveValidatorIntegration:
         # La case e4 (28) est vide en position initiale
         move = Move(from_square=28, to_square=36, piece_type=PAWN, color=WHITE)
         assert not self.validator.is_valid_move(self.board, move)
+
+class TestDoLoad:
+    """Tests for the _do_load method of the CLI."""
+
+    def setup_method(self):
+        """Creates a fresh CLI before each test."""
+        from shatranj.presentation.cli.cli import CLI
+        self.cli = CLI()
+
+    def _write_file(self, path, content):
+        """Helper: writes a temporary file."""
+        with open(path, "w", encoding="ascii") as f:
+            f.write(content)
+
+    # ----------------------------------------------------------------
+    # Valid file
+    # ----------------------------------------------------------------
+
+    def test_load_valid_file(self, tmp_path):
+        """Loading a valid file reconstructs the correct state."""
+        from shatranj.utils.constants import WHITE
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._state is not None
+        assert self.cli._state.current_color == WHITE
+        assert self.cli._saved is True
+
+    def test_load_restores_current_color_black(self, tmp_path):
+        """Current player is BLACK if the file says B."""
+        from shatranj.utils.constants import BLACK
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "B\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._state.current_color == BLACK
+
+    def test_load_restores_settings(self, tmp_path):
+        """Verbose and debug settings are correctly restored."""
+        content = (
+            "[settings]\n"
+            "verbose=true\n"
+            "debug=true\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._verbose is True
+        assert self.cli._debug is True
+
+    def test_load_restores_history(self, tmp_path):
+        """Move history is correctly restored from file."""
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "B\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ P _ _ _ _ _\n"
+            "P P _ P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+            "W c2-c3\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        history = self.cli._state.get_history()
+        assert len(history) == 1
+
+    def test_load_restores_history_two_moves(self, tmp_path):
+        """History with 2 moves is correctly restored."""
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p _ p p p p\n"
+            "_ _ _ p _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ P _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P _ P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+            "W e2-e4 B d7-d6\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        history = self.cli._state.get_history()
+        assert len(history) == 2
+
+    def test_load_with_comments(self, tmp_path):
+        """Comments in the file are ignored."""
+        content = (
+            "# This is a comment\n"
+            "[settings]\n"
+            "verbose=false\n"
+            "# another comment\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._state is not None
+
+    # ----------------------------------------------------------------
+    # Errors
+    # ----------------------------------------------------------------
+
+    def test_load_no_args(self):
+        """No argument provided shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([])
+
+        assert "Usage" in stderr.getvalue()
+        assert self.cli._state is None
+
+    def test_load_file_not_found(self):
+        """Non-existent file shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load(["fichier_inexistant.shatranj"])
+
+        assert "Could not open" in stderr.getvalue()
+        assert self.cli._state is None
+
+    def test_load_invalid_color(self, tmp_path):
+        """Invalid color in file shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "X\n"  # invalid color
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Invalid player color" in stderr.getvalue()
+
+    def test_load_invalid_board_row(self, tmp_path):
+        """Invalid board row shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p\n"  # only 7 pieces
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Invalid board row" in stderr.getvalue()
+
+    def test_load_invalid_piece_symbol(self, tmp_path):
+        """Unknown piece symbol shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P X\n"  # X is invalid
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Unknown piece symbol" in stderr.getvalue()
+
+    def test_load_invalid_move_in_history(self, tmp_path):
+        """Invalid move in history shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "B\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+            "W invalid_move\n"  # invalid move
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Invalid move in history" in stderr.getvalue()        
