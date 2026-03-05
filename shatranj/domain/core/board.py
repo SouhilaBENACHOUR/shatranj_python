@@ -1,4 +1,5 @@
-from shatranj.data.bitboards.bitboard import clear_bit_at, get_bit_at, set_bit_at
+from shatranj.data.bitboards.bitboard import clear_bit_at, get_bit_at, set_bit_at, get_lsb
+from shatranj.domain.core.move import Move
 from shatranj.utils.constants import (
     ALFIL,
     BLACK,
@@ -113,3 +114,43 @@ class Board:
         if len(pos) != 2 or pos[0] not in FILES or pos[1] not in RANKS:
             raise ValueError("pos must be like 'e4'")
         return FILES.index(pos[0]) + BOARD_SIZE * RANKS.index(pos[1])
+    
+    def find_shah(self, color: str) -> int | None:
+     """
+     Retourne la case du Shah de la couleur donnée
+     """
+     bitboard = self._boards[(SHAH, color)]
+     if bitboard == 0:
+        return None
+     return get_lsb(bitboard)
+    
+   
+
+    def find_shah(self, color: str) -> int | None:
+        """
+        Retourne la case du Shah de la couleur donnée.
+        """
+        bitboard = self._boards[(SHAH, color)]
+        if bitboard == 0:
+            return None
+        return get_lsb(bitboard)
+
+    def apply_move(self, move: Move) -> tuple[str, str] | None:
+        """
+        Joue le coup sur le board.
+        Retourne la pièce capturée ou None.
+        """
+        captured = self.get_piece_at(move.to_square)       # sauvegarde la pièce capturée
+        self.move_piece(move.from_square, move.to_square)  # déplace la pièce
+        return captured                                     # nécessaire pour undo_move
+
+    def undo_move(self, move: Move, captured: tuple[str, str] | None) -> None:
+        """
+        Annule le coup joué par apply_move.
+        Remet la pièce à l'origine et restore la pièce capturée.
+        """
+        self.move_piece(move.to_square, move.from_square)  # remet la pièce à l'origine
+        if captured is not None:
+            piece, color = captured
+            self.set_piece(piece, color, move.to_square)   # restore la pièce capturée
+    
