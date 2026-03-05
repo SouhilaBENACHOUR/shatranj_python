@@ -339,7 +339,7 @@ class CLI:
 
         # pat → victoire pour celui qui l'a provoqué (règle Shatranj)
         if self._engine.is_stalemate(self._state.board, current):
-            print(f"\nStalemate! {opponent} wins! (Shatranj rules)")
+            print(f"\nStalemate! {opponent} wins!")
             self._state = None
             return True
 
@@ -387,6 +387,7 @@ class CLI:
 
         # vérifie si la partie est terminée après le coup de l'IA
         self._check_game_over()
+
     def _do_new(self, args: list[str]) -> None:
         """
         Lance une nouvelle partie.
@@ -581,14 +582,15 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         """
         Annule le(s) dernier(s) coup(s).
 
-        Usage : undo [N]
-        N est optionnel, vaut 1 par défaut.
+        Si l'IA joue, on annule 2 coups par undo :
+          1. le coup de l'IA
+          2. le coup du joueur
+        Sinon on annule 1 coup (mode joueur vs joueur).
         """
         if self._state is None:
             self._error("No game in progress.")
             return
 
-        # Nombre de coups à annuler (1 par défaut)
         n = 1
         if args:
             try:
@@ -600,24 +602,33 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 self._error(f"Invalid number: '{args[0]}'")
                 return
 
+        # si l'IA joue, on annule 2 coups par undo (joueur + IA)
+        coups_a_annuler = n * 2 if self._ai_player is not None else n
+
         undone = 0
-        for _ in range(n):
+        for _ in range(coups_a_annuler):
             move = self._state.undo()
             if move is None:
-                print(f"Nothing more to undo (undid {undone} move(s)).")
+                actual = undone // 2 if self._ai_player else undone
+                print(f"Nothing more to undo (undid {actual} move(s)).")
                 break
             undone += 1
 
         if undone > 0:
-            print(f"Undid {undone} move(s).")
+            actual = undone // 2 if self._ai_player is not None else undone
+            print(f"Undid {actual} move(s).")
             print_board(self._state.board)
+            print(f"\nIt's now {self._state.current_color}'s turn.")
             self._saved = False
 
     def _do_redo(self, args: list[str]) -> None:
         """
         Rejoue le(s) dernier(s) coup(s) annulé(s).
 
-        Usage : redo [N]
+        Si l'IA joue, on rejoue 2 coups par redo :
+          1. le coup du joueur
+          2. le coup de l'IA
+        Sinon on rejoue 1 coup (mode joueur vs joueur).
         """
         if self._state is None:
             self._error("No game in progress.")
@@ -634,17 +645,23 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 self._error(f"Invalid number: '{args[0]}'")
                 return
 
+        # si l'IA joue, on rejoue 2 coups par redo (joueur + IA)
+        coups_a_rejouer = n * 2 if self._ai_player is not None else n
+
         redone = 0
-        for _ in range(n):
+        for _ in range(coups_a_rejouer):
             move = self._state.redo()
             if move is None:
-                print(f"Nothing more to redo (redid {redone} move(s)).")
+                actual = redone // 2 if self._ai_player else redone
+                print(f"Nothing more to redo (redid {actual} move(s)).")
                 break
             redone += 1
 
         if redone > 0:
-            print(f"Redid {redone} move(s).")
+            actual = redone // 2 if self._ai_player is not None else redone
+            print(f"Redid {actual} move(s).")
             print_board(self._state.board)
+            print(f"\nIt's now {self._state.current_color}'s turn.")
             self._saved = False
 
     def _do_hint(self, args: list[str]) -> None:
