@@ -19,7 +19,6 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 
-
 class TestGameState:
     """Tests pour la classe GameState."""
 
