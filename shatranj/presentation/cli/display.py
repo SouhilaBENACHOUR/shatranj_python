@@ -14,6 +14,7 @@ from shatranj.utils.constants import (
     WHITE, BLACK,
     SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN,
 )
+from shatranj.utils.constants import BOARD_SIZE
 
 # Dictionnaire : (type_pièce, couleur) -> lettre ASCII
 # Blanc = MAJUSCULE, Noir = minuscule
@@ -51,16 +52,16 @@ def board_to_string(board: Board) -> str:
     lines = []
 
     # On parcourt les rangs de 7 (rang 8) à 0 (rang 1), du haut vers le bas
-    for rank in range(7, -1, -1):
+    for rank in range(BOARD_SIZE - 1, -1, -1):
         # Le numéro affiché à gauche (1 à 8)
         row_label = str(rank + 1)
         row_squares = []
 
         # On parcourt les colonnes de 0 (a) à 7 (h)
-        for file in range(8):
+        for file in range(BOARD_SIZE):
             # Calcul de l'index de la case : rank * 8 + file
             # Exemple : rang=1, file=4 -> case 12 (e2)
-            square = rank * 8 + file
+            square = rank * BOARD_SIZE + file
 
             piece = board.get_piece_at(square)
             if piece is None:

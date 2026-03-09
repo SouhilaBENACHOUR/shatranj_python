@@ -1,7 +1,7 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
-
+from shatranj.utils.constants import BOARD_SIZE, NUM_SQUARES
 
 class MoveGenerator:
     def generate_pawn_moves(self, board: Board, color: str) -> list[Move]:
@@ -9,7 +9,7 @@ class MoveGenerator:
         direction = 1 if color == WHITE else -1
 
         # scan all squares for pawns of this color
-        for sq in range(64):
+        for sq in range(NUM_SQUARES):
             piece = board.get_piece_at(sq)
             if piece is None:
                 continue
@@ -18,16 +18,16 @@ class MoveGenerator:
                 continue
 
             # forward one
-            to_sq = sq + 8 * direction
-            if 0 <= to_sq < 64 and board.get_piece_at(to_sq) is None:
+            to_sq = sq + BOARD_SIZE * direction
+            if 0 <= to_sq < NUM_SQUARES and board.get_piece_at(to_sq) is None:
                 moves.append(Move(sq, to_sq, PAWN, color))
 
             # capture diagonals
-            from_file = sq % 8
+            from_file = sq % BOARD_SIZE
             for diag in (sq + 7 * direction, sq + 9 * direction):
-                if not (0 <= diag < 64):
+                if not (0 <= diag < NUM_SQUARES):
                     continue
-                if abs((diag % 8) - from_file) != 1:
+                if abs((diag % BOARD_SIZE) - from_file) != 1:
                     continue
                 target = board.get_piece_at(diag)
                 if target is not None and target[1] != color:
@@ -38,7 +38,7 @@ class MoveGenerator:
     def generate_rook_moves(self, board: Board, color: str) -> list[Move]:
         moves = []
 
-        for sq in range(64):
+        for sq in range(NUM_SQUARES):
             piece = board.get_piece_at(sq)
             if piece is None:
                 continue
@@ -47,11 +47,11 @@ class MoveGenerator:
                 continue
 
             # four directions
-            for step in (8, -8, 1, -1):
+            for step in (BOARD_SIZE, -BOARD_SIZE, 1, -1):
                 cur = sq + step
-                while 0 <= cur < 64:
+                while 0 <= cur < NUM_SQUARES:
                     # stop horizontally if file wraps
-                    if step in (1, -1) and (cur // 8) != (sq // 8):
+                    if step in (1, -1) and (cur // BOARD_SIZE) != (sq // BOARD_SIZE):
                         break
 
                     target = board.get_piece_at(cur)
@@ -73,7 +73,7 @@ class MoveGenerator:
         # +/-10 and +/- 6 = jump of 1 rank  ± 2 files
         KNIGHT_DELTAS = [+17, +15, +10, +6, -6, -10, -15, -17]
 
-        for sq in range(64):
+        for sq in range(NUM_SQUARES):
             # Get whatever is on square sq
             piece = board.get_piece_at(sq)
 
@@ -89,20 +89,20 @@ class MoveGenerator:
                 continue
 
             # divmod(sq, 8) = (rank, file)  e.g: sq=10 → rank=1, file=2
-            frm_rank, frm_file = divmod(sq, 8)
+            frm_rank, frm_file = divmod(sq, BOARD_SIZE)
 
             for delta in KNIGHT_DELTAS:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < 64):
+                if not (0 <= to_sq < NUM_SQUARES):
                     continue
 
                 # Check 2 : anti-wrapping
                 # A knight jump cannot "cross" the left/right edge of the board
                 # Example : knight on h4 (sq=31), delta=+10 → to_sq=41
                 #           rank=3→rank=5, file=7→file=1 : file diff = |7-1|=6 → INVALID
-                to_rank, to_file = divmod(to_sq, 8)
+                to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
                 # The file difference MUST be 1 or 2 (never 6 or 7)
                 # If |dest_file - src_file| > 2, it's a board wrap → reject
@@ -133,7 +133,7 @@ class MoveGenerator:
         # -9 = one rank down, one file left
         FERZ_DELTAS = [+9, +7, -7, -9]
 
-        for sq in range(64):
+        for sq in range(NUM_SQUARES):
             # Get whatever is on square sq
             piece = board.get_piece_at(sq)
 
@@ -149,13 +149,13 @@ class MoveGenerator:
                 continue
 
             # divmod(sq, 8) = (rank, file)  e.g: sq=28 → rank=3, file=4
-            frm_rank, frm_file = divmod(sq, 8)
+            frm_rank, frm_file = divmod(sq, BOARD_SIZE)
 
             for delta in FERZ_DELTAS:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < 64):
+                if not (0 <= to_sq < NUM_SQUARES):
                     continue
 
                 # Check 2 : anti-wrapping
@@ -163,7 +163,7 @@ class MoveGenerator:
                 # Example : ferz on h4 (sq=31), delta=+9 → to_sq=40
                 #           rank=3→rank=5, file=7→file=0 : file diff = |7-0|=7 → INVALID
                 # a valid diagonal step always changes file by exactly 1
-                to_rank, to_file = divmod(to_sq, 8)
+                to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
                 # The file difference MUST be exactly 1
                 # If it's 0 (vertical) or 7 (wrap) → reject
@@ -195,7 +195,7 @@ class MoveGenerator:
         # -9 = one rank down, one file left
         SHAH_DELTAS = [+8, -8, +1, -1, +9, +7, -7, -9]
 
-        for sq in range(64):
+        for sq in range(NUM_SQUARES):
             # Get whatever is on square sq
             piece = board.get_piece_at(sq)
 
@@ -211,20 +211,20 @@ class MoveGenerator:
                 continue
 
             # divmod(sq, 8) = (rank, file)  e.g: sq=28 → rank=3, file=4
-            frm_rank, frm_file = divmod(sq, 8)
+            frm_rank, frm_file = divmod(sq, BOARD_SIZE)
 
             for delta in SHAH_DELTAS:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < 64):
+                if not (0 <= to_sq < NUM_SQUARES):
                     continue
 
                 # Check 2 : anti-wrapping
                 # one step can never change the file by more than 1
                 # Example : shah on h4 (sq=31), delta=+1 → to_sq=32
                 #           rank=3→rank=4, file=7→file=0 : file diff = |7-0|=7 → INVALID
-                to_rank, to_file = divmod(to_sq, 8)
+                to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
                 # The file difference MUST be 0 (vertical) or 1 (diagonal/horizontal)
                 # If it's 7 → board wrap → reject
@@ -254,7 +254,7 @@ class MoveGenerator:
         # -18 = two ranks down, two files left
         ALFIL_DELTAS = [+18, +14, -14, -18]
 
-        for sq in range(64):
+        for sq in range(NUM_SQUARES):
             # Get whatever is on square sq
             piece = board.get_piece_at(sq)
 
@@ -270,13 +270,13 @@ class MoveGenerator:
                 continue
 
             # divmod(sq, 8) = (rank, file)  e.g: sq=28 → rank=3, file=4
-            frm_rank, frm_file = divmod(sq, 8)
+            frm_rank, frm_file = divmod(sq, BOARD_SIZE)
 
             for delta in ALFIL_DELTAS:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < 64):
+                if not (0 <= to_sq < NUM_SQUARES):
                     continue
 
                 # Check 2 : anti-wrapping
@@ -285,7 +285,7 @@ class MoveGenerator:
                 #           rank=3→rank=6, file=6→file=0 : file diff = |6-0|=6 → INVALID
                 # Example : alfil on h4 (sq=31), delta=+14 → to_sq=45
                 #           rank=3→rank=5, file=7→file=5 : file diff = |7-5|=2 → VALID
-                to_rank, to_file = divmod(to_sq, 8)
+                to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
                 # The file difference MUST be exactly 2
                 # If it's 6 (wrap from file 0 to file 6) → reject
