@@ -294,8 +294,12 @@ class CLI:
             )
             return
 
-        # vérification de la légalité du coup
-        if not self._engine.is_valid_move(self._state.board, move):
+        # vérification de la légalité complète:
+        # géométrie + sécurité du Shah (pas d'auto-échec)
+        legal_moves = self._engine.generate_legal_moves(
+            self._state.board, self._state.current_color
+        )
+        if move not in legal_moves:
             self._error(f"Illegal move: {text}")
             return
 

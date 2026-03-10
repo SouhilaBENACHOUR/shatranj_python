@@ -550,3 +550,34 @@ class TestDoLoad:
             self.cli._do_load([str(save_file)])
 
         assert "Invalid move in history" in stderr.getvalue()        
+
+
+class TestCliMoveLegality:
+    """Tests for full move legality checks in CLI."""
+
+    def test_reject_shah_move_into_attacked_square(self):
+        from io import StringIO
+
+        from shatranj.presentation.cli.cli import CLI
+        from shatranj.presentation.cli.game_state import GameState
+        from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK
+
+        cli = CLI()
+        cli._state = GameState()
+        board = cli._state.board
+        board.clear()
+
+        # White Shah on e1, black rook on e8 attacks the e-file.
+        board.place_piece(SHAH, WHITE, 4)    # e1
+        board.place_piece(SHAH, BLACK, 63)   # h8
+        board.place_piece(ROOK, BLACK, 60)   # e8
+        cli._state.current_color = WHITE
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            cli._do_play_move("e1-e2")
+
+        assert "Illegal move: e1-e2" in stderr.getvalue()
+        assert board.get_piece_at(4) == (SHAH, WHITE)
+        assert board.get_piece_at(12) is None
+        assert cli._state.current_color == WHITE
