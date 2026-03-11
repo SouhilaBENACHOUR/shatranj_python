@@ -37,6 +37,9 @@ from .game_state import GameState
 # ---------------------------------------------------------------------
 
 PROMPT = ">> "  # Le prompt affiché à l'utilisateur (F14)
+AUTO_PLAY_MAX_PLIES = 400  # Garde-fou pour éviter les boucles d'auto-jeu infinies
+THREEFOLD_REPETITION_COUNT = 3
+FIFTY_MOVE_RULE_PLIES = 100  # 50 coups complets = 100 demi-coups
 
 # Liste de toutes les commandes reconnues (pour la complétion Tab, F18)
 COMMANDS = [
@@ -45,6 +48,15 @@ COMMANDS = [
     "show board", "show history", "show time", "show configuration",
     "set",
 ]
+
+PIECE_LABELS = {
+    PAWN: "pawn",
+    ROOK: "rook",
+    KNIGHT: "knight",
+    ALFIL: "alfil",
+    FERZ: "ferz",
+    SHAH: "shah",
+}
 
 
 # ---------------------------------------------------------------------
@@ -69,7 +81,7 @@ class CLI:
         self._running = False
         self._saved = True          # Rien à sauvegarder au démarrage
         self._verbose = verbose
-        self._ai_player: AIPlayer | None = None
+        self._ai_players: dict[str, AIPlayer] = {}
         self._debug = debug
 
         # Configuration de readline pour la complétion Tab (F18)
@@ -307,6 +319,8 @@ class CLI:
         self._state.apply_move(move)
         self._saved = False
 
+        print(f"You played: {self._format_move_with_piece(move)}")
+
         # affiche le plateau mis à jour
         print_board(self._state.board)
         print(f"\nIt's now {self._state.current_color}'s turn.")
@@ -315,12 +329,8 @@ class CLI:
         if self._check_game_over():
             return
 
-        # si c'est le tour de l'IA → elle joue automatiquement
-        if (
-            self._ai_player is not None
-            and self._state.current_color == self._ai_player.color
-        ):
-            self._do_ai_move()
+        # Si le prochain tour est contrôlé par une IA, on l'enchaîne automatiquement.
+        self._auto_play_ai_turns()
 
     def _check_game_over(self) -> bool:
         """
@@ -353,7 +363,70 @@ class CLI:
             self._state = None
             return True
 
+        # nulle par répétition de position (comme aux échecs modernes)
+        if self._is_draw_by_threefold_repetition():
+            print("\nDraw by threefold repetition.")
+            self._state = None
+            return True
+
+        # nulle des 50 coups : aucun pion bougé et aucune capture
+        if self._is_draw_by_fifty_move_rule():
+            print("\nDraw by fifty-move rule.")
+            self._state = None
+            return True
+
         return False  # partie continue
+
+    def _is_draw_by_threefold_repetition(self) -> bool:
+        """
+        Détecte la répétition 3 fois de la position courante
+        (même placement + même joueur au trait).
+        """
+        if self._state is None:
+            return False
+
+        target_color = self._state.current_color
+        target_signature = tuple(sorted(self._state.board._boards.items()))
+        expected_snapshot_size = len(self._state.board._boards)
+
+        repetitions = 1  # position courante
+        color_at_state = target_color
+
+        for _, snapshot_before_move in reversed(self._state._history):
+            # état précédent => trait inversé
+            color_at_state = BLACK if color_at_state == WHITE else WHITE
+            if color_at_state != target_color:
+                continue
+
+            # Certains états chargés depuis fichier utilisent des snapshots vides.
+            if len(snapshot_before_move) != expected_snapshot_size:
+                continue
+
+            signature = tuple(sorted(snapshot_before_move.items()))
+            if signature == target_signature:
+                repetitions += 1
+                if repetitions >= THREEFOLD_REPETITION_COUNT:
+                    return True
+
+        return False
+
+    def _is_draw_by_fifty_move_rule(self) -> bool:
+        """
+        Détecte la règle des 50 coups:
+        100 demi-coups consécutifs sans coup de pion ni capture.
+        """
+        if self._state is None:
+            return False
+
+        halfmoves_without_progress = 0
+        for move, _ in reversed(self._state._history):
+            if move.piece_type == PAWN or move.captured_piece is not None:
+                break
+            halfmoves_without_progress += 1
+            if halfmoves_without_progress >= FIFTY_MOVE_RULE_PLIES:
+                return True
+
+        return False
 
     def _do_ai_move(self) -> None:
         """
@@ -364,22 +437,23 @@ class CLI:
         3. Sinon on applique le coup et on affiche le plateau
         4. On vérifie si la partie est terminée après le coup de l'IA
         """
-        if self._ai_player is None or self._state is None:
+        if self._state is None:
             return
 
-        print("AI is thinking...")
-        move = self._ai_player.choose_move(self._state.board)
+        ai_player = self._ai_players.get(self._state.current_color)
+        if ai_player is None:
+            return
+
+        print(f"AI ({self._state.current_color}) is thinking...")
+        move = ai_player.choose_move(self._state.board)
 
         # aucun coup disponible → fin de partie
         if move is None:
             self._check_game_over()
             return
 
-        # affiche le coup joué par l'IA en notation algébrique
-        from_alg = Board.square_to_algebraic(move.from_square)
-        to_alg   = Board.square_to_algebraic(move.to_square)
-        sep      = "x" if move.captured_piece else "-"
-        print(f"AI plays: {from_alg}{sep}{to_alg}")
+        # affiche le coup joué par l'IA en notation lisible
+        print(f"AI ({ai_player.color}) plays: {self._format_move_with_piece(move)}")
 
         # applique le coup sur le board
         self._state.apply_move(move)
@@ -391,6 +465,23 @@ class CLI:
 
         # vérifie si la partie est terminée après le coup de l'IA
         self._check_game_over()
+
+    def _auto_play_ai_turns(self, max_plies: int = AUTO_PLAY_MAX_PLIES) -> None:
+        """
+        Enchaîne les tours IA tant que le joueur courant est contrôlé par une IA.
+
+        Utilisé pour :
+          - humain vs IA : jouer un seul coup IA après le coup humain
+          - IA vs IA     : dérouler automatiquement la partie
+        """
+        plies = 0
+        while self._state is not None and self._state.current_color in self._ai_players:
+            if plies >= max_plies:
+                print(f"\nDraw by move limit ({max_plies} plies).")
+                self._state = None
+                return
+            self._do_ai_move()
+            plies += 1
 
     def _do_new(self, args: list[str]) -> None:
         """
@@ -406,30 +497,34 @@ class CLI:
 
         self._state = GameState()
         self._saved = True
-        self._ai_player = None  # reset l'IA
+        self._ai_players = {}  # reset les IA
 
-
-        # configure l'IA si demandé : "new ai black" ou "new ai white"
-        if len(args) >= 2 and args[0].lower() == "ai":
-           ai_color = args[1].upper()
-           if ai_color == "BLACK":
-              self._ai_player = AIPlayer(color=BLACK, depth=3)
-              print("New game started! You play WHITE, AI plays BLACK.")
-           elif ai_color == "WHITE":
-               self._ai_player = AIPlayer(color=WHITE, depth=3)
-               print("New game started! AI plays WHITE, you play BLACK.")
-           else:
+        # configure l'IA si demandé :
+        # - "new ai black" / "new ai white"
+        # - "new ai-vs-ai"
+        if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
+            self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=2)
+            self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=2)
+            print("New game started! AI plays WHITE and BLACK.")
+        elif len(args) >= 2 and args[0].lower() == "ai":
+            ai_color = args[1].upper()
+            if ai_color == "BLACK":
+                self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=3)
+                print("New game started! You play WHITE, AI plays BLACK.")
+            elif ai_color == "WHITE":
+                self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=3)
+                print("New game started! AI plays WHITE, you play BLACK.")
+            else:
                 self._error(f"Unknown color: '{args[1]}'. Use 'black' or 'white'.")
                 return
-        else:        
+        else:
             print("New game started! White plays first.")
 
         print()
         print_board(self._state.board)
         print()
-        # si l'IA joue blanc, elle joue en premier
-        if self._ai_player and self._ai_player.color == WHITE:
-            self._do_ai_move()
+        # si le joueur courant est contrôlé par une IA, elle joue immédiatement
+        self._auto_play_ai_turns()
 
     def _do_quit(self, args: list[str]) -> None:
         """
@@ -476,7 +571,7 @@ class CLI:
         """Affiche la liste de toutes les commandes."""
         print("""
 Available commands:
-  new [ARGS]          Start a new game
+  new [ARGS]          Start a new game (e.g. ai white, ai black, ai-vs-ai)
   help [CMD]          Show this help or help for CMD
   quit                Quit the program
   load FILE           Load a game from a file
@@ -497,7 +592,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _print_command_help(self, cmd: str) -> None:
         """Affiche l'aide détaillée d'une commande."""
         help_texts = {
-            "new":    "new [ARGS]  -  Start a new game. Args: 'ai white', 'ai black'...",
+            "new":    "new [ARGS]  -  Start a new game. Args: 'ai white', 'ai black', 'ai-vs-ai'.",
             "quit":   "quit  -  Quit the program. You'll be asked to save if needed.",
             "help":   "help [CMD]  -  Show help. With CMD: show help for that command.",
             "load":   "load FILE  -  Load a saved game from FILE (.shatranj format).",
@@ -606,20 +701,21 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 self._error(f"Invalid number: '{args[0]}'")
                 return
 
-        # si l'IA joue, on annule 2 coups par undo (joueur + IA)
-        coups_a_annuler = n * 2 if self._ai_player is not None else n
+        # en mode humain vs IA, on annule par paires (joueur + IA)
+        human_vs_ai = len(self._ai_players) == 1
+        coups_a_annuler = n * 2 if human_vs_ai else n
 
         undone = 0
         for _ in range(coups_a_annuler):
             move = self._state.undo()
             if move is None:
-                actual = undone // 2 if self._ai_player else undone
+                actual = undone // 2 if human_vs_ai else undone
                 print(f"Nothing more to undo (undid {actual} move(s)).")
                 break
             undone += 1
 
         if undone > 0:
-            actual = undone // 2 if self._ai_player is not None else undone
+            actual = undone // 2 if human_vs_ai else undone
             print(f"Undid {actual} move(s).")
             print_board(self._state.board)
             print(f"\nIt's now {self._state.current_color}'s turn.")
@@ -649,20 +745,21 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 self._error(f"Invalid number: '{args[0]}'")
                 return
 
-        # si l'IA joue, on rejoue 2 coups par redo (joueur + IA)
-        coups_a_rejouer = n * 2 if self._ai_player is not None else n
+        # en mode humain vs IA, on rejoue par paires (joueur + IA)
+        human_vs_ai = len(self._ai_players) == 1
+        coups_a_rejouer = n * 2 if human_vs_ai else n
 
         redone = 0
         for _ in range(coups_a_rejouer):
             move = self._state.redo()
             if move is None:
-                actual = redone // 2 if self._ai_player else redone
+                actual = redone // 2 if human_vs_ai else redone
                 print(f"Nothing more to redo (redid {actual} move(s)).")
                 break
             redone += 1
 
         if redone > 0:
-            actual = redone // 2 if self._ai_player is not None else redone
+            actual = redone // 2 if human_vs_ai else redone
             print(f"Redid {actual} move(s).")
             print_board(self._state.board)
             print(f"\nIt's now {self._state.current_color}'s turn.")
@@ -690,10 +787,15 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
         # On prend le premier coup légal (simple, pas d'IA pour l'instant)
         suggested = legal_moves[0]
-        from_alg = Board.square_to_algebraic(suggested.from_square)
-        to_alg   = Board.square_to_algebraic(suggested.to_square)
-        sep = "x" if suggested.captured_piece else "-"
-        print(f"Hint: {from_alg}{sep}{to_alg}")
+        print(f"Hint: {self._format_move_with_piece(suggested)}")
+
+    def _format_move_with_piece(self, move: Move) -> str:
+        """Retourne un coup lisible: 'pawn e2-e3' ou 'rook a1xa8'."""
+        piece_name = PIECE_LABELS.get(move.piece_type, move.piece_type.lower())
+        from_alg = Board.square_to_algebraic(move.from_square)
+        to_alg = Board.square_to_algebraic(move.to_square)
+        sep = "x" if move.captured_piece else "-"
+        return f"{piece_name} {from_alg}{sep}{to_alg}"
 
     def _do_load(self, args: list[str]) -> None:
         """
@@ -830,6 +932,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
             self._state = new_state
             self._saved = True
+            self._ai_players = {}
 
             print(f"Game loaded from '{path}'.")
             print_board(self._state.board)

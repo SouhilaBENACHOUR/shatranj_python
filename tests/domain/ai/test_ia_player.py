@@ -35,6 +35,23 @@ def test_evaluator_black_advantage():
     assert evaluator.evaluate(board, BLACK) > 0
 
 
+def test_evaluator_rewards_mobility():
+    """À matériel égal, une position plus active doit être mieux évaluée."""
+    evaluator = Evaluator()
+
+    board_center = Board(setup=False)
+    board_center.place_piece(SHAH, WHITE, 0)    # a1
+    board_center.place_piece(ROOK, WHITE, 27)   # d4 (très mobile)
+    board_center.place_piece(SHAH, BLACK, 63)   # h8
+
+    board_edge = Board(setup=False)
+    board_edge.place_piece(SHAH, WHITE, 0)      # a1
+    board_edge.place_piece(ROOK, WHITE, 8)      # a2 (moins mobile)
+    board_edge.place_piece(SHAH, BLACK, 63)     # h8
+
+    assert evaluator.evaluate(board_center, WHITE) > evaluator.evaluate(board_edge, WHITE)
+
+
 # ================================================================
 # AIPlayer
 # ================================================================

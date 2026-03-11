@@ -127,6 +127,16 @@ class TestDisplay:
         assert "P" in result  # Pion blanc
         assert "p" in result  # Pion noir
 
+    def test_board_to_string_with_color_contains_ansi_codes(self):
+        """Le mode coloré injecte des séquences ANSI autour des pièces."""
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.display import board_to_string
+
+        board = Board(setup=True)
+        result = board_to_string(board, use_color=True)
+
+        assert "\033[" in result
+
 
 
 class TestMoveParser:
@@ -581,3 +591,98 @@ class TestCliMoveLegality:
         assert board.get_piece_at(4) == (SHAH, WHITE)
         assert board.get_piece_at(12) is None
         assert cli._state.current_color == WHITE
+
+
+class TestCliAIVsAI:
+    """Tests for AI vs AI mode."""
+
+    def test_new_ai_vs_ai_configures_two_ai_players(self):
+        from shatranj.presentation.cli.cli import CLI
+        from shatranj.utils.constants import WHITE, BLACK
+
+        cli = CLI()
+        with patch("shatranj.presentation.cli.cli.print_board"), patch.object(CLI, "_auto_play_ai_turns") as auto_play:
+            cli._do_new(["ai-vs-ai"])
+
+        assert set(cli._ai_players.keys()) == {WHITE, BLACK}
+        auto_play.assert_called_once()
+
+    def test_auto_play_ai_turns_applies_two_plies(self):
+        from shatranj.domain.core.move import Move
+        from shatranj.presentation.cli.cli import CLI
+        from shatranj.presentation.cli.game_state import GameState
+        from shatranj.utils.constants import WHITE, BLACK, PAWN
+
+        class ScriptedAI:
+            def __init__(self, color: str, scripted_move: Move) -> None:
+                self.color = color
+                self._scripted_move = scripted_move
+
+            def choose_move(self, board):
+                return self._scripted_move
+
+        cli = CLI()
+        cli._state = GameState()
+        state = cli._state
+        cli._ai_players = {
+            WHITE: ScriptedAI(WHITE, Move(12, 20, PAWN, WHITE)),  # e2-e3
+            BLACK: ScriptedAI(BLACK, Move(52, 44, PAWN, BLACK)),  # e7-e6
+        }
+
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            cli._auto_play_ai_turns(max_plies=2)
+
+        history = state.get_history()
+        assert len(history) == 2
+        assert history[0].from_square == 12 and history[0].to_square == 20
+        assert history[1].from_square == 52 and history[1].to_square == 44
+        assert cli._state is None
+
+
+class TestCliDrawRules:
+    """Tests for draw rules used to stop infinite AI loops."""
+
+    def test_threefold_repetition_is_detected_and_ends_game(self):
+        from shatranj.domain.core.move import Move
+        from shatranj.presentation.cli.cli import CLI
+        from shatranj.presentation.cli.game_state import GameState
+        from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK
+
+        cli = CLI()
+        cli._state = GameState()
+        board = cli._state.board
+        board.clear()
+        board.place_piece(SHAH, WHITE, 4)    # e1
+        board.place_piece(ROOK, WHITE, 0)    # a1
+        board.place_piece(SHAH, BLACK, 60)   # e8
+        board.place_piece(ROOK, BLACK, 63)   # h8
+        cli._state.current_color = WHITE
+
+        cycle = [
+            Move(4, 12, SHAH, WHITE),    # e1-e2
+            Move(60, 52, SHAH, BLACK),   # e8-e7
+            Move(12, 4, SHAH, WHITE),    # e2-e1
+            Move(52, 60, SHAH, BLACK),   # e7-e8
+        ]
+        for move in cycle + cycle:
+            cli._state.apply_move(move)
+
+        assert cli._is_draw_by_threefold_repetition()
+        assert cli._check_game_over()
+        assert cli._state is None
+
+    def test_fifty_move_rule_detected(self):
+        from shatranj.domain.core.move import Move
+        from shatranj.presentation.cli.cli import CLI
+        from shatranj.presentation.cli.game_state import GameState
+        from shatranj.utils.constants import WHITE, BLACK, SHAH
+
+        cli = CLI()
+        cli._state = GameState()
+        cli._state._history = []
+
+        for i in range(100):
+            color = WHITE if i % 2 == 0 else BLACK
+            cli._state._history.append((Move(4, 12, SHAH, color), {}))
+
+        assert cli._is_draw_by_fifty_move_rule()

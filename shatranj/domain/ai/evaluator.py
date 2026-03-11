@@ -1,4 +1,5 @@
 from shatranj.domain.core.board import Board
+from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH
 
 # Valeur de chaque pièce en Shatranj
@@ -11,6 +12,7 @@ PIECE_VALUES = {
     FERZ:   2,   # vizir — limité à 1 case diagonale
     SHAH:   0,   # le roi ne compte pas dans le score
 }
+MOBILITY_WEIGHT = 0.15  # bonus léger pour encourager l'activité des pièces
 
 class Evaluator:
     """
@@ -20,10 +22,15 @@ class Evaluator:
     Score négatif → avantage pour BLACK
     Score 0       → position équilibrée
     
-    Pour l'instant on utilise uniquement le matériel (nombre de pièces).
+    Heuristique utilisée :
+      - matériel
+      - mobilité (nombre de coups légaux)
     """
 
-    def evaluate(self, board: Board, color: str) -> int:
+    def __init__(self) -> None:
+        self._engine = RulesEngine()
+
+    def evaluate(self, board: Board, color: str) -> float:
         """
         Calcule le score de la position pour 'color'.
         On additionne les valeurs des pièces blanches
@@ -38,6 +45,12 @@ class Evaluator:
             black_count = bin(board._boards[(piece, BLACK)]).count("1")
             score += value * white_count
             score -= value * black_count
+
+        # Bonus de mobilité : incite l'IA à jouer des coups actifs
+        # Pseudo-légal pour rester léger en temps (l'évaluation est appelée très souvent).
+        white_mobility = len(self._engine.generate_pseudo_legal_moves(board, WHITE))
+        black_mobility = len(self._engine.generate_pseudo_legal_moves(board, BLACK))
+        score += MOBILITY_WEIGHT * (white_mobility - black_mobility)
 
         # si color est BLACK on inverse le score
         # car BLACK veut maximiser son propre avantage

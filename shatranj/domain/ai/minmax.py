@@ -33,15 +33,16 @@ class Minimax:
         Retourne le meilleur coup pour 'color' dans la position actuelle.
         Retourne None si aucun coup n'est disponible (mat ou pat).
         """
-        best = None
         # on commence à -infini car on cherche le maximum
         best_score = float("-inf")
+        best_moves: list[Move] = []
 
         legal_moves = self._engine.generate_legal_moves(board, color)
 
         if not legal_moves:
             return None  # pas de coup disponible
 
+        eps = 1e-9
         for move in legal_moves:
             # joue le coup
             captured = board.apply_move(move)
@@ -60,11 +61,52 @@ class Minimax:
             board.undo_move(move, captured)
 
             # garde le meilleur coup
-            if score > best_score:
+            if score > best_score + eps:
                 best_score = score
-                best = move
+                best_moves = [move]
+            elif abs(score - best_score) <= eps:
+                best_moves.append(move)
 
-        return best
+        if not best_moves:
+            return None
+        return self._select_most_active_move(board, color, best_moves)
+
+    def _select_most_active_move(
+        self,
+        board: Board,
+        color: str,
+        moves: list[Move],
+    ) -> Move:
+        """
+        Départage les coups ex-aequo pour éviter les allers-retours passifs.
+        Priorités:
+          1) capture
+          2) mobilité du camp IA après le coup
+          3) amplitude du déplacement
+        """
+        best_move = moves[0]
+        best_activity = self._activity_score(board, color, best_move)
+
+        for move in moves[1:]:
+            activity = self._activity_score(board, color, move)
+            if activity > best_activity:
+                best_activity = activity
+                best_move = move
+
+        return best_move
+
+    def _activity_score(self, board: Board, color: str, move: Move) -> tuple[int, int, int, int, int]:
+        captured = board.apply_move(move)
+        mobility_after = len(self._engine.generate_legal_moves(board, color))
+        board.undo_move(move, captured)
+
+        from_rank, from_file = divmod(move.from_square, 8)
+        to_rank, to_file = divmod(move.to_square, 8)
+        distance = abs(to_rank - from_rank) + abs(to_file - from_file)
+        is_capture = 1 if move.captured_piece is not None else 0
+
+        # Les deux derniers critères rendent la sélection déterministe.
+        return (is_capture, mobility_after, distance, move.to_square, -move.from_square)
 
     def _minimax(
         self,
@@ -73,7 +115,7 @@ class Minimax:
         is_maximizing: bool,
         ai_color: str,
         current_color: str,
-    ) -> int:
+    ) -> float:
         """
         Fonction récursive du Minimax.
         
@@ -92,10 +134,10 @@ class Minimax:
         if not legal_moves:
             if self._engine._is_in_check(board, current_color):
                 # mat → très bon pour l'IA si c'est l'adversaire qui est mat
-                return 9999 if not is_maximizing else -9999
+                return 9999.0 if not is_maximizing else -9999.0
             else:
                 # pat → score nul
-                return 0
+                return 0.0
 
         opponent = BLACK if current_color == WHITE else WHITE
 

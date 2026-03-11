@@ -9,6 +9,9 @@ Pourquoi un fichier séparé ?
   - Facile à tester : on peut afficher n'importe quel état du Board.
 """
 
+import os
+import sys
+
 from shatranj.domain.core.board import Board
 from shatranj.utils.constants import (
     WHITE, BLACK,
@@ -33,8 +36,32 @@ PIECE_SYMBOLS = {
     (PAWN,   BLACK): "p",
 }
 
+# Couleurs ANSI:
+# - pièces blanches: blanc vif
+# - pièces noires: cyan vif (plus lisible que noir sur fond sombre)
+ANSI_RESET = "\033[0m"
+ANSI_WHITE_PIECE = "\033[97m"
+ANSI_BLACK_PIECE = "\033[96m"
 
-def board_to_string(board: Board) -> str:
+
+def _supports_ansi_color() -> bool:
+    """Retourne True si la sortie courante supporte probablement les couleurs ANSI."""
+    if os.getenv("NO_COLOR"):
+        return False
+    if os.getenv("TERM", "").lower() == "dumb":
+        return False
+    return sys.stdout.isatty()
+
+
+def _colorize_piece(symbol: str, color: str, use_color: bool) -> str:
+    """Applique une couleur ANSI au symbole de pièce si demandé."""
+    if not use_color:
+        return symbol
+    code = ANSI_WHITE_PIECE if color == WHITE else ANSI_BLACK_PIECE
+    return f"{code}{symbol}{ANSI_RESET}"
+
+
+def board_to_string(board: Board, use_color: bool = False) -> str:
     """
     Retourne une représentation ASCII du plateau.
 
@@ -67,7 +94,8 @@ def board_to_string(board: Board) -> str:
             if piece is None:
                 row_squares.append(".")  # case vide
             else:
-                row_squares.append(PIECE_SYMBOLS[piece])
+                symbol = PIECE_SYMBOLS[piece]
+                row_squares.append(_colorize_piece(symbol, piece[1], use_color))
 
         # Format : "8  r n a f k a n r"
         lines.append(f"  {row_label}  " + " ".join(row_squares))
@@ -79,4 +107,4 @@ def board_to_string(board: Board) -> str:
 
 def print_board(board: Board) -> None:
     """Affiche le plateau directement dans le terminal."""
-    print(board_to_string(board))
+    print(board_to_string(board, use_color=_supports_ansi_color()))
