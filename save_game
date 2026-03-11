@@ -1,0 +1,35 @@
+[settings]
+verbose=false
+debug=false
+
+[game]
+B
+r n a f _ _ n r
+p _ _ _ k _ _ p
+_ p _ _ _ _ p _
+_ P _ N P _ _ _
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _
+P _ _ _ K _ _ P
+R N A F _ _ _ _
+
+[history]
+W b2-b3 B c7-c6
+W d2-d3 B d7-d6
+W d3-d4 B c6-c5
+W d4xc5 B d6xc5
+W b3-b4 B c5xb4
+W c2-c3 B e7-e6
+W c3xb4 B e6-e5
+W e2-e3 B e5-e4
+W f2-f3 B e4xf3
+W e3-e4 B f3xg2
+W g1-e2 B g2xf1
+W e2-c3 B e8-d7
+W h1xf1 B f7-f6
+W f1xf6 B d7-e8
+W f6xf8 B e8xf8
+W e1-e2 B f8-e7
+W b4-b5 B b7-b6
+W e4-e5 B g7-g6
+W c3-d5

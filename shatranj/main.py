@@ -147,9 +147,9 @@ def main() -> int:
     # --- Lancement de l'interface ---
 
     if args.gui:
-        # Interface graphique (F7) - pas encore implémentée
-        print("Error: GUI is not yet implemented.", file=sys.stderr)
-        return 1
+        # Interface graphique (F7) 
+        from shatranj.presentation.gui.app import run_gui
+        return run_gui()
 
     # Par défaut : interface CLI
     # On importe ici pour éviter les imports circulaires
