@@ -2,7 +2,7 @@
 board_widget.py - Chess board drawing widget
 
 Role: draws the board and pieces using Cairo + SVG images.
-      Handles click-to-move and highlights valid squares.
+      Handles click-to-move, drag'n'drop, and highlights valid squares.
 """
 
 import os
@@ -31,10 +31,15 @@ class BoardWidget(Gtk.DrawingArea):
     """
     Widget that draws the Shatranj board and handles user interaction.
 
-    Interaction flow:
+    Interaction flow (click-to-move):
       1. User clicks a square with a piece → piece selected, valid moves highlighted
       2. User clicks a highlighted square  → move played
       3. User clicks elsewhere             → selection cleared
+
+    Interaction flow (drag'n'drop):
+      1. User drags a piece → piece follows the mouse, valid moves highlighted
+      2. User drops on a valid square → move played
+      3. User drops elsewhere         → drag cancelled
     """
 
     def __init__(self, engine: RulesEngine) -> None:
@@ -44,9 +49,15 @@ class BoardWidget(Gtk.DrawingArea):
         self._board: Board | None = None
         self._current_color: str = WHITE
 
-        # Interaction state
+        # Click-to-move state
         self._selected_square: int | None = None
         self._valid_moves: list[Move] = []
+
+        # Drag'n'drop state
+        self._drag_square: int | None = None
+        self._drag_x: float = 0.0
+        self._drag_y: float = 0.0
+        self._dragging: bool = False
 
         # Callback called when a move is played: fn(move: Move)
         self.on_move_played = None
@@ -57,10 +68,17 @@ class BoardWidget(Gtk.DrawingArea):
         # Drawing
         self.set_draw_func(self._draw)
 
-        # Click handler
+        # Click handler (click-to-move)
         click = Gtk.GestureClick.new()
         click.connect("pressed", self._on_click)
         self.add_controller(click)
+
+        # Drag handler (drag'n'drop)
+        drag = Gtk.GestureDrag.new()
+        drag.connect("drag-begin",  self._on_drag_begin)
+        drag.connect("drag-update", self._on_drag_update)
+        drag.connect("drag-end",    self._on_drag_end)
+        self.add_controller(drag)
 
     # ------------------------------------------------------------------
     # Public API
@@ -72,6 +90,8 @@ class BoardWidget(Gtk.DrawingArea):
         self._current_color = current_color
         self._selected_square = None
         self._valid_moves = []
+        self._dragging = False
+        self._drag_square = None
         self.queue_draw()
 
     def clear_selection(self) -> None:
@@ -141,18 +161,20 @@ class BoardWidget(Gtk.DrawingArea):
 
     def _draw_highlights(self, cr: cairo.Context, sq: float) -> None:
         """Highlight selected square and valid destinations."""
-        if self._selected_square is None:
+        selected = self._selected_square
+        if self._dragging and self._drag_square is not None:
+            selected = self._drag_square
+
+        if selected is None:
             return
 
-        # Selected square
-        rank, file = divmod(self._selected_square, BOARD_SIZE)
+        rank, file = divmod(selected, BOARD_SIZE)
         x = file * sq
         y = (BOARD_SIZE - 1 - rank) * sq
         cr.set_source_rgba(*HIGHLIGHT)
         cr.rectangle(x, y, sq, sq)
         cr.fill()
 
-        # Valid destinations
         for move in self._valid_moves:
             rank, file = divmod(move.to_square, BOARD_SIZE)
             x = file * sq
@@ -166,6 +188,11 @@ class BoardWidget(Gtk.DrawingArea):
         for rank in range(BOARD_SIZE):
             for file in range(BOARD_SIZE):
                 square = rank * BOARD_SIZE + file
+
+                # Skip the piece being dragged (drawn separately at end)
+                if self._dragging and square == self._drag_square:
+                    continue
+
                 piece = self._board.get_piece_at(square)
                 if piece is None:
                     continue
@@ -177,7 +204,6 @@ class BoardWidget(Gtk.DrawingArea):
                 x = file * sq
                 y = (BOARD_SIZE - 1 - rank) * sq
 
-                # Get SVG natural size
                 has_size, svg_w, svg_h = handle.get_intrinsic_size_in_pixels()
                 if not has_size or svg_w == 0 or svg_h == 0:
                     svg_w, svg_h = 45.0, 45.0
@@ -190,22 +216,36 @@ class BoardWidget(Gtk.DrawingArea):
                 handle.render_cairo(cr)
                 cr.restore()
 
+        # Draw the dragged piece on top at mouse position
+        if self._dragging and self._drag_square is not None:
+            piece = self._board.get_piece_at(self._drag_square)
+            if piece is not None:
+                handle = self._pieces.get(piece)
+                if handle is not None:
+                    has_size, svg_w, svg_h = handle.get_intrinsic_size_in_pixels()
+                    if not has_size or svg_w == 0 or svg_h == 0:
+                        svg_w, svg_h = 45.0, 45.0
+                    scale = sq / max(svg_w, svg_h)
+                    cr.save()
+                    cr.translate(self._drag_x - sq / 2, self._drag_y - sq / 2)
+                    cr.scale(scale, scale)
+                    handle.render_cairo(cr)
+                    cr.restore()
+
     def _draw_coordinates(self, cr: cairo.Context, sq: float) -> None:
         """Draw rank numbers and file letters around the board."""
         cr.set_font_size(sq * 0.18)
 
         for i in range(BOARD_SIZE):
-            # Rank numbers (1-8) on the left
             cr.set_source_rgb(0.3, 0.3, 0.3)
             cr.move_to(2, (BOARD_SIZE - 1 - i) * sq + sq * 0.25)
             cr.show_text(str(i + 1))
 
-            # File letters (a-h) at the bottom
             cr.move_to(i * sq + sq * 0.8, BOARD_SIZE * sq - 2)
             cr.show_text(chr(ord("a") + i))
 
     # ------------------------------------------------------------------
-    # Click handling
+    # Click-to-move handling
     # ------------------------------------------------------------------
 
     def _on_click(self, gesture, n_press, x, y) -> None:
@@ -213,10 +253,7 @@ class BoardWidget(Gtk.DrawingArea):
         if self._board is None:
             return
 
-        width = self.get_width()
-        height = self.get_height()
-        sq_size = min(width, height) / BOARD_SIZE
-
+        sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE
         file = int(x / sq_size)
         rank = BOARD_SIZE - 1 - int(y / sq_size)
 
@@ -250,5 +287,95 @@ class BoardWidget(Gtk.DrawingArea):
 
         # Case 3: anything else → clear selection
         self._selected_square = None
+        self._valid_moves = []
+        self.queue_draw()
+
+    # ------------------------------------------------------------------
+    # Drag'n'drop handling
+    # ------------------------------------------------------------------
+
+    def _on_drag_begin(self, gesture, x, y) -> None:
+        """User starts dragging — select the piece."""
+        if self._board is None:
+            return
+
+        sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE
+        file = int(x / sq_size)
+        rank = BOARD_SIZE - 1 - int(y / sq_size)
+
+        if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
+            return
+
+        square = rank * BOARD_SIZE + file
+        piece = self._board.get_piece_at(square)
+
+        if piece is None or piece[1] != self._current_color:
+            return
+
+        self._drag_square = square
+        self._drag_x = x
+        self._drag_y = y
+        self._dragging = True
+        self._selected_square = None
+
+        self._valid_moves = [
+            m for m in self._engine.generate_legal_moves(
+                self._board, self._current_color
+            )
+            if m.from_square == square
+        ]
+        self.queue_draw()
+
+    def _on_drag_update(self, gesture, dx, dy) -> None:
+        """Mouse moved while dragging — update piece position."""
+        if not self._dragging:
+            return
+
+        ok, start_x, start_y = gesture.get_start_point()
+        if not ok:
+            return
+
+        self._drag_x = start_x + dx
+        self._drag_y = start_y + dy
+        self.queue_draw()
+
+    def _on_drag_end(self, gesture, dx, dy) -> None:
+        """User releases — play the move if dropped on a valid square."""
+        if not self._dragging:
+            return
+
+        sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE
+        ok, start_x, start_y = gesture.get_start_point()
+        if not ok:
+            self._dragging = False
+            self._drag_square = None
+            self._valid_moves = []
+            self.queue_draw()
+            return
+
+        end_x = start_x + dx
+        end_y = start_y + dy
+
+        file = int(end_x / sq_size)
+        rank = BOARD_SIZE - 1 - int(end_y / sq_size)
+
+        self._dragging = False
+        self._drag_square = None
+
+        if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
+            self._valid_moves = []
+            self.queue_draw()
+            return
+
+        target_square = rank * BOARD_SIZE + file
+
+        for move in self._valid_moves:
+            if move.to_square == target_square:
+                self._valid_moves = []
+                self.queue_draw()
+                if self.on_move_played:
+                    self.on_move_played(move)
+                return
+
         self._valid_moves = []
         self.queue_draw()
