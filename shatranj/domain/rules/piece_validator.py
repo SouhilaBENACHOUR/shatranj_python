@@ -26,8 +26,10 @@ class PieceValidator(ABC):
 class PawnValidator(PieceValidator):
     """
     Pawn movement rules:
+
       - Forward: 1 square straight ahead, must be empty
       - Capture: 1 square diagonally forward, must contain enemy piece
+      
     We use divmod to get rank and file separately, preventing edge-wrapping bugs.
     """
     def is_valid(self, board: Board, move: Move) -> bool:

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>shatranj.domain.rules.piece_validator &#8212; shatranj-python 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for shatranj.domain.rules.piece_validator</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.move</span><span class="w"> </span><span class="kn">import</span> <span class="n">Move</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">WHITE</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">BOARD_SIZE</span>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1">#  ABSTRACT BASE CLASS (Strategy interface)                           #</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="PieceValidator">
+<a class="viewcode-back" href="../../../../index.html#shatranj.domain.rules.piece_validator.PieceValidator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PieceValidator</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Abstract base class for piece-specific move validators.</span>
+<span class="sd">    Each piece type implements its own validation strategy.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1">#  PAWN                                                               #</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="PawnValidator">
+<a class="viewcode-back" href="../../../../index.html#shatranj.domain.rules.piece_validator.PawnValidator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PawnValidator</span><span class="p">(</span><span class="n">PieceValidator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pawn movement rules:</span>
+
+<span class="sd">      - Forward: 1 square straight ahead, must be empty</span>
+<span class="sd">      - Capture: 1 square diagonally forward, must contain enemy piece</span>
+<span class="sd">      </span>
+<span class="sd">    We use divmod to get rank and file separately, preventing edge-wrapping bugs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">frm_rank</span><span class="p">,</span> <span class="n">frm_file</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">BOARD_SIZE</span><span class="p">)</span>
+        <span class="n">to_rank</span><span class="p">,</span>  <span class="n">to_file</span>  <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">,</span>   <span class="n">BOARD_SIZE</span><span class="p">)</span>
+
+        <span class="n">direction</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">color</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">rank_diff</span> <span class="o">=</span> <span class="n">to_rank</span> <span class="o">-</span> <span class="n">frm_rank</span>
+        <span class="n">file_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_file</span> <span class="o">-</span> <span class="n">frm_file</span><span class="p">)</span>
+
+        <span class="c1"># Forward move: 1 rank forward, same file, empty square</span>
+        <span class="k">if</span> <span class="n">rank_diff</span> <span class="o">==</span> <span class="n">direction</span> <span class="ow">and</span> <span class="n">file_diff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+
+        <span class="c1"># Diagonal capture: 1 rank forward, 1 file difference, enemy piece</span>
+        <span class="k">if</span> <span class="n">rank_diff</span> <span class="o">==</span> <span class="n">direction</span> <span class="ow">and</span> <span class="n">file_diff</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">target</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">move</span><span class="o">.</span><span class="n">color</span>
+
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1">#  ROOK                                                               #</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="RookValidator">
+<a class="viewcode-back" href="../../../../index.html#shatranj.domain.rules.piece_validator.RookValidator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RookValidator</span><span class="p">(</span><span class="n">PieceValidator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Rook moves horizontally or vertically any distance.</span>
+<span class="sd">    Cannot jump over pieces - we check all intermediate squares.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">frm_rank</span><span class="p">,</span> <span class="n">frm_file</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">BOARD_SIZE</span><span class="p">)</span>
+        <span class="n">to_rank</span><span class="p">,</span>  <span class="n">to_file</span>  <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">,</span>   <span class="n">BOARD_SIZE</span><span class="p">)</span>
+
+        <span class="c1"># Diagonal move -&gt; invalid</span>
+        <span class="k">if</span> <span class="n">frm_file</span> <span class="o">!=</span> <span class="n">to_file</span> <span class="ow">and</span> <span class="n">frm_rank</span> <span class="o">!=</span> <span class="n">to_rank</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="c1"># Determine step direction</span>
+        <span class="k">if</span> <span class="n">frm_file</span> <span class="o">==</span> <span class="n">to_file</span><span class="p">:</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="mi">8</span> <span class="k">if</span> <span class="n">to_rank</span> <span class="o">&gt;</span> <span class="n">frm_rank</span> <span class="k">else</span> <span class="o">-</span><span class="mi">8</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">to_file</span> <span class="o">&gt;</span> <span class="n">frm_file</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="c1"># Check all intermediate squares</span>
+        <span class="n">sq</span> <span class="o">=</span> <span class="n">move</span><span class="o">.</span><span class="n">from_square</span> <span class="o">+</span> <span class="n">step</span>
+        <span class="k">while</span> <span class="n">sq</span> <span class="o">!=</span> <span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">sq</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">sq</span> <span class="o">+=</span> <span class="n">step</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1">#  KNIGHT                                                             #</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="KnightValidator">
+<a class="viewcode-back" href="../../../../index.html#shatranj.domain.rules.piece_validator.KnightValidator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">KnightValidator</span><span class="p">(</span><span class="n">PieceValidator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Knight moves in L-shape: (±1, ±2) or (±2, ±1).</span>
+<span class="sd">    Can jump over pieces.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">frm_rank</span><span class="p">,</span> <span class="n">frm_file</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">BOARD_SIZE</span><span class="p">)</span>
+        <span class="n">to_rank</span><span class="p">,</span>  <span class="n">to_file</span>  <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">,</span>   <span class="n">BOARD_SIZE</span><span class="p">)</span>
+
+        <span class="n">rank_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_rank</span> <span class="o">-</span> <span class="n">frm_rank</span><span class="p">)</span>
+        <span class="n">file_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_file</span> <span class="o">-</span> <span class="n">frm_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">rank_diff</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">file_diff</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> \
+               <span class="p">(</span><span class="n">rank_diff</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">file_diff</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1">#  ALFIL                                                              #</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="AlfilValidator">
+<a class="viewcode-back" href="../../../../index.html#shatranj.domain.rules.piece_validator.AlfilValidator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AlfilValidator</span><span class="p">(</span><span class="n">PieceValidator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Alfil jumps exactly 2 squares diagonally.</span>
+<span class="sd">    Can jump over pieces. Stays on same color squares.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">frm_rank</span><span class="p">,</span> <span class="n">frm_file</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">BOARD_SIZE</span><span class="p">)</span>
+        <span class="n">to_rank</span><span class="p">,</span>  <span class="n">to_file</span>  <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">,</span>   <span class="n">BOARD_SIZE</span><span class="p">)</span>
+
+        <span class="n">rank_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_rank</span> <span class="o">-</span> <span class="n">frm_rank</span><span class="p">)</span>
+        <span class="n">file_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_file</span> <span class="o">-</span> <span class="n">frm_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rank_diff</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">file_diff</span> <span class="o">==</span> <span class="mi">2</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1">#  FERZ                                                               #</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="FerzValidator">
+<a class="viewcode-back" href="../../../../index.html#shatranj.domain.rules.piece_validator.FerzValidator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FerzValidator</span><span class="p">(</span><span class="n">PieceValidator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Ferz moves exactly 1 square diagonally.</span>
+<span class="sd">    Ancestor of the modern Queen.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">frm_rank</span><span class="p">,</span> <span class="n">frm_file</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">BOARD_SIZE</span><span class="p">)</span>
+        <span class="n">to_rank</span><span class="p">,</span>  <span class="n">to_file</span>  <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">,</span>   <span class="n">BOARD_SIZE</span><span class="p">)</span>
+
+        <span class="n">rank_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_rank</span> <span class="o">-</span> <span class="n">frm_rank</span><span class="p">)</span>
+        <span class="n">file_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_file</span> <span class="o">-</span> <span class="n">frm_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rank_diff</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">file_diff</span> <span class="o">==</span> <span class="mi">1</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1">#  SHAH                                                               #</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="ShahValidator">
+<a class="viewcode-back" href="../../../../index.html#shatranj.domain.rules.piece_validator.ShahValidator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ShahValidator</span><span class="p">(</span><span class="n">PieceValidator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Shah (King) moves exactly 1 square in any direction (8 possibilities).</span>
+<span class="sd">    Using max(rank_diff, file_diff) == 1 elegantly covers all directions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">frm_rank</span><span class="p">,</span> <span class="n">frm_file</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">BOARD_SIZE</span><span class="p">)</span>
+        <span class="n">to_rank</span><span class="p">,</span>  <span class="n">to_file</span>  <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">,</span>   <span class="n">BOARD_SIZE</span><span class="p">)</span>
+
+        <span class="n">rank_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_rank</span> <span class="o">-</span> <span class="n">frm_rank</span><span class="p">)</span>
+        <span class="n">file_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">to_file</span> <span class="o">-</span> <span class="n">frm_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">rank_diff</span><span class="p">,</span> <span class="n">file_diff</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">shatranj-python</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, EL GHALI Ayman, MARCHOUD Souhail, MEKLAT Sarah, DRIES Amina, BENACHOUR Souhila.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

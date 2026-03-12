@@ -1,12 +1,12 @@
 """
-display.py - Affichage ASCII du plateau de Shatranj
+display.py - ASCII display of the Shatranj board
 
-Rôle : transformer l'objet Board en texte lisible pour le terminal.
+Role: transform a Board object into human-readable text for the terminal.
 
-Pourquoi un fichier séparé ?
-  - Séparation des responsabilités : le Board ne sait pas s'afficher,
-    le CLI ne sait pas dessiner. C'est la couche Présentation.
-  - Facile à tester : on peut afficher n'importe quel état du Board.
+Why a separate file?
+  - Separation of concerns: the Board does not know how to display itself,
+    the CLI does not know how to draw. This is the Presentation layer.
+  - Easy to test: we can display any Board state without side effects.
 """
 
 import os
@@ -19,8 +19,8 @@ from shatranj.utils.constants import (
 )
 from shatranj.utils.constants import BOARD_SIZE
 
-# Dictionnaire : (type_pièce, couleur) -> lettre ASCII
-# Blanc = MAJUSCULE, Noir = minuscule
+# Dictionary: (piece_type, color) -> ASCII letter
+# White pieces = UPPERCASE, Black pieces = lowercase
 PIECE_SYMBOLS = {
     (SHAH,   WHITE): "K",
     (FERZ,   WHITE): "F",
@@ -36,16 +36,16 @@ PIECE_SYMBOLS = {
     (PAWN,   BLACK): "p",
 }
 
-# Couleurs ANSI:
-# - pièces blanches: blanc vif
-# - pièces noires: cyan vif (plus lisible que noir sur fond sombre)
+# ANSI color codes:
+# - white pieces: bright white
+# - black pieces: bright cyan (more readable than black on dark background)
 ANSI_RESET = "\033[0m"
 ANSI_WHITE_PIECE = "\033[97m"
 ANSI_BLACK_PIECE = "\033[96m"
 
 
 def _supports_ansi_color() -> bool:
-    """Retourne True si la sortie courante supporte probablement les couleurs ANSI."""
+    """Return True if the current output probably supports ANSI colors."""
     if os.getenv("NO_COLOR"):
         return False
     if os.getenv("TERM", "").lower() == "dumb":
@@ -54,7 +54,7 @@ def _supports_ansi_color() -> bool:
 
 
 def _colorize_piece(symbol: str, color: str, use_color: bool) -> str:
-    """Applique une couleur ANSI au symbole de pièce si demandé."""
+    """Apply an ANSI color to a piece symbol if requested."""
     if not use_color:
         return symbol
     code = ANSI_WHITE_PIECE if color == WHITE else ANSI_BLACK_PIECE
@@ -63,48 +63,49 @@ def _colorize_piece(symbol: str, color: str, use_color: bool) -> str:
 
 def board_to_string(board: Board, use_color: bool = False) -> str:
     """
-    Retourne une représentation ASCII du plateau.
+    Return an ASCII representation of the board.
 
-    L'échiquier est affiché du rang 8 (haut) au rang 1 (bas),
-    de la colonne a (gauche) à h (droite).
+    The board is displayed from rank 8 (top) to rank 1 (bottom),
+    from column a (left) to column h (right).
 
-    Exemple de sortie :
+    Example output::
+
         8  r n a f k a n r
         7  p p p p p p p p
         6  . . . . . . . .
-        ...
         1  R N A F K A N R
            a b c d e f g h
     """
     lines = []
 
-    # On parcourt les rangs de 7 (rang 8) à 0 (rang 1), du haut vers le bas
+    # Iterate ranks from 7 (rank 8) down to 0 (rank 1), top to bottom
     for rank in range(BOARD_SIZE - 1, -1, -1):
-        # Le numéro affiché à gauche (1 à 8)
+        # The label displayed on the left (1 to 8)
         row_label = str(rank + 1)
         row_squares = []
 
-        # On parcourt les colonnes de 0 (a) à 7 (h)
+        # Iterate columns from 0 (a) to 7 (h)
         for file in range(BOARD_SIZE):
-            # Calcul de l'index de la case : rank * 8 + file
-            # Exemple : rang=1, file=4 -> case 12 (e2)
+            # Compute the square index: rank * 8 + file
+            # Example: rank=1, file=4 -> square 12 (e2)
             square = rank * BOARD_SIZE + file
-
             piece = board.get_piece_at(square)
+
             if piece is None:
-                row_squares.append(".")  # case vide
+                row_squares.append(".")  # empty square
             else:
                 symbol = PIECE_SYMBOLS[piece]
                 row_squares.append(_colorize_piece(symbol, piece[1], use_color))
 
-        # Format : "8  r n a f k a n r"
+        # Format: "8  r n a f k a n r"
         lines.append(f"  {row_label}  " + " ".join(row_squares))
 
-    # Ligne des colonnes en bas
+    # Column labels at the bottom
     lines.append("     a b c d e f g h")
+
     return "\n".join(lines)
 
 
 def print_board(board: Board) -> None:
-    """Affiche le plateau directement dans le terminal."""
+    """Print the board directly to the terminal."""
     print(board_to_string(board, use_color=_supports_ansi_color()))

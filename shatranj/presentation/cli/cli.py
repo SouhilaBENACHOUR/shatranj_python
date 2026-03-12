@@ -1,23 +1,23 @@
 """
-cli.py - Shell interactif du jeu Shatranj
+cli.py - Interactive shell for the Shatranj game
 
-Rôle : c'est le point d'entrée de l'interface CLI.
-       Il lit les commandes de l'utilisateur et appelle les bonnes méthodes.
+Role: entry point of the CLI interface.
+      Reads user commands and calls the appropriate methods.
 
-Pourquoi un shell interactif ?
-  Le cahier des charges (F14) demande un shell avec un prompt ">>".
-  readline (F16, F17, F18) gère l'édition de ligne, l'historique,
-  et la complétion Tab automatiquement.
+Why an interactive shell?
+  The specification (F14) requires a shell with a ">>" prompt.
+  readline (F16, F17, F18) automatically handles line editing, history,
+  and Tab completion.
 
-Structure générale :
-  - run()          : boucle principale (lire -> parser -> exécuter)
-  - _do_XXX()      : une méthode par commande
-  - _parse_move()  : convertit "e2-e4" en objet Move
+General structure:
+  - run()          : main loop (read -> parse -> execute)
+  - _do_XXX()      : one method per command
+  - _parse_move()  : converts "e2-e4" into a Move object
 """
 
-import readline  # Active l'édition de ligne, l'historique, et le Tab
-import re        # Pour parser la notation algébrique avec une regex
-import sys       # Pour sys.exit() et sys.stderr
+import readline  # Enables line editing, history, and Tab completion
+import re        # For parsing algebraic notation with a regex
+import sys       # For sys.exit() and sys.stderr
 
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
@@ -26,22 +26,22 @@ from shatranj.domain.core.board import Board
 from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN
 from shatranj.domain.ai.ai_player import AIPlayer
 
-# Import de nos propres modules
-# On utilise des imports relatifs car on est dans le même package
+# Import our own modules
+# We use relative imports because we are in the same package
 from .display import print_board, board_to_string
 from .game_state import GameState
 
 
 # ---------------------------------------------------------------------
-# Constantes
+# Constants
 # ---------------------------------------------------------------------
 
-PROMPT = ">> "  # Le prompt affiché à l'utilisateur (F14)
-AUTO_PLAY_MAX_PLIES = 400  # Garde-fou pour éviter les boucles d'auto-jeu infinies
+PROMPT = ">> "  # Prompt displayed to the user (F14)
+AUTO_PLAY_MAX_PLIES = 400  # Safety limit to avoid infinite AI loops
 THREEFOLD_REPETITION_COUNT = 3
-FIFTY_MOVE_RULE_PLIES = 100  # 50 coups complets = 100 demi-coups
+FIFTY_MOVE_RULE_PLIES = 100  # 50 full moves = 100 half-moves (plies)
 
-# Liste de toutes les commandes reconnues (pour la complétion Tab, F18)
+# List of all recognized commands (for Tab completion, F18)
 COMMANDS = [
     "new", "help", "quit", "load", "save",
     "pause", "hint", "undo", "redo",
@@ -60,47 +60,47 @@ PIECE_LABELS = {
 
 
 # ---------------------------------------------------------------------
-# Classe principale du CLI
+# Main CLI class
 # ---------------------------------------------------------------------
 
 class CLI:
     """
-    Shell interactif pour jouer au Shatranj en ligne de commande.
+    Interactive shell for playing Shatranj on the command line.
 
-    Attributs :
-      _state   : l'état de la partie en cours (GameState)
-      _engine  : le moteur de règles (RulesEngine)
-      _running : True tant que la boucle tourne
-      _saved   : True si la partie a été sauvegardée depuis le dernier coup
-      _verbose : True si le mode verbeux est activé
+    Attributes:
+      _state   : current game state (GameState)
+      _engine  : rules engine (RulesEngine)
+      _running : True while the main loop is running
+      _saved   : True if the game has been saved since the last move
+      _verbose : True if verbose mode is enabled
     """
 
     def __init__(self, verbose: bool = False, debug: bool = False) -> None:
-        self._state: GameState | None = None   # Pas de partie au démarrage
+        self._state: GameState | None = None   # No game at startup
         self._engine = RulesEngine()
         self._running = False
-        self._saved = True          # Rien à sauvegarder au démarrage
+        self._saved = True          # Nothing to save at startup
         self._verbose = verbose
         self._ai_players: dict[str, AIPlayer] = {}
         self._debug = debug
 
-        # Configuration de readline pour la complétion Tab (F18)
+        # Configure readline for Tab completion (F18)
         readline.set_completer(self._completer)
         readline.parse_and_bind("tab: complete")
 
-        # Configuration de readline pour l'historique (F17)
-        # Ctrl+R est géré automatiquement par readline
+        # Configure readline for history (F17)
+        # Ctrl+R is handled automatically by readline
 
     # ------------------------------------------------------------------
-    # Boucle principale
+    # Main loop
     # ------------------------------------------------------------------
 
     def run(self) -> None:
         """
-        Lance la boucle principale du shell.
+        Start the main shell loop.
 
-        On affiche un message de bienvenue, puis on lit les commandes
-        une par une jusqu'à ce que l'utilisateur tape "quit".
+        Displays a welcome message, then reads commands one by one
+        until the user types "quit".
         """
         self._running = True
         print("Welcome to Shatranj! Type 'help' to see available commands.")
@@ -109,51 +109,51 @@ class CLI:
 
         while self._running:
             try:
-                # input() avec readline actif gère l'édition et l'historique
+                # input() with readline active handles editing and history
                 raw = input(PROMPT).strip()
             except EOFError:
-                # Ctrl+D : on quitte proprement
+                # Ctrl+D: quit cleanly
                 print()
                 self._do_quit([])
                 break
             except KeyboardInterrupt:
-                # Ctrl+C : on passe à la ligne suivante sans quitter
+                # Ctrl+C: move to next line without quitting
                 print()
                 continue
 
-            # On ignore les lignes vides
+            # Ignore empty lines
             if not raw:
                 continue
 
-            # Ajout à l'historique readline (pour les flèches haut/bas)
+            # Add to readline history (for up/down arrow keys)
             readline.add_history(raw)
 
-            # Parsing et exécution de la commande
+            # Parse and execute the command
             self._dispatch(raw)
 
     # ------------------------------------------------------------------
-    # Dispatcher : analyse la commande et appelle la bonne méthode
+    # Dispatcher: parses the command and calls the right method
     # ------------------------------------------------------------------
 
     def _dispatch(self, raw: str) -> None:
         """
-        Analyse la ligne de commande et appelle la méthode correspondante.
+        Parse the command line and call the corresponding method.
 
-        On sépare d'abord les mots, puis on regarde le premier mot
-        pour identifier la commande.
+        Splits the input into words, then looks at the first word
+        to identify the command.
 
-        Cas spéciaux :
-          - "show board" et "show history" sont des commandes en deux mots
-          - Un coup comme "e2-e4" n'est pas un mot-clé
+        Special cases:
+          - "show board" and "show history" are two-word commands
+          - A move like "e2-e4" is not a keyword
         """
         parts = raw.split()
         if not parts:
             return
 
         cmd = parts[0].lower()
-        args = parts[1:]  # Arguments après la commande
+        args = parts[1:]  # Arguments after the command
 
-        # Commandes en deux mots : "show board", "show history", ...
+        # Two-word commands: "show board", "show history", ...
         if cmd == "show":
             sub = args[0].lower() if args else ""
             if sub == "board":
@@ -168,12 +168,12 @@ class CLI:
                 self._error(f"Unknown subcommand: show {sub}")
             return
 
-        # Commandes en un mot
+        # Single-word commands
         handlers = {
             "new":    self._do_new,
             "help":   self._do_help,
             "quit":   self._do_quit,
-            "q":      self._do_quit,     
+            "q":      self._do_quit,
             "load":   self._do_load,
             "save":   self._do_save,
             "pause":  self._do_pause,
@@ -187,58 +187,58 @@ class CLI:
             handlers[cmd](args)
             return
 
-        # Si ce n'est pas une commande connue, on essaie de parser un coup
-        # Format attendu : "e2-e4" ou "e2xe4"
+        # If not a known command, try to parse a move
+        # Expected format: "e2-e4" or "e2xe4"
         if self._looks_like_move(raw):
             self._do_play_move(raw)
             return
 
-        # Commande inconnue
+        # Unknown command
         self._error(f"Unknown command: '{raw}'. Type 'help' for the list of commands.")
 
     # ------------------------------------------------------------------
-    # Vérifier si une chaîne ressemble à un coup (notation algébrique)
+    # Check if a string looks like a move (algebraic notation)
     # ------------------------------------------------------------------
 
     def _looks_like_move(self, text: str) -> bool:
         """
-        Retourne True si le texte ressemble à un coup en notation algébrique.
+        Return True if the text looks like a move in algebraic notation.
 
-        Formats acceptés (F19 du cahier des charges) :
-          - "e2-e4"  : déplacement simple
-          - "e2xe4"  : capture (x minuscule)
-          - "Ng8-f6" : avec préfixe de pièce (optionnel)
+        Accepted formats (F19 of the specification):
+          - "e2-e4"  : simple move
+          - "e2xe4"  : capture (lowercase x)
+          - "Ng8-f6" : with optional piece prefix
         """
-        # Regex : optionnellement une lettre de pièce, puis case-séparateur-case
+        # Regex: optionally a piece letter, then square-separator-square
         pattern = r"^[A-Za-z]?[a-h][1-8][-x][a-h][1-8]$"
         return bool(re.match(pattern, text.strip()))
 
     # ------------------------------------------------------------------
-    # Parser un coup en notation algébrique -> objet Move
+    # Parse a move in algebraic notation -> Move object
     # ------------------------------------------------------------------
 
     def _parse_move(self, text: str) -> Move | None:
         """
-        Convertit une chaîne comme "e2-e4" en objet Move.
+        Convert a string like "e2-e4" into a Move object.
 
-        Retourne None si le format est invalide.
+        Returns None if the format is invalid.
 
-        Exemple :
+        Example:
           "e2-e4"  -> from_square=12, to_square=28
-          "e2xe4"  -> idem (la capture est détectée automatiquement par le board)
+          "e2xe4"  -> same (capture is detected automatically by the board)
 
-        Pourquoi Board.algebraic_to_square ?
-          Cette méthode convertit "e2" -> 12 (rank=1, file=4 -> 1*8+4=12).
-          Elle est déjà implémentée dans board.py, on la réutilise.
+        Why Board.algebraic_to_square?
+          This method converts "e2" -> 12 (rank=1, file=4 -> 1*8+4=12).
+          It is already implemented in board.py, so we reuse it.
         """
         from shatranj.domain.core.board import Board
 
-        # On retire le préfixe de pièce si présent (ex: "N" dans "Ng8-f6")
+        # Strip the piece prefix if present (e.g. "N" in "Ng8-f6")
         text = text.strip()
         if len(text) == 6 and text[0].isupper():
-            text = text[1:]  # On enlève le "N" : "Ng8-f6" -> "g8-f6"
+            text = text[1:]  # Remove "N": "Ng8-f6" -> "g8-f6"
 
-        # On accepte "-" ou "x" comme séparateur
+        # Accept "-" or "x" as separator
         if len(text) != 5 or text[2] not in ("-", "x"):
             self._error(f"Invalid move format: '{text}'. Expected format: e2-e4")
             return None
@@ -253,7 +253,7 @@ class CLI:
             self._error(str(err))
             return None
 
-        # On récupère la pièce sur la case de départ pour construire le Move
+        # Get the piece on the source square to build the Move
         piece_info = self._state.board.get_piece_at(from_sq)
         if piece_info is None:
             self._error(f"No piece on {from_str}.")
@@ -261,7 +261,7 @@ class CLI:
 
         piece_type, color = piece_info
 
-        # On récupère la pièce capturée (s'il y en a une)
+        # Get the captured piece if any
         target = self._state.board.get_piece_at(to_sq)
         captured = target[0] if target is not None else None
 
@@ -274,22 +274,21 @@ class CLI:
         )
 
     # ------------------------------------------------------------------
-    # Commandes
+    # Commands
     # ------------------------------------------------------------------
 
     def _do_play_move(self, text: str) -> None:
         """
-        Joue un coup saisi par l'utilisateur,
-        puis fait jouer l'IA si c'est son tour.
+        Play a move entered by the user, then let the AI play if it is its turn.
 
-        Étapes :
-          1. Vérifier qu'une partie est en cours
-          2. Parser le coup (notation algébrique -> Move)
-          3. Vérifier que c'est le bon joueur
-          4. Vérifier que le coup est légal
-          5. Appliquer le coup
-          6. Vérifier si la partie est terminée
-          7. Faire jouer l'IA si c'est son tour
+        Steps:
+          1. Check that a game is in progress
+          2. Parse the move (algebraic notation -> Move)
+          3. Check that it is the right player's turn
+          4. Check that the move is legal
+          5. Apply the move
+          6. Check if the game is over
+          7. Let the AI play if it is its turn
         """
         if self._state is None:
             self._error("No game in progress. Type 'new' to start a game.")
@@ -299,15 +298,14 @@ class CLI:
         if move is None:
             return
 
-        # vérification que c'est le bon joueur qui joue
+        # Check that the right player is moving
         if move.color != self._state.current_color:
             self._error(
                 f"It's {self._state.current_color}'s turn, not {move.color}'s."
             )
             return
 
-        # vérification de la légalité complète:
-        # géométrie + sécurité du Shah (pas d'auto-échec)
+        # Full legality check: geometry + Shah safety (no self-check)
         legal_moves = self._engine.generate_legal_moves(
             self._state.board, self._state.current_color
         )
@@ -315,72 +313,73 @@ class CLI:
             self._error(f"Illegal move: {text}")
             return
 
-        # applique le coup du joueur
+        # Apply the player's move
         self._state.apply_move(move)
         self._saved = False
 
         print(f"You played: {self._format_move_with_piece(move)}")
 
-        # affiche le plateau mis à jour
+        # Display the updated board
         print_board(self._state.board)
         print(f"\nIt's now {self._state.current_color}'s turn.")
 
-        # vérifie si la partie est terminée après le coup du joueur
+        # Check if the game is over after the player's move
         if self._check_game_over():
             return
 
-        # Si le prochain tour est contrôlé par une IA, on l'enchaîne automatiquement.
+        # If the next turn is controlled by an AI, chain it automatically
         self._auto_play_ai_turns()
 
     def _check_game_over(self) -> bool:
         """
-        Vérifie si la partie est terminée après un coup.
-        Retourne True si la partie est finie, False sinon.
+        Check if the game is over after a move.
 
-        Cas possibles en Shatranj :
-          - Mat       → le joueur courant est en échec et n'a aucun coup légal
-          - Pat       → pas en échec mais aucun coup (victoire pour l'adversaire)
-          - Bare King → le joueur courant n'a plus que son Shah
+        Returns True if the game is finished, False otherwise.
+
+        Possible outcomes in Shatranj:
+          - Checkmate  -> current player is in check with no legal moves
+          - Stalemate  -> not in check but no legal moves (opponent wins)
+          - Bare King  -> current player has only their Shah left
         """
         current  = self._state.current_color
         opponent = BLACK if current == WHITE else WHITE
 
-        # mat → le joueur courant a perdu
+        # Checkmate -> current player loses
         if self._engine.is_checkmate(self._state.board, current):
             print(f"\nCheckmate! {opponent} wins!")
             self._state = None
             return True
 
-        # pat → victoire pour celui qui l'a provoqué (règle Shatranj)
+        # Stalemate -> victory for the one who caused it (Shatranj rule)
         if self._engine.is_stalemate(self._state.board, current):
             print(f"\nStalemate! {opponent} wins!")
             self._state = None
             return True
 
-        # bare king → le joueur courant n'a plus que son Shah
+        # Bare King -> current player has only their Shah left
         if self._engine.is_bare_king(self._state.board, current):
             print(f"\nBare King! {opponent} wins!")
             self._state = None
             return True
 
-        # nulle par répétition de position (comme aux échecs modernes)
+        # Draw by threefold repetition (as in modern chess)
         if self._is_draw_by_threefold_repetition():
             print("\nDraw by threefold repetition.")
             self._state = None
             return True
 
-        # nulle des 50 coups : aucun pion bougé et aucune capture
+        # Fifty-move rule: no pawn moved and no capture
         if self._is_draw_by_fifty_move_rule():
             print("\nDraw by fifty-move rule.")
             self._state = None
             return True
 
-        return False  # partie continue
+        return False  # Game continues
 
     def _is_draw_by_threefold_repetition(self) -> bool:
         """
-        Détecte la répétition 3 fois de la position courante
-        (même placement + même joueur au trait).
+        Detect if the current position has occurred 3 times
+        (same piece placement + same player to move).
         """
         if self._state is None:
             return False
@@ -389,16 +388,16 @@ class CLI:
         target_signature = tuple(sorted(self._state.board._boards.items()))
         expected_snapshot_size = len(self._state.board._boards)
 
-        repetitions = 1  # position courante
+        repetitions = 1  # current position counts as 1
         color_at_state = target_color
 
         for _, snapshot_before_move in reversed(self._state._history):
-            # état précédent => trait inversé
+            # Previous state -> turn is inverted
             color_at_state = BLACK if color_at_state == WHITE else WHITE
             if color_at_state != target_color:
                 continue
 
-            # Certains états chargés depuis fichier utilisent des snapshots vides.
+            # Some states loaded from file use empty snapshots
             if len(snapshot_before_move) != expected_snapshot_size:
                 continue
 
@@ -412,8 +411,8 @@ class CLI:
 
     def _is_draw_by_fifty_move_rule(self) -> bool:
         """
-        Détecte la règle des 50 coups:
-        100 demi-coups consécutifs sans coup de pion ni capture.
+        Detect the fifty-move rule:
+        100 consecutive half-moves without a pawn move or capture.
         """
         if self._state is None:
             return False
@@ -430,12 +429,12 @@ class CLI:
 
     def _do_ai_move(self) -> None:
         """
-        Fait jouer l'IA.
+        Let the AI play.
 
-        1. L'IA calcule le meilleur coup avec Minimax
-        2. Si aucun coup → fin de partie
-        3. Sinon on applique le coup et on affiche le plateau
-        4. On vérifie si la partie est terminée après le coup de l'IA
+        1. The AI calculates the best move using Minimax
+        2. If no move available -> end of game
+        3. Otherwise apply the move and display the board
+        4. Check if the game is over after the AI's move
         """
         if self._state is None:
             return
@@ -447,32 +446,32 @@ class CLI:
         print(f"AI ({self._state.current_color}) is thinking...")
         move = ai_player.choose_move(self._state.board)
 
-        # aucun coup disponible → fin de partie
+        # No move available -> end of game
         if move is None:
             self._check_game_over()
             return
 
-        # affiche le coup joué par l'IA en notation lisible
+        # Display the move played by the AI in readable notation
         print(f"AI ({ai_player.color}) plays: {self._format_move_with_piece(move)}")
 
-        # applique le coup sur le board
+        # Apply the move on the board
         self._state.apply_move(move)
         self._saved = False
 
-        # affiche le plateau mis à jour
+        # Display the updated board
         print_board(self._state.board)
         print(f"\nIt's now {self._state.current_color}'s turn.")
 
-        # vérifie si la partie est terminée après le coup de l'IA
+        # Check if the game is over after the AI's move
         self._check_game_over()
 
     def _auto_play_ai_turns(self, max_plies: int = AUTO_PLAY_MAX_PLIES) -> None:
         """
-        Enchaîne les tours IA tant que le joueur courant est contrôlé par une IA.
+        Chain AI turns as long as the current player is controlled by an AI.
 
-        Utilisé pour :
-          - humain vs IA : jouer un seul coup IA après le coup humain
-          - IA vs IA     : dérouler automatiquement la partie
+        Used for:
+          - human vs AI: play one AI move after the human's move
+          - AI vs AI: automatically run through the entire game
         """
         plies = 0
         while self._state is not None and self._state.current_color in self._ai_players:
@@ -485,9 +484,9 @@ class CLI:
 
     def _do_new(self, args: list[str]) -> None:
         """
-        Lance une nouvelle partie.
+        Start a new game.
 
-        Si une partie non sauvegardée est en cours, on demande confirmation.
+        If an unsaved game is in progress, ask for confirmation.
         """
         if self._state is not None and not self._saved:
             answer = input("Current game is not saved. Start a new game anyway? [y/N] ")
@@ -497,9 +496,9 @@ class CLI:
 
         self._state = GameState()
         self._saved = True
-        self._ai_players = {}  # reset les IA
+        self._ai_players = {}  # Reset AI players
 
-        # configure l'IA si demandé :
+        # Configure AI if requested:
         # - "new ai black" / "new ai white"
         # - "new ai-vs-ai"
         if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
@@ -523,28 +522,28 @@ class CLI:
         print()
         print_board(self._state.board)
         print()
-        # si le joueur courant est contrôlé par une IA, elle joue immédiatement
+        # If the current player is controlled by an AI, it plays immediately
         self._auto_play_ai_turns()
 
     def _do_quit(self, args: list[str]) -> None:
         """
-        Quitte le programme.
+        Quit the program.
 
-        Si la partie n'est pas sauvegardée, on propose de sauvegarder (F15).
-        Si l'utilisateur ne répond pas clairement, on quitte sans sauvegarder
-        (le défaut est N, comme indiqué dans le cahier des charges F15).
+        If the game is not saved, offer to save it (F15).
+        If the user does not clearly answer, quit without saving
+        (default is N, as specified in F15).
         """
         if self._state is not None and not self._saved:
             print("Save the game before quitting? [y/N]", end=" ")
             answer = input().strip().lower()
 
             if answer in ("y", "yes"):
-                # On demande le chemin du fichier
+                # Ask for the file path
                 path = input("Enter file path to save: ").strip()
                 if path:
                     success = self._save_to_file(path)
                     if not success:
-                        # Erreur d'enregistrement : on redemande (F15)
+                        # Save failed: ask again (F15)
                         answer2 = input("Save failed. Try to save again? [y/N] ").strip().lower()
                         if answer2 in ("y", "yes"):
                             path2 = input("Enter file path to save: ").strip()
@@ -557,9 +556,9 @@ class CLI:
 
     def _do_help(self, args: list[str]) -> None:
         """
-        Affiche l'aide générale ou l'aide d'une commande spécifique.
+        Display general help or help for a specific command.
 
-        Usage : help [CMD]
+        Usage: help [CMD]
         """
         if args:
             cmd = args[0].lower()
@@ -568,7 +567,7 @@ class CLI:
             self._print_general_help()
 
     def _print_general_help(self) -> None:
-        """Affiche la liste de toutes les commandes."""
+        """Display the list of all available commands."""
         print("""
 Available commands:
   new [ARGS]          Start a new game (e.g. ai white, ai black, ai-vs-ai)
@@ -590,7 +589,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 """)
 
     def _print_command_help(self, cmd: str) -> None:
-        """Affiche l'aide détaillée d'une commande."""
+        """Display detailed help for a specific command."""
         help_texts = {
             "new":    "new [ARGS]  -  Start a new game. Args: 'ai white', 'ai black', 'ai-vs-ai'.",
             "quit":   "quit  -  Quit the program. You'll be asked to save if needed.",
@@ -609,7 +608,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             self._error(f"Unknown command: '{cmd}'")
 
     def _do_show_board(self) -> None:
-        """Affiche l'état actuel du plateau."""
+        """Display the current state of the board."""
         if self._state is None:
             self._error("No game in progress. Type 'new' to start a game.")
             return
@@ -619,9 +618,9 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_show_history(self) -> None:
         """
-        Affiche l'historique des coups joués.
+        Display the history of played moves.
 
-        Format (F24 du cahier des charges) :
+        Format (F24 of the specification):
           W e2-e4 B Ng8-f6
           W d2-d4 B Nf6xe4
           ...
@@ -638,13 +637,13 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         from shatranj.domain.core.board import Board
 
         print("\nMove history:")
-        # On regroupe les coups par paires (blanc, noir)
+        # Group moves in pairs (white, black)
         i = 0
         turn = 1
         while i < len(history):
             line = f"  {turn:3}."
 
-            # Coup blanc
+            # White move
             move = history[i]
             from_alg = Board.square_to_algebraic(move.from_square)
             to_alg   = Board.square_to_algebraic(move.to_square)
@@ -652,7 +651,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             line += f"  W {from_alg}{sep}{to_alg}"
             i += 1
 
-            # Coup noir (s'il existe)
+            # Black move (if it exists)
             if i < len(history):
                 move = history[i]
                 from_alg = Board.square_to_algebraic(move.from_square)
@@ -666,12 +665,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         print()
 
     def _do_show_time(self) -> None:
-        """Affiche le temps restant (uniquement en mode blitz)."""
-        # Pas encore de mode blitz implémenté : message informatif
+        """Display remaining time (blitz mode only)."""
+        # Blitz mode not yet implemented: informational message
         print("Time display is only available in blitz mode (use -b at startup).")
 
     def _do_show_configuration(self) -> None:
-        """Affiche la configuration courante."""
+        """Display the current configuration."""
         print(f"\nCurrent configuration:")
         print(f"  verbose = {self._verbose}")
         print(f"  debug   = {self._debug}")
@@ -679,12 +678,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_undo(self, args: list[str]) -> None:
         """
-        Annule le(s) dernier(s) coup(s).
+        Undo the last move(s).
 
-        Si l'IA joue, on annule 2 coups par undo :
-          1. le coup de l'IA
-          2. le coup du joueur
-        Sinon on annule 1 coup (mode joueur vs joueur).
+        In human vs AI mode, undo 2 moves per undo call:
+          1. the AI's move
+          2. the player's move
+        Otherwise undo 1 move (player vs player mode).
         """
         if self._state is None:
             self._error("No game in progress.")
@@ -701,12 +700,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 self._error(f"Invalid number: '{args[0]}'")
                 return
 
-        # en mode humain vs IA, on annule par paires (joueur + IA)
+        # In human vs AI mode, undo in pairs (player + AI)
         human_vs_ai = len(self._ai_players) == 1
-        coups_a_annuler = n * 2 if human_vs_ai else n
+        moves_to_undo = n * 2 if human_vs_ai else n
 
         undone = 0
-        for _ in range(coups_a_annuler):
+        for _ in range(moves_to_undo):
             move = self._state.undo()
             if move is None:
                 actual = undone // 2 if human_vs_ai else undone
@@ -723,12 +722,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_redo(self, args: list[str]) -> None:
         """
-        Rejoue le(s) dernier(s) coup(s) annulé(s).
+        Redo the last undone move(s).
 
-        Si l'IA joue, on rejoue 2 coups par redo :
-          1. le coup du joueur
-          2. le coup de l'IA
-        Sinon on rejoue 1 coup (mode joueur vs joueur).
+        In human vs AI mode, redo 2 moves per redo call:
+          1. the player's move
+          2. the AI's move
+        Otherwise redo 1 move (player vs player mode).
         """
         if self._state is None:
             self._error("No game in progress.")
@@ -745,12 +744,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 self._error(f"Invalid number: '{args[0]}'")
                 return
 
-        # en mode humain vs IA, on rejoue par paires (joueur + IA)
+        # In human vs AI mode, redo in pairs (player + AI)
         human_vs_ai = len(self._ai_players) == 1
-        coups_a_rejouer = n * 2 if human_vs_ai else n
+        moves_to_redo = n * 2 if human_vs_ai else n
 
         redone = 0
-        for _ in range(coups_a_rejouer):
+        for _ in range(moves_to_redo):
             move = self._state.redo()
             if move is None:
                 actual = redone // 2 if human_vs_ai else redone
@@ -767,10 +766,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_hint(self, args: list[str]) -> None:
         """
-        Affiche un conseil de coup à jouer.
+        Display a move suggestion.
 
-        Pour l'instant : on retourne le premier coup légal trouvé.
-        Dans une vraie IA, on utiliserait Minimax ou MCTS (F31-F35).
+        For now: returns the first legal move found.
+        A real AI would use Minimax or MCTS (F31-F35).
         """
         if self._state is None:
             self._error("No game in progress.")
@@ -785,12 +784,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             print("No legal moves available.")
             return
 
-        # On prend le premier coup légal (simple, pas d'IA pour l'instant)
+        # Take the first legal move (simple, no AI for now)
         suggested = legal_moves[0]
         print(f"Hint: {self._format_move_with_piece(suggested)}")
 
     def _format_move_with_piece(self, move: Move) -> str:
-        """Retourne un coup lisible: 'pawn e2-e3' ou 'rook a1xa8'."""
+        """Return a human-readable move: 'pawn e2-e3' or 'rook a1xa8'."""
         piece_name = PIECE_LABELS.get(move.piece_type, move.piece_type.lower())
         from_alg = Board.square_to_algebraic(move.from_square)
         to_alg = Board.square_to_algebraic(move.to_square)
@@ -800,7 +799,8 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _do_load(self, args: list[str]) -> None:
         """
         Load a game from a file.
-        Usage : load FILE
+
+        Usage: load FILE
         """
         if not args:
             self._error("Usage: load FILE")
@@ -882,7 +882,6 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     new_board.place_piece(piece, color, square)
 
             # --- Read [history] ---
-            
             history_moves = []
             for line in lines[idx_history + 1:]:
                 # Format: "W e2-e3 B e7-e6"
@@ -907,7 +906,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                         self._error(f"Invalid square in history: {err}")
                         return
 
-                    # Determine if it's a capture
+                    # Determine if it is a capture
                     captured = None
                     if move_tok[2] == "x":
                         captured = "unknown"
@@ -945,9 +944,9 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_save(self, args: list[str]) -> None:
         """
-        Sauvegarde la partie en cours dans un fichier.
+        Save the current game to a file.
 
-        Usage : save FILE
+        Usage: save FILE
         """
         if self._state is None:
             self._error("No game in progress.")
@@ -963,27 +962,32 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _save_to_file(self, path: str) -> bool:
         """
-        Sauvegarde la partie dans un fichier texte ASCII (F20-F24).
+        Save the game to an ASCII text file (F20-F24).
 
-        Retourne True si la sauvegarde a réussi, False sinon.
+        Returns True if the save succeeded, False otherwise.
 
-        Format du fichier :
-          [settings]
-          ...
-          [game]
-          W
-          R N A F K A N R
-          ...
-          [history]
-          W e2-e4 B e7-e5
-          ...
+        File format::
+
+            [settings]
+            verbose=false
+            debug=false
+
+            [game]
+            W
+            R N A F K A N R
+            P P P P P P P P
+            ...
+
+            [history]
+            W e2-e4 B e7-e5
+            ...
         """
         from shatranj.domain.core.board import Board
         from shatranj.utils.constants import (
             SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN, WHITE, BLACK
         )
 
-        # Symboles des pièces pour la sauvegarde (F23)
+        # Piece symbols for saving (F23)
         SYMBOLS = {
             (SHAH,   WHITE): "K", (FERZ,   WHITE): "F",
             (ROOK,   WHITE): "R", (ALFIL,  WHITE): "A",
@@ -1003,10 +1007,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
                 # --- Section [game] ---
                 f.write("[game]\n")
-                # Couleur du joueur courant
+                # Current player color
                 f.write(f"{self._state.current_color[0].upper()}\n")
 
-                # Le plateau rang par rang (du rang 8 au rang 1, F23)
+                # Board rank by rank (from rank 8 to rank 1, F23)
                 for rank in range(7, -1, -1):
                     row = []
                     for file in range(8):
@@ -1022,7 +1026,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 # --- Section [history] ---
                 f.write("[history]\n")
                 history = self._state.get_history()
-                # On regroupe par paires (blanc, noir) sur la même ligne (F24)
+                # Group by pairs (white, black) on the same line (F24)
                 i = 0
                 while i < len(history):
                     line_parts = []
@@ -1049,20 +1053,20 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             return True
 
         except OSError as err:
-            # OSError couvre les erreurs d'écriture (disque plein, permissions...)
+            # OSError covers write errors (disk full, permissions, ...)
             self._error(f"Could not save to '{path}': {err}")
             return False
 
     def _do_pause(self, args: list[str]) -> None:
-        """Met en pause le chronomètre (mode blitz uniquement)."""
+        """Pause the timer (blitz mode only)."""
         print("Pause is only available in blitz mode.")
 
     def _do_set(self, args: list[str]) -> None:
         """
-        Change un paramètre de configuration.
+        Change a configuration parameter.
 
-        Usage : set PARAM=VALUE
-        Exemple : set debug=true
+        Usage: set PARAM=VALUE
+        Example: set debug=true
         """
         if not args:
             self._error("Usage: set PARAM=VALUE")
@@ -1087,22 +1091,22 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             self._error(f"Unknown parameter: '{param}'")
 
     # ------------------------------------------------------------------
-    # Complétion Tab (F18)
+    # Tab completion (F18)
     # ------------------------------------------------------------------
 
     def _completer(self, text: str, state: int) -> str | None:
         """
-        Fonction de complétion pour readline.
+        Completion function for readline.
 
-        readline l'appelle avec state=0, 1, 2, ... jusqu'à ce qu'on retourne None.
-        On retourne les commandes qui commencent par `text`.
+        readline calls this with state=0, 1, 2, ... until None is returned.
+        Returns commands that start with `text`.
 
-        Exemple :
-          L'utilisateur tape "sh" puis Tab.
-          readline appelle _completer("sh", 0) -> "show board"
-          readline appelle _completer("sh", 1) -> "show history"
-          readline appelle _completer("sh", 2) -> "show time"
-          readline appelle _completer("sh", 3) -> None  (fin)
+        Example:
+          The user types "sh" then Tab.
+          readline calls _completer("sh", 0) -> "show board"
+          readline calls _completer("sh", 1) -> "show history"
+          readline calls _completer("sh", 2) -> "show time"
+          readline calls _completer("sh", 3) -> None  (end)
         """
         options = [c for c in COMMANDS if c.startswith(text)]
         if state < len(options):
@@ -1110,19 +1114,19 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         return None
 
     # ------------------------------------------------------------------
-    # Affichage des erreurs (F10 du cahier des charges)
+    # Error display (F10 of the specification)
     # ------------------------------------------------------------------
 
     def _error(self, message: str) -> None:
         """
-        Affiche un message d'erreur sur stderr (F1 du cahier des charges).
+        Print an error message to stderr (F1 of the specification).
 
-        Le cahier des charges impose que les messages d'erreur aillent
-        sur stderr, pas stdout.
+        The specification requires that error messages go to stderr,
+        not stdout.
         """
         print(f"Error: {message}", file=sys.stderr)
 
     def _debug_print(self, message: str) -> None:
-        """Affiche un message de debug uniquement si --debug est actif."""
+        """Print a debug message only if --debug is active."""
         if self._debug:
             print(f"[DEBUG] {message}", file=sys.stderr)
