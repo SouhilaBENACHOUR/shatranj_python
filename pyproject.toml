@@ -19,6 +19,8 @@ authors = [
 dependencies = [
     "scikit-learn>=1.3.0",
     "numpy>=1.24.0",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
 ]
 
 [project.optional-dependencies]
@@ -26,8 +28,6 @@ gui = [
     "PyGObject>=3.42.0; sys_platform == 'linux'",
 ]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
     "black>=23.7.0",
     "flake8>=6.1.0",
     "isort>=5.12.0",
@@ -43,3 +43,6 @@ Repository = "https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["shatranj*"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=shatranj --cov-report=term-missing"
