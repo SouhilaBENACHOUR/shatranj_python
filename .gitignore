@@ -15,3 +15,7 @@ htmlcov/
 # Editor / backups
 *.save
 *.egg-info/
+
+# ignore generated files
+*.dot
+*.png

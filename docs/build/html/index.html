@@ -119,37 +119,57 @@ Using max(rank_diff, file_diff) == 1 elegantly covers all directions.</p>
 <dl class="py class" id="module-shatranj.domain.rules.rules_engine">
 <dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">shatranj.domain.rules.rules_engine.</span></span><span class="sig-name descname"><span class="pre">RulesEngine</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">validator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#shatranj.domain.rules.move_validator.MoveValidator" title="shatranj.domain.rules.move_validator.MoveValidator"><span class="pre">MoveValidator</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">MoveGenerator</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine" title="Link to this definition">¶</a></dt>
-<dd><p>Coordinates move generation and move validation.</p>
+<dd><p>Coordinates move generation and move validation for Shatranj.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine.generate_legal_moves">
 <span class="sig-name descname"><span class="pre">generate_legal_moves</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">board</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Board</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#shatranj.domain.core.move.Move" title="shatranj.domain.core.move.Move"><span class="pre">Move</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine.generate_legal_moves"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine.generate_legal_moves" title="Link to this definition">¶</a></dt>
-<dd><p>Filtre les coups pseudo-légaux.
-Un coup est légal seulement si après l’avoir joué,
-notre Shah n’est pas en échec.</p>
+<dd><p>Filters pseudo-legal moves to return only legal moves.</p>
+<p>A move is legal only if, after playing it,
+the player’s Shah is not in check.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine.generate_pseudo_legal_moves">
+<span class="sig-name descname"><span class="pre">generate_pseudo_legal_moves</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">board</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Board</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#shatranj.domain.core.move.Move" title="shatranj.domain.core.move.Move"><span class="pre">Move</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine.generate_pseudo_legal_moves"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine.generate_pseudo_legal_moves" title="Link to this definition">¶</a></dt>
+<dd><p>Generates all pseudo-legal moves for a given color.</p>
+<p>Pseudo-legal: moves that respect piece movement rules, 
+but may leave the Shah in check.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine.has_legal_moves">
+<span class="sig-name descname"><span class="pre">has_legal_moves</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">board</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Board</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine.has_legal_moves"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine.has_legal_moves" title="Link to this definition">¶</a></dt>
+<dd><p>Returns True if the player has at least one legal move.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine.is_bare_king">
 <span class="sig-name descname"><span class="pre">is_bare_king</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">board</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Board</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine.is_bare_king"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine.is_bare_king" title="Link to this definition">¶</a></dt>
-<dd><p>Règle propre au Shatranj :
-Si l’adversaire n’a plus que son Shah → ‘color’ gagne.</p>
-<p>On compare le bitboard de toutes les pièces adverses
-avec le bitboard du seul Shah adverse.
-S’ils sont identiques → il ne reste que le Shah.</p>
+<dd><p>Shatranj-specific rule:
+If the opponent has only the Shah remaining → ‘color’ wins.</p>
+<p>Compare the opponent’s full piece bitboard
+with the opponent’s Shah bitboard.
+If they are identical → only the Shah remains.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine.is_checkmate">
 <span class="sig-name descname"><span class="pre">is_checkmate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">board</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Board</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine.is_checkmate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine.is_checkmate" title="Link to this definition">¶</a></dt>
-<dd><p>Mat : le Shah est en échec ET aucun coup légal ne peut le sauver.
-La partie est terminée, ‘color’ a perdu.</p>
+<dd><p>Checkmate: the Shah is in check AND no legal move can save it.
+The game is over, ‘color’ loses.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine.is_stalemate">
 <span class="sig-name descname"><span class="pre">is_stalemate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">board</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Board</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine.is_stalemate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine.is_stalemate" title="Link to this definition">¶</a></dt>
-<dd><p>Pat : le Shah n’est PAS en échec mais aucun coup légal disponible.
-En Shatranj le pat est une VICTOIRE pour celui qui l’a provoqué.</p>
+<dd><p>Stalemate: the Shah is NOT in check but no legal moves available.
+In Shatranj, stalemate counts as a WIN for the player who caused it.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="shatranj.domain.rules.rules_engine.RulesEngine.is_valid_move">
+<span class="sig-name descname"><span class="pre">is_valid_move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">board</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Board</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">move</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#shatranj.domain.core.move.Move" title="shatranj.domain.core.move.Move"><span class="pre">Move</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/shatranj/domain/rules/rules_engine.html#RulesEngine.is_valid_move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.domain.rules.rules_engine.RulesEngine.is_valid_move" title="Link to this definition">¶</a></dt>
+<dd><p>Checks if a given move is valid according to the game rules.</p>
 </dd></dl>
 
 </dd></dl>
@@ -437,36 +457,36 @@ until the user types “quit”.</p>
 </section>
 <section id="module-shatranj.main">
 <span id="main"></span><h2>Main<a class="headerlink" href="#module-shatranj.main" title="Link to this heading">¶</a></h2>
-<p>main.py - Point d’entrée du programme Shatranj</p>
+<p>main.py - Entry point of the Shatranj program</p>
 <dl class="simple">
-<dt>Rôle<span class="classifier">gère les options de ligne de commande (F1, F4 du cahier des charges)</span></dt><dd><p>puis lance l’interface appropriée (CLI par défaut).</p>
+<dt>Role: Handles command-line options (F1, F4 of the specifications)</dt><dd><p>and then launches the appropriate interface (CLI by default).</p>
 </dd>
-<dt>Pourquoi argparse ?</dt><dd><p>Le cahier des charges (section 1.12) impose argparse pour Python.
-argparse gère automatiquement -h/–help et les messages d’erreur.</p>
+<dt>Why argparse?</dt><dd><p>The specifications (section 1.12) require argparse for Python.
+argparse automatically handles -h/–help and error messages.</p>
 </dd>
-<dt>Options gérées (F1) :</dt><dd><p>-h / –help     : affiche l’aide
--V / –version  : affiche la version
--v / –verbose  : mode verbeux
--d / –debug    : mode debug
--b / –blitz    : mode blitz (F5)
--t / –time     : temps en minutes pour le blitz (F5)
--g / –gui      : interface graphique (F7) - pas encore implémentée
--a / –ai       : joueur artificiel (F8) - pas encore implémenté</p>
+<dt>Supported options (F1):</dt><dd><p>-h / –help     : show help
+-V / –version  : show version
+-v / –verbose  : verbose mode
+-d / –debug    : debug mode
+-b / –blitz    : blitz mode (F5)
+-t / –time     : time in minutes for blitz (F5)
+-g / –gui      : graphical interface (F7) - not yet implemented
+-a / –ai       : AI player (F8) - not yet implemented</p>
 </dd>
 </dl>
 <dl class="py function">
 <dt class="sig sig-object py" id="shatranj.main.build_argument_parser">
 <span class="sig-prename descclassname"><span class="pre">shatranj.main.</span></span><span class="sig-name descname"><span class="pre">build_argument_parser</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ArgumentParser</span></span></span><a class="reference internal" href="_modules/shatranj/main.html#build_argument_parser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.main.build_argument_parser" title="Link to this definition">¶</a></dt>
-<dd><p>Construit et retourne le parser d’arguments.</p>
-<p>On sépare la construction du parser de son utilisation
-pour faciliter les tests unitaires.</p>
+<dd><p>Builds and returns the argument parser.</p>
+<p>Separating parser construction from usage
+makes unit testing easier.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="shatranj.main.main">
 <span class="sig-prename descclassname"><span class="pre">shatranj.main.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/shatranj/main.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#shatranj.main.main" title="Link to this definition">¶</a></dt>
-<dd><p>Point d’entrée principal.</p>
-<p>Retourne 0 en cas de succès, 1 en cas d’erreur (F1).</p>
+<dd><p>Main entry point.</p>
+<p>Returns 0 on success, 1 on error (F1).</p>
 </dd></dl>
 
 </section>

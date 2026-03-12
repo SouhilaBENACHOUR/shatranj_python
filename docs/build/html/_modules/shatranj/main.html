@@ -32,30 +32,30 @@
             
   <h1>Source code for shatranj.main</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">main.py - Point d&#39;entrée du programme Shatranj</span>
+<span class="sd">main.py - Entry point of the Shatranj program</span>
 
-<span class="sd">Rôle : gère les options de ligne de commande (F1, F4 du cahier des charges)</span>
-<span class="sd">       puis lance l&#39;interface appropriée (CLI par défaut).</span>
+<span class="sd">Role: Handles command-line options (F1, F4 of the specifications)</span>
+<span class="sd">      and then launches the appropriate interface (CLI by default).</span>
 
-<span class="sd">Pourquoi argparse ?</span>
-<span class="sd">  Le cahier des charges (section 1.12) impose argparse pour Python.</span>
-<span class="sd">  argparse gère automatiquement -h/--help et les messages d&#39;erreur.</span>
+<span class="sd">Why argparse?</span>
+<span class="sd">  The specifications (section 1.12) require argparse for Python.</span>
+<span class="sd">  argparse automatically handles -h/--help and error messages.</span>
 
-<span class="sd">Options gérées (F1) :</span>
-<span class="sd">  -h / --help     : affiche l&#39;aide</span>
-<span class="sd">  -V / --version  : affiche la version</span>
-<span class="sd">  -v / --verbose  : mode verbeux</span>
-<span class="sd">  -d / --debug    : mode debug</span>
-<span class="sd">  -b / --blitz    : mode blitz (F5)</span>
-<span class="sd">  -t / --time     : temps en minutes pour le blitz (F5)</span>
-<span class="sd">  -g / --gui      : interface graphique (F7) - pas encore implémentée</span>
-<span class="sd">  -a / --ai       : joueur artificiel (F8) - pas encore implémenté</span>
+<span class="sd">Supported options (F1):</span>
+<span class="sd">  -h / --help     : show help</span>
+<span class="sd">  -V / --version  : show version</span>
+<span class="sd">  -v / --verbose  : verbose mode</span>
+<span class="sd">  -d / --debug    : debug mode</span>
+<span class="sd">  -b / --blitz    : blitz mode (F5)</span>
+<span class="sd">  -t / --time     : time in minutes for blitz (F5)</span>
+<span class="sd">  -g / --gui      : graphical interface (F7) - not yet implemented</span>
+<span class="sd">  -a / --ai       : AI player (F8) - not yet implemented</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 
-<span class="c1"># Version du programme </span>
+<span class="c1"># Program version</span>
 <span class="n">VERSION</span> <span class="o">=</span> <span class="s2">&quot;0.1.0&quot;</span>
 
 
@@ -63,15 +63,15 @@
 <a class="viewcode-back" href="../../index.html#shatranj.main.build_argument_parser">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">build_argument_parser</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construit et retourne le parser d&#39;arguments.</span>
+<span class="sd">    Builds and returns the argument parser.</span>
 
-<span class="sd">    On sépare la construction du parser de son utilisation</span>
-<span class="sd">    pour faciliter les tests unitaires.</span>
+<span class="sd">    Separating parser construction from usage</span>
+<span class="sd">    makes unit testing easier.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
         <span class="n">prog</span><span class="o">=</span><span class="s2">&quot;shatranj&quot;</span><span class="p">,</span>
         <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Shatranj - Indian Chess game&quot;</span><span class="p">,</span>
-        <span class="c1"># epilog affiché après la liste des options dans --help</span>
+        <span class="c1"># Epilog displayed after the options list in --help</span>
         <span class="n">epilog</span><span class="o">=</span><span class="s2">&quot;Examples:</span><span class="se">\n</span><span class="s2">&quot;</span>
                <span class="s2">&quot;  shatranj              Start a new game (CLI)</span><span class="se">\n</span><span class="s2">&quot;</span>
                <span class="s2">&quot;  shatranj -b -t 15    Start a blitz game (15 min per player)</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -79,22 +79,22 @@
         <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -V / --version : affiche la version et quitte (F1)</span>
+    <span class="c1"># -V / --version : show version and exit (F1)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-V&quot;</span><span class="p">,</span> <span class="s2">&quot;--version&quot;</span><span class="p">,</span>
         <span class="n">action</span><span class="o">=</span><span class="s2">&quot;version&quot;</span><span class="p">,</span>
         <span class="n">version</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;%(prog)s </span><span class="si">{</span><span class="n">VERSION</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -v / --verbose : augmente la verbosité (F1)</span>
+    <span class="c1"># -v / --verbose : increase verbosity (F1)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-v&quot;</span><span class="p">,</span> <span class="s2">&quot;--verbose&quot;</span><span class="p">,</span>
-        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>         <span class="c1"># True si présent, False sinon</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Increase verbosity&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -d / --debug : affiche les messages de debug (F1)</span>
+    <span class="c1"># -d / --debug : enable debug messages (F1)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--debug&quot;</span><span class="p">,</span>
         <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
@@ -102,7 +102,7 @@
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Enable debug messages&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -b / --blitz : mode blitz (F5)</span>
+    <span class="c1"># -b / --blitz : blitz mode (F5)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-b&quot;</span><span class="p">,</span> <span class="s2">&quot;--blitz&quot;</span><span class="p">,</span>
         <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
@@ -110,7 +110,7 @@
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Start a blitz game (timed)&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -t / --time : temps en minutes pour le blitz (F5)</span>
+    <span class="c1"># -t / --time : time limit in minutes for blitz (F5)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="s2">&quot;--time&quot;</span><span class="p">,</span>
         <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
@@ -119,7 +119,7 @@
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Time limit in minutes for blitz mode (default: 30)&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -g / --gui : interface graphique (F7)</span>
+    <span class="c1"># -g / --gui : graphical interface (F7)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-g&quot;</span><span class="p">,</span> <span class="s2">&quot;--gui&quot;</span><span class="p">,</span>
         <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
@@ -127,19 +127,19 @@
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Launch the graphical interface (not yet implemented)&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -a / --ai : joueur artificiel (F8)</span>
-    <span class="c1"># nargs=&quot;?&quot; signifie : optionnel, avec une valeur possible</span>
+    <span class="c1"># -a / --ai : AI player (F8)</span>
+    <span class="c1"># nargs=&quot;?&quot; means: optional, may have one value</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-a&quot;</span><span class="p">,</span> <span class="s2">&quot;--ai&quot;</span><span class="p">,</span>
-        <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;?&quot;</span><span class="p">,</span>           <span class="c1"># 0 ou 1 argument</span>
-        <span class="n">const</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>       <span class="c1"># valeur si -a sans argument</span>
-        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>        <span class="c1"># valeur si -a absent</span>
+        <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;?&quot;</span><span class="p">,</span>           
+        <span class="n">const</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>       <span class="c1"># value if -a is given without argument</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>        <span class="c1"># value if -a is absent</span>
         <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;COLOR&quot;</span><span class="p">,</span>
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Replace player COLOR with AI (default: black). &quot;</span>
              <span class="s2">&quot;Colors: white, black, all&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># -c / --contest : mode contest (F6)</span>
+    <span class="c1"># -c / --contest : contest mode (F6)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;--contest&quot;</span><span class="p">,</span>
         <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
@@ -147,10 +147,10 @@
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Contest mode: read a position from a file and output the best move&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># Argument positionnel optionnel : fichier de sauvegarde (F4)</span>
+    <span class="c1"># Optional positional argument: save file (F4)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
         <span class="s2">&quot;savefile&quot;</span><span class="p">,</span>
-        <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;?&quot;</span><span class="p">,</span>           <span class="c1"># 0 ou 1 argument positionnel</span>
+        <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;?&quot;</span><span class="p">,</span>           
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;SAVEFILE&quot;</span><span class="p">,</span>
         <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Save file to load at startup&quot;</span><span class="p">,</span>
@@ -164,17 +164,17 @@
 <a class="viewcode-back" href="../../index.html#shatranj.main.main">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Point d&#39;entrée principal.</span>
+<span class="sd">    Main entry point.</span>
 
-<span class="sd">    Retourne 0 en cas de succès, 1 en cas d&#39;erreur (F1).</span>
+<span class="sd">    Returns 0 on success, 1 on error (F1).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">parser</span> <span class="o">=</span> <span class="n">build_argument_parser</span><span class="p">()</span>
     <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
 
-    <span class="c1"># --- Validation des options ---</span>
+    <span class="c1"># --- Option validation ---</span>
 
-    <span class="c1"># F5 : -t sans -b affiche un avertissement</span>
-    <span class="c1"># (on vérifie si --time a été explicitement donné)</span>
+    <span class="c1"># F5: -t without -b prints a warning</span>
+    <span class="c1"># (check if --time was explicitly given)</span>
     <span class="n">time_given_explicitly</span> <span class="o">=</span> <span class="s2">&quot;--time&quot;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span> <span class="ow">or</span> <span class="s2">&quot;-t&quot;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span>
     <span class="k">if</span> <span class="n">time_given_explicitly</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">blitz</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span>
@@ -182,25 +182,25 @@
             <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span>
         <span class="p">)</span>
 
-    <span class="c1"># --- Lancement de l&#39;interface ---</span>
+    <span class="c1"># --- Launch the interface ---</span>
 
     <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">gui</span><span class="p">:</span>
-        <span class="c1"># Interface graphique (F7) </span>
+        <span class="c1"># Graphical interface (F7) </span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.presentation.gui.app</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_gui</span>
         <span class="k">return</span> <span class="n">run_gui</span><span class="p">()</span>
 
-    <span class="c1"># Par défaut : interface CLI</span>
-    <span class="c1"># On importe ici pour éviter les imports circulaires</span>
+    <span class="c1"># Default: CLI interface</span>
+    <span class="c1"># Import here to avoid circular imports</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.presentation.cli.cli</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLI</span>
 
     <span class="n">cli</span> <span class="o">=</span> <span class="n">CLI</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">debug</span><span class="p">)</span>
 
-    <span class="c1"># Si un fichier de sauvegarde est donné, on le charge automatiquement (F4)</span>
+    <span class="c1"># If a save file is provided, automatically load it (F4)</span>
     <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">savefile</span><span class="p">:</span>
-        <span class="c1"># On simule la commande &quot;load FILE&quot;</span>
+        <span class="c1"># Simulate the command &quot;load FILE&quot;</span>
         <span class="n">cli</span><span class="o">.</span><span class="n">_do_load</span><span class="p">([</span><span class="n">args</span><span class="o">.</span><span class="n">savefile</span><span class="p">])</span>
 
-    <span class="c1"># Lance la boucle interactive</span>
+    <span class="c1"># Run the interactive loop</span>
     <span class="n">cli</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
     <span class="k">return</span> <span class="mi">0</span></div>
@@ -208,7 +208,7 @@
 
 
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-    <span class="c1"># sys.exit() convertit le code de retour int en exit code du processus</span>
+    <span class="c1"># sys.exit() converts the int return code to the process exit code</span>
     <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
 </pre></div>
 
