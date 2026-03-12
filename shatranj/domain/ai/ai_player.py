@@ -36,7 +36,7 @@ class AIPlayer:
             # MCTS utilise des simulations au lieu d'une profondeur
             self._search = MCTS(
                 engine      = self._engine,
-                simulations = 500,
+                simulations = 100,
             )
         elif algorithm == "alphabeta":
             self._search = AlphaBeta(
