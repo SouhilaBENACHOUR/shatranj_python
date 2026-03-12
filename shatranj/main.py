@@ -146,10 +146,14 @@ def main() -> int:
 
     # --- Lancement de l'interface ---
 
-    if args.gui:
-        # Interface graphique (F7) 
-        from shatranj.presentation.gui.app import run_gui
-        return run_gui()
+    if args.gui:  # ← 4 espaces, CORRECT
+        try:
+            from shatranj.presentation.gui.app import run_gui
+            return run_gui()
+        except ModuleNotFoundError:
+            print("Error: GUI requires GTK which is not available on Windows.", file=sys.stderr)
+            print("Please use Linux or WSL to run the GUI.", file=sys.stderr)
+            return 1
 
     # Par défaut : interface CLI
     # On importe ici pour éviter les imports circulaires

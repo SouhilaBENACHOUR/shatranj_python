@@ -429,40 +429,50 @@ class CLI:
 
     def _do_ai_move(self) -> None:
         """
-        Let the AI play.
+        Let the AI play whose turn it is.
 
-        1. The AI calculates the best move using Minimax
-        2. If no move available -> end of game
-        3. Otherwise apply the move and display the board
-        4. Check if the game is over after the AI's move
+        1. Get the AI for the current color
+        2. Display which algorithm the AI uses
+        3. The AI calculates the best move
+        4. If no move available -> end of game
+        5. Otherwise apply the move and display the board
+        6. Check if the game is over after the AI's move
         """
         if self._state is None:
             return
 
+        # get the AI that plays the current color
         ai_player = self._ai_players.get(self._state.current_color)
         if ai_player is None:
             return
 
-        print(f"AI ({self._state.current_color}) is thinking...")
+        # display which algorithm and depth the AI uses
+        algo  = type(ai_player._search).__name__
+        depth = ai_player._search._depth
+        print(f"AI is thinking... (algorithm: {algo}, depth: {depth})")
+
         move = ai_player.choose_move(self._state.board)
 
-        # No move available -> end of game
+        # no move available -> end of game
         if move is None:
             self._check_game_over()
             return
 
-        # Display the move played by the AI in readable notation
-        print(f"AI ({ai_player.color}) plays: {self._format_move_with_piece(move)}")
+        # display the move played by the AI in algebraic notation
+        from_alg = Board.square_to_algebraic(move.from_square)
+        to_alg   = Board.square_to_algebraic(move.to_square)
+        sep      = "x" if move.captured_piece else "-"
+        print(f"AI plays: {from_alg}{sep}{to_alg}")
 
-        # Apply the move on the board
+        # apply the move on the board
         self._state.apply_move(move)
         self._saved = False
 
-        # Display the updated board
+        # display the updated board
         print_board(self._state.board)
         print(f"\nIt's now {self._state.current_color}'s turn.")
 
-        # Check if the game is over after the AI's move
+        # check if the game is over after the AI's move
         self._check_game_over()
 
     def _auto_play_ai_turns(self, max_plies: int = AUTO_PLAY_MAX_PLIES) -> None:
@@ -501,21 +511,32 @@ class CLI:
         # Configure AI if requested:
         # - "new ai black" / "new ai white"
         # - "new ai-vs-ai"
+        # algo optionnel : minimax, alphabeta (défaut), mcts
         if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
             self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=2)
             self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=2)
             print("New game started! AI plays WHITE and BLACK.")
+
         elif len(args) >= 2 and args[0].lower() == "ai":
             ai_color = args[1].upper()
+
+            # algorithme optionnel en 3ème argument (défaut : alphabeta)
+            algo = args[2].lower() if len(args) >= 3 else "alphabeta"
+
+            if algo not in ("minimax", "alphabeta", "mcts"):
+                self._error(f"Unknown algorithm: '{algo}'. Use minimax, alphabeta or mcts.")
+                return
+
             if ai_color == "BLACK":
-                self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=3)
-                print("New game started! You play WHITE, AI plays BLACK.")
+                self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=3, algorithm=algo)
+                print(f"New game started! You play WHITE, AI plays BLACK ({algo}).")
             elif ai_color == "WHITE":
-                self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=3)
-                print("New game started! AI plays WHITE, you play BLACK.")
+                self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=3, algorithm=algo)
+                print(f"New game started! AI plays WHITE ({algo}), you play BLACK.")
             else:
                 self._error(f"Unknown color: '{args[1]}'. Use 'black' or 'white'.")
                 return
+
         else:
             print("New game started! White plays first.")
 
