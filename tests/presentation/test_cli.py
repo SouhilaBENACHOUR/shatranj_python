@@ -638,6 +638,31 @@ class TestCliAIVsAI:
         assert history[1].from_square == 52 and history[1].to_square == 44
         assert cli._state is None
 
+    def test_do_ai_move_displays_piece_name(self, capsys):
+        from shatranj.domain.core.move import Move
+        from shatranj.presentation.cli.cli import CLI
+        from shatranj.presentation.cli.game_state import GameState
+        from shatranj.utils.constants import WHITE, PAWN
+
+        class ScriptedAI:
+            def __init__(self, scripted_move: Move) -> None:
+                self._scripted_move = scripted_move
+
+            def choose_move(self, board):
+                return self._scripted_move
+
+        cli = CLI()
+        cli._state = GameState()
+        cli._ai_players = {
+            WHITE: ScriptedAI(Move(12, 20, PAWN, WHITE)),
+        }
+
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            cli._do_ai_move()
+
+        out = capsys.readouterr().out
+        assert "AI plays: pawn e2-e3" in out
+
 
 class TestCliDrawRules:
     """Tests for draw rules used to stop infinite AI loops."""

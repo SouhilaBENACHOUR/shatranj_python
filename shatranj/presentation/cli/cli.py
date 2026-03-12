@@ -1,4 +1,4 @@
-"""
+﻿"""
 cli.py - Interactive shell for the Shatranj game
 
 Role: entry point of the CLI interface.
@@ -447,9 +447,7 @@ class CLI:
             return
 
         # display which algorithm and depth the AI uses
-        algo  = type(ai_player._search).__name__
-        depth = ai_player._search._depth
-        print(f"AI is thinking... (algorithm: {algo}, depth: {depth})")
+        print(f"AI is thinking...{self._format_ai_details(ai_player)}")
 
         move = ai_player.choose_move(self._state.board)
 
@@ -459,10 +457,7 @@ class CLI:
             return
 
         # display the move played by the AI in algebraic notation
-        from_alg = Board.square_to_algebraic(move.from_square)
-        to_alg   = Board.square_to_algebraic(move.to_square)
-        sep      = "x" if move.captured_piece else "-"
-        print(f"AI plays: {from_alg}{sep}{to_alg}")
+        print(f"AI plays: {self._format_move_with_piece(move)}")
 
         # apply the move on the board
         self._state.apply_move(move)
@@ -816,6 +811,18 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         to_alg = Board.square_to_algebraic(move.to_square)
         sep = "x" if move.captured_piece else "-"
         return f"{piece_name} {from_alg}{sep}{to_alg}"
+
+    def _format_ai_details(self, ai_player: object) -> str:
+        """Return optional algorithm metadata for an AI player."""
+        search = getattr(ai_player, "_search", None)
+        if search is None:
+            return ""
+
+        algo = type(search).__name__
+        depth = getattr(search, "_depth", None)
+        if depth is None:
+            return f" (algorithm: {algo})"
+        return f" (algorithm: {algo}, depth: {depth})"
 
     def _do_load(self, args: list[str]) -> None:
         """
