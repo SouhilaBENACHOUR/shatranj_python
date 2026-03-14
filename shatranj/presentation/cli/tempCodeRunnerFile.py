@@ -1,1 +1,0 @@
-_is_draw_by_fifty_move_rule

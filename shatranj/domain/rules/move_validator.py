@@ -2,8 +2,13 @@ from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.utils.constants import PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH, NUM_SQUARES
 from shatranj.domain.rules.piece_validator import (
-    PieceValidator, PawnValidator, RookValidator, KnightValidator,
-    AlfilValidator, FerzValidator, ShahValidator
+    PieceValidator,
+    PawnValidator,
+    RookValidator,
+    KnightValidator,
+    AlfilValidator,
+    FerzValidator,
+    ShahValidator,
 )
 
 
@@ -16,12 +21,12 @@ class MoveValidator:
 
     # Map each piece type to its validator (Strategy pattern)
     _validators: dict[str, PieceValidator] = {
-        PAWN:   PawnValidator(),
-        ROOK:   RookValidator(),
+        PAWN: PawnValidator(),
+        ROOK: RookValidator(),
         KNIGHT: KnightValidator(),
-        ALFIL:  AlfilValidator(),
-        FERZ:   FerzValidator(),
-        SHAH:   ShahValidator(),
+        ALFIL: AlfilValidator(),
+        FERZ: FerzValidator(),
+        SHAH: ShahValidator(),
     }
 
     def is_valid_move(self, board: Board, move: Move) -> bool:

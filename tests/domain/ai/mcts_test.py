@@ -12,9 +12,10 @@ def test_mcts_returns_a_move():
     board.place_piece(ROOK, WHITE, 1)
     board.place_piece(SHAH, BLACK, 63)
     engine = RulesEngine()
-    mcts   = MCTS(engine=engine, simulations=50)  # 50 pour les tests (rapide)
-    move   = mcts.best_move(board, WHITE)
+    mcts = MCTS(engine=engine, simulations=50)  # 50 pour les tests (rapide)
+    move = mcts.best_move(board, WHITE)
     assert move is not None
+
 
 def test_mcts_returns_none_when_no_moves():
     """MCTS retourne None si aucun coup disponible (mat)."""
@@ -24,9 +25,10 @@ def test_mcts_returns_none_when_no_moves():
     board.place_piece(ROOK, BLACK, 1)
     board.place_piece(SHAH, BLACK, 9)
     engine = RulesEngine()
-    mcts   = MCTS(engine=engine, simulations=50)
-    move   = mcts.best_move(board, WHITE)
+    mcts = MCTS(engine=engine, simulations=50)
+    move = mcts.best_move(board, WHITE)
     assert move is None
+
 
 def test_mcts_via_ai_player():
     """AIPlayer avec algorithme mcts fonctionne correctement."""
@@ -34,9 +36,10 @@ def test_mcts_via_ai_player():
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, WHITE, 1)
     board.place_piece(SHAH, BLACK, 63)
-    ai   = AIPlayer(color=WHITE, algorithm="mcts")
+    ai = AIPlayer(color=WHITE, algorithm="mcts")
     move = ai.choose_move(board)
     assert move is not None
+
 
 def test_mcts_avoids_immediate_loss():
     """
@@ -44,11 +47,11 @@ def test_mcts_avoids_immediate_loss():
     Le Shah blanc ne doit pas se déplacer vers une case attaquée.
     """
     board = Board(setup=False)
-    board.place_piece(SHAH, WHITE, 0)    # a1
-    board.place_piece(ROOK, WHITE, 16)   # a3
-    board.place_piece(SHAH, BLACK, 63)   # h8
-    board.place_piece(PAWN, BLACK, 24)   # a4 — capturable
+    board.place_piece(SHAH, WHITE, 0)  # a1
+    board.place_piece(ROOK, WHITE, 16)  # a3
+    board.place_piece(SHAH, BLACK, 63)  # h8
+    board.place_piece(PAWN, BLACK, 24)  # a4 — capturable
     engine = RulesEngine()
-    mcts   = MCTS(engine=engine, simulations=200)
-    move   = mcts.best_move(board, WHITE)
+    mcts = MCTS(engine=engine, simulations=200)
+    move = mcts.best_move(board, WHITE)
     assert move is not None

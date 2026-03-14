@@ -1,0 +1,19 @@
+[settings]
+verbose=false
+debug=false
+
+[game]
+B
+r n a f k a n r
+p p p p _ _ p p
+_ _ _ _ p p _ _
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _
+P P P _ _ _ _ _
+_ _ _ P P P P P
+R N A F K A N R
+
+[history]
+W a2-a3 B e7-e6
+W b2-b3 B f7-f6
+W c2-c3

@@ -22,18 +22,18 @@ Sous-modules :
 Interface CLI  :
     - Shell interactif avec prompt >>
     - Commandes : new, move, undo, save, load, hint, quit
-    - Édition de ligne (readline) 
-    - Historique des commandes 
-    - Auto-complétion (Tab) 
+    - Édition de ligne (readline)
+    - Historique des commandes
+    - Auto-complétion (Tab)
     - Affichage ASCII du plateau
 
 Interface GUI :
     - Fenêtre GTK avec menus (File, Game)
     - Plateau graphique 8x8
-    - Drag'n'drop des pièces 
+    - Drag'n'drop des pièces
     - Affichage des coups possibles
     - Dialogues (nouvelle partie, sauvegarde, etc.)
-    - Raccourcis clavier 
+    - Raccourcis clavier
 
 
 """

@@ -1,4 +1,9 @@
-from shatranj.data.bitboards.bitboard import clear_bit_at, get_bit_at, set_bit_at, get_lsb
+from shatranj.data.bitboards.bitboard import (
+    clear_bit_at,
+    get_bit_at,
+    set_bit_at,
+    get_lsb,
+)
 from shatranj.domain.core.move import Move
 from shatranj.utils.constants import (
     ALFIL,
@@ -14,7 +19,6 @@ from shatranj.utils.constants import (
     SHAH,
     WHITE,
 )
-
 
 PIECES = (SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN)
 COLORS = (WHITE, BLACK)
@@ -129,9 +133,9 @@ class Board:
         Joue le coup sur le board.
         Retourne la pièce capturée ou None.
         """
-        captured = self.get_piece_at(move.to_square)       # sauvegarde la pièce capturée
+        captured = self.get_piece_at(move.to_square)  # sauvegarde la pièce capturée
         self.move_piece(move.from_square, move.to_square)  # déplace la pièce
-        return captured                                     # nécessaire pour undo_move
+        return captured  # nécessaire pour undo_move
 
     def undo_move(self, move: Move, captured: tuple[str, str] | None) -> None:
         """
@@ -141,5 +145,4 @@ class Board:
         self.move_piece(move.to_square, move.from_square)  # remet la pièce à l'origine
         if captured is not None:
             piece, color = captured
-            self.set_piece(piece, color, move.to_square)   # restore la pièce capturée
-    
+            self.set_piece(piece, color, move.to_square)  # restore la pièce capturée

@@ -22,20 +22,20 @@ class AlphaBeta:
         self,
         engine: RulesEngine,
         evaluator: Evaluator,
-        depth: int = 4,  
+        depth: int = 4,
     ) -> None:
-        self._engine   = engine
+        self._engine = engine
         self._evaluator = evaluator
-        self._depth    = depth
+        self._depth = depth
 
     def best_move(self, board: Board, color: str) -> Move | None:
         """
         Retourne le meilleur coup pour 'color' avec Alpha-Beta.
         Retourne None si aucun coup n'est disponible.
         """
-        best      = None
-        alpha     = float("-inf")  # meilleur score garanti pour MAX
-        beta      = float("+inf")  # meilleur score garanti pour MIN
+        best = None
+        alpha = float("-inf")  # meilleur score garanti pour MAX
+        beta = float("+inf")  # meilleur score garanti pour MIN
 
         legal_moves = self._engine.generate_legal_moves(board, color)
         if not legal_moves:
@@ -46,13 +46,13 @@ class AlphaBeta:
 
             opponent = BLACK if color == WHITE else WHITE
             score = self._alphabeta(
-                board         = board,
-                depth         = self._depth - 1,
-                alpha         = alpha,
-                beta          = beta,
-                is_maximizing = False,  # adversaire joue en premier (MIN)
-                ai_color      = color,
-                current_color = opponent,
+                board=board,
+                depth=self._depth - 1,
+                alpha=alpha,
+                beta=beta,
+                is_maximizing=False,  # adversaire joue en premier (MIN)
+                ai_color=color,
+                current_color=opponent,
             )
 
             board.undo_move(move, captured)
@@ -60,19 +60,19 @@ class AlphaBeta:
             # on garde le meilleur coup pour MAX
             if score > alpha:
                 alpha = score
-                best  = move
+                best = move
 
         return best
 
     def _alphabeta(
         self,
-        board         : Board,
-        depth         : int,
-        alpha         : float,
-        beta          : float,
-        is_maximizing : bool,
-        ai_color      : str,
-        current_color : str,
+        board: Board,
+        depth: int,
+        alpha: float,
+        beta: float,
+        is_maximizing: bool,
+        ai_color: str,
+        current_color: str,
     ) -> float:
         """
         Fonction récursive Alpha-Beta.
@@ -105,17 +105,17 @@ class AlphaBeta:
             for move in legal_moves:
                 captured = board.apply_move(move)
                 score = self._alphabeta(
-                    board         = board,
-                    depth         = depth - 1,
-                    alpha         = alpha,
-                    beta          = beta,
-                    is_maximizing = False,
-                    ai_color      = ai_color,
-                    current_color = opponent,
+                    board=board,
+                    depth=depth - 1,
+                    alpha=alpha,
+                    beta=beta,
+                    is_maximizing=False,
+                    ai_color=ai_color,
+                    current_color=opponent,
                 )
                 board.undo_move(move, captured)
 
-                best  = max(best, score)
+                best = max(best, score)
                 alpha = max(alpha, best)  # met à jour alpha
 
                 # COUPE BETA : MIN ne choisira jamais cette branche
@@ -131,13 +131,13 @@ class AlphaBeta:
             for move in legal_moves:
                 captured = board.apply_move(move)
                 score = self._alphabeta(
-                    board         = board,
-                    depth         = depth - 1,
-                    alpha         = alpha,
-                    beta          = beta,
-                    is_maximizing = True,
-                    ai_color      = ai_color,
-                    current_color = opponent,
+                    board=board,
+                    depth=depth - 1,
+                    alpha=alpha,
+                    beta=beta,
+                    is_maximizing=True,
+                    ai_color=ai_color,
+                    current_color=opponent,
                 )
                 board.undo_move(move, captured)
 

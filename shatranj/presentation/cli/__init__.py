@@ -10,37 +10,37 @@ Responsabilités :
     - Gestion des erreurs gracieuse
 
 Composants :
-    - Shell : Shell principal avec boucle de lecture 
-    - CommandHandler : Gestionnaire de commandes 
+    - Shell : Shell principal avec boucle de lecture
+    - CommandHandler : Gestionnaire de commandes
     - Formatter : Formatage de l'affichage
-    - Completer : Auto-complétion 
-    - ErrorHandler : Gestion des erreurs 
+    - Completer : Auto-complétion
+    - ErrorHandler : Gestion des erreurs
     - InputValidator : Validation des entrées
-    - HistoryManagerCommand : Gestion historique commandes 
-    - NetworkHandler : Gestion des commandes réseau 
+    - HistoryManagerCommand : Gestion historique commandes
+    - NetworkHandler : Gestion des commandes réseau
 
 Classe Shell :
     Responsabilité : Shell interactif principal
-    
+
     Attributs :
         - game : Game (partie en cours)
         - command_handler : CommandHandler
         - formatter : Formatter
         - running : bool
-    
+
     Méthodes principales :
         - run() : Boucle principale du shell
             while running:
                 display_prompt()
                 command = read_input()
                 execute_command(command)
-        
+
         - display_prompt() : Afficher ">> "
         - read_input() : Lire une ligne (avec readline)
         - execute_command(cmd, args) : Dispatcher la commande
         - welcome_message() : Message d'accueil
         - display_help(command) : Afficher l'aide
-    
+
     Configuration readline :
         - setup_readline() : Édition de ligne
         - setup_history() : Historique des commandes
@@ -48,61 +48,61 @@ Classe Shell :
 
 Classe CommandHandler :
     Responsabilité : Gestion des commandes du shell
-    
+
     Commandes obligatoires  :
         - new [ARGS] : Nouvelle partie
             new          # Partie normale
             new -a W     # Contre IA (blancs)
             new -a B     # Contre IA (noirs)
-        
+
         - help [CMD] : Affiche l'aide
             help         # Aide générale
             help undo    # Aide spécifique
-        
+
         - quit : Quitter le programme
-        
+
         - load FILE : Charger une partie
             load partie.shatranj
-        
+
         - save FILE : Sauvegarder la partie
             save partie.shatranj
-        
+
         - pause : Pause (mode blitz)
-        
-        - hint : Conseil de coup 
-        
-        - undo [N] : Annuler N coups 
+
+        - hint : Conseil de coup
+
+        - undo [N] : Annuler N coups
             undo         # Annule 1 coup
             undo 3       # Annule 3 coups
-        
+
         - redo [N] : Refaire N coups
-        
+
         - show board : Afficher le plateau
         - show history : Afficher l'historique
         - show time : Afficher les temps (blitz)
         - show configuration : Afficher la config
-        
+
         - set PARAM=VALUE : Changer un paramètre
             set debug=true
             set verbose=false
-    
+
     Méthodes :
         - handle_new(args) : Nouvelle partie
-        - handle_move(notation) : Jouer un coup 
-        - handle_undo(n) : Annuler 
-        - handle_redo(n) : Rejouer 
-        - handle_hint() : Conseil 
-        - handle_save(filepath) : Sauvegarder 
-        - handle_load(filepath) : Charger 
-        - handle_quit() : Quitter 
+        - handle_move(notation) : Jouer un coup
+        - handle_undo(n) : Annuler
+        - handle_redo(n) : Rejouer
+        - handle_hint() : Conseil
+        - handle_save(filepath) : Sauvegarder
+        - handle_load(filepath) : Charger
+        - handle_quit() : Quitter
         - handle_show_board() : Afficher plateau
         - handle_show_history() : Afficher historique
-        - handle_show_time() : Afficher temps 
+        - handle_show_time() : Afficher temps
         - handle_set(param, value) : Modifier config
 
 Classe Formatter :
     Responsabilité : Formatage de l'affichage
-    
+
     Méthodes :
         - format_board(board) -> str : Plateau ASCII
             Exemple :
@@ -111,7 +111,7 @@ Classe Formatter :
             7 p p p p p p p p
             ...
             1 R N A F K A N R
-        
+
         - format_board_unicode(board) -> str : Plateau Unicode
         - format_history(moves) -> str : Historique des coups
         - format_time(seconds) -> str : Convertir en MM:SS
@@ -122,18 +122,18 @@ Classe Formatter :
 
 Classe Completer :
     Responsabilité : Auto-complétion des commandes
-    
+
     Commandes complétées :
         - Commandes principales : new, help, quit, save, load, etc.
         - Sous-commandes : show board, show history, show time
-    
+
     Méthodes :
         - complete(text, state) -> Optional[str]
             Fonction de complétion pour readline
-        
+
         - get_matches(text) -> List[str]
             Retourner les commandes commençant par 'text'
-    
+
     Comportement :
         h<Tab>       → help
         s<Tab>       → beep (plusieurs : save, set, show)
@@ -143,20 +143,20 @@ Classe Completer :
 
 Classe ErrorHandler :
     Responsabilité : Gestion gracieuse des erreurs
-    
+
     Principes :
         - Ne jamais crasher le programme
         - Message d'erreur clair et explicite
         - Redemander un coup valide
         - Afficher ce qui était attendu
-    
+
     Exemples d'erreurs gérées :
         - Format de coup incorrect
         - Coup invalide
         - Pas le tour du joueur
         - Case vide
         - Fichier non trouvé
-    
+
     Méthodes :
         - handle_invalid_move(move, reason)
         - handle_file_error(filepath, error)
@@ -164,22 +164,22 @@ Classe ErrorHandler :
 
 Classe InputValidator :
     Responsabilité : Validation des entrées utilisateur
-    
+
     Méthodes :
         - validate_move_notation(notation) -> bool
             Vérifie format "e2-e4" ou "e4xe5"
-        
+
         - validate_filepath(path) -> bool
         - validate_parameter(param, value) -> bool
 
 Classe HistoryManagerCommand :
     Responsabilité : Gestion de l'historique des commandes
-    
+
     Fonctionnalités :
         - Navigation avec flèches haut/bas
         - Recherche avec Ctrl+R
         - Persistance entre sessions
-    
+
     Méthodes :
         - add_command(cmd) : Ajouter à l'historique
         - get_previous() -> Optional[str]
@@ -188,7 +188,7 @@ Classe HistoryManagerCommand :
 
 Classe NetworkHandler :
     Responsabilité : Gestion des commandes réseau
-    
+
     Commandes réseau :
         - server list : Afficher serveurs disponibles
         - server start [PORT] : Démarrer serveur
@@ -218,7 +218,7 @@ Notation des coups  :
     Format : origine-destination
         - Déplacement simple : "e2-e4"
         - Capture : "e4xe5" (avec 'x')
-    
+
     Validation :
         - Format correct : [a-h][1-8]-[a-h][1-8]
         - Case source valide
@@ -228,10 +228,10 @@ Proposer sauvegarde avant quit  :
     Si partie non sauvegardée :
         >> quit
         Save the game before quitting? [y/N]
-    
+
     Si 'y' : demander nom de fichier et sauvegarder
     Si 'N' ou Enter : quitter sans sauvegarder
-    
+
     En cas d'erreur de sauvegarde : redemander
 """
 

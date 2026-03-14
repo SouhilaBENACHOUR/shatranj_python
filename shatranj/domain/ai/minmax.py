@@ -8,11 +8,11 @@ from shatranj.utils.constants import WHITE, BLACK
 class Minimax:
     """
     Algorithme Minimax avec profondeur configurable.
-    
+
     Principe :
       - MAX : l'IA cherche à maximiser son score
       - MIN : l'adversaire cherche à minimiser le score de l'IA
-    
+
     À chaque niveau on alterne MAX et MIN.
     On explore jusqu'à la profondeur demandée,
     puis on évalue la position avec Evaluator.
@@ -24,9 +24,9 @@ class Minimax:
         evaluator: Evaluator,
         depth: int = 3,
     ) -> None:
-        self._engine = engine      # pour générer les coups légaux
+        self._engine = engine  # pour générer les coups légaux
         self._evaluator = evaluator  # pour évaluer les positions
-        self._depth = depth        # profondeur de recherche
+        self._depth = depth  # profondeur de recherche
 
     def best_move(self, board: Board, color: str) -> Move | None:
         """
@@ -95,7 +95,9 @@ class Minimax:
 
         return best_move
 
-    def _activity_score(self, board: Board, color: str, move: Move) -> tuple[int, int, int, int, int]:
+    def _activity_score(
+        self, board: Board, color: str, move: Move
+    ) -> tuple[int, int, int, int, int]:
         captured = board.apply_move(move)
         mobility_after = len(self._engine.generate_legal_moves(board, color))
         board.undo_move(move, captured)
@@ -118,7 +120,7 @@ class Minimax:
     ) -> float:
         """
         Fonction récursive du Minimax.
-        
+
         depth          → profondeur restante (s'arrête à 0)
         is_maximizing  → True si c'est le tour de l'IA (MAX), False sinon (MIN)
         ai_color       → la couleur de l'IA (ne change jamais)

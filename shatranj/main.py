@@ -22,7 +22,7 @@ Options gérées (F1) :
 import argparse
 import sys
 
-# Version du programme 
+# Version du programme
 VERSION = "0.1.0"
 
 
@@ -38,30 +38,33 @@ def build_argument_parser() -> argparse.ArgumentParser:
         description="Shatranj - Indian Chess game",
         # epilog affiché après la liste des options dans --help
         epilog="Examples:\n"
-               "  shatranj              Start a new game (CLI)\n"
-               "  shatranj -b -t 15    Start a blitz game (15 min per player)\n"
-               "  shatranj save.shatranj  Resume a saved game\n",
+        "  shatranj              Start a new game (CLI)\n"
+        "  shatranj -b -t 15    Start a blitz game (15 min per player)\n"
+        "  shatranj save.shatranj  Resume a saved game\n",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     # -V / --version : affiche la version et quitte (F1)
     parser.add_argument(
-        "-V", "--version",
+        "-V",
+        "--version",
         action="version",
         version=f"%(prog)s {VERSION}",
     )
 
     # -v / --verbose : augmente la verbosité (F1)
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",         # True si présent, False sinon
+        "-v",
+        "--verbose",
+        action="store_true",  # True si présent, False sinon
         default=False,
         help="Increase verbosity",
     )
 
     # -d / --debug : affiche les messages de debug (F1)
     parser.add_argument(
-        "-d", "--debug",
+        "-d",
+        "--debug",
         action="store_true",
         default=False,
         help="Enable debug messages",
@@ -69,7 +72,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -b / --blitz : mode blitz (F5)
     parser.add_argument(
-        "-b", "--blitz",
+        "-b",
+        "--blitz",
         action="store_true",
         default=False,
         help="Start a blitz game (timed)",
@@ -77,7 +81,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -t / --time : temps en minutes pour le blitz (F5)
     parser.add_argument(
-        "-t", "--time",
+        "-t",
+        "--time",
         type=int,
         default=30,
         metavar="TIME",
@@ -86,7 +91,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -g / --gui : interface graphique (F7)
     parser.add_argument(
-        "-g", "--gui",
+        "-g",
+        "--gui",
         action="store_true",
         default=False,
         help="Launch the graphical interface (not yet implemented)",
@@ -95,18 +101,20 @@ def build_argument_parser() -> argparse.ArgumentParser:
     # -a / --ai : joueur artificiel (F8)
     # nargs="?" signifie : optionnel, avec une valeur possible
     parser.add_argument(
-        "-a", "--ai",
-        nargs="?",           # 0 ou 1 argument
-        const="black",       # valeur si -a sans argument
-        default=None,        # valeur si -a absent
+        "-a",
+        "--ai",
+        nargs="?",  # 0 ou 1 argument
+        const="black",  # valeur si -a sans argument
+        default=None,  # valeur si -a absent
         metavar="COLOR",
         help="Replace player COLOR with AI (default: black). "
-             "Colors: white, black, all",
+        "Colors: white, black, all",
     )
 
     # -c / --contest : mode contest (F6)
     parser.add_argument(
-        "-c", "--contest",
+        "-c",
+        "--contest",
         action="store_true",
         default=False,
         help="Contest mode: read a position from a file and output the best move",
@@ -115,7 +123,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     # Argument positionnel optionnel : fichier de sauvegarde (F4)
     parser.add_argument(
         "savefile",
-        nargs="?",           # 0 ou 1 argument positionnel
+        nargs="?",  # 0 ou 1 argument positionnel
         default=None,
         metavar="SAVEFILE",
         help="Save file to load at startup",
@@ -149,9 +157,13 @@ def main() -> int:
     if args.gui:  # ← 4 espaces, CORRECT
         try:
             from shatranj.presentation.gui.app import run_gui
+
             return run_gui()
         except ModuleNotFoundError:
-            print("Error: GUI requires GTK which is not available on Windows.", file=sys.stderr)
+            print(
+                "Error: GUI requires GTK which is not available on Windows.",
+                file=sys.stderr,
+            )
             print("Please use Linux or WSL to run the GUI.", file=sys.stderr)
             return 1
 

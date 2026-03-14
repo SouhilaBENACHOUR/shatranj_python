@@ -43,11 +43,11 @@ class RulesEngine:
         for move in self.generate_pseudo_legal_moves(board, color):
             if not self.is_valid_move(board, move):
                 continue
-            captured = board.apply_move(move)            # joue le coup
-            in_check = self._is_in_check(board, color)   # Shah en danger ?
-            board.undo_move(move, captured)              # annule le coup
+            captured = board.apply_move(move)  # joue le coup
+            in_check = self._is_in_check(board, color)  # Shah en danger ?
+            board.undo_move(move, captured)  # annule le coup
             if not in_check:
-                legal.append(move)                       # coup légal → on le garde
+                legal.append(move)  # coup légal → on le garde
         return legal
 
     def has_legal_moves(self, board: Board, color: str) -> bool:
@@ -96,6 +96,8 @@ class RulesEngine:
         S'ils sont identiques → il ne reste que le Shah.
         """
         opponent = BLACK if color == WHITE else WHITE
-        opponent_bitboard = board.black_pieces if opponent == BLACK else board.white_pieces
+        opponent_bitboard = (
+            board.black_pieces if opponent == BLACK else board.white_pieces
+        )
         shah_bitboard = board._boards[(SHAH, opponent)]
         return opponent_bitboard == shah_bitboard and shah_bitboard != 0

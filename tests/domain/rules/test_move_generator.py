@@ -1,14 +1,15 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.rules.move_generator import MoveGenerator
-from shatranj.utils.constants import WHITE, BLACK,PAWN,ROOK,KNIGHT, FERZ, SHAH, ALFIL
+from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
+
 
 def test_generate_pawn_capture():
     gen = MoveGenerator()
     board = Board(setup=False)
 
-    board.place_piece(PAWN, WHITE, 8)   # a2
+    board.place_piece(PAWN, WHITE, 8)  # a2
     board.place_piece(PAWN, BLACK, 17)  # b3
-    moves = gen.generate_pawn_moves(board, WHITE) #test also moves
+    moves = gen.generate_pawn_moves(board, WHITE)  # test also moves
     assert any(m.to_square == 17 for m in moves)
 
 
@@ -21,9 +22,6 @@ def test_generate_rook_moves():
     # rook should be able to go to a2 (8) and b1 (1)
     assert any(m.to_square == 8 for m in moves)
     assert any(m.to_square == 1 for m in moves)
-
-
-
 
 
 def test_generate_knight_moves():
@@ -41,6 +39,7 @@ def test_generate_knight_moves():
     assert any(m.to_square == 33 for m in moves)  # b5
     assert len(moves) == 8  # all 8 jumps valid from center
 
+
 def test_generate_knight_no_wrap():
     gen = MoveGenerator()
     board = Board(setup=False)
@@ -53,19 +52,19 @@ def test_generate_knight_no_wrap():
     assert any(m.to_square == 22 for m in moves)  # g3
     assert any(m.to_square == 13 for m in moves)  # f2
 
+
 def test_generate_knight_capture():
     gen = MoveGenerator()
     board = Board(setup=False)
 
     board.place_piece(KNIGHT, WHITE, 27)  # d4
-    board.place_piece(PAWN,   BLACK, 44)  # enemy on f6
+    board.place_piece(PAWN, BLACK, 44)  # enemy on f6
     moves = gen.generate_knight_moves(board, WHITE)
 
     # the capture move must exist and have captured_piece set
     capture = next((m for m in moves if m.to_square == 44), None)
     assert capture is not None
     assert capture.captured_piece == PAWN
-
 
 
 def test_generate_ferz_moves():
@@ -82,6 +81,7 @@ def test_generate_ferz_moves():
     assert any(m.to_square == 18 for m in moves)  # c3
     assert len(moves) == 4  # exactly 4 diagonal squares
 
+
 def test_generate_ferz_no_wrap():
     gen = MoveGenerator()
     board = Board(setup=False)
@@ -94,7 +94,6 @@ def test_generate_ferz_no_wrap():
     assert any(m.to_square == 14 for m in moves)  # g2
 
 
-
 def test_generate_shah_moves():
     gen = MoveGenerator()
     board = Board(setup=False)
@@ -105,6 +104,7 @@ def test_generate_shah_moves():
     # sq=27 : +8=35, -8=19, +1=28, -1=26, +9=36, +7=34, -7=20, -9=18
     assert len(moves) == 8  # all 8 directions valid from center
 
+
 def test_generate_shah_no_wrap():
     gen = MoveGenerator()
     board = Board(setup=False)
@@ -114,7 +114,6 @@ def test_generate_shah_no_wrap():
 
     # from h1 (sq=7) only 3 valid squares : g1(6), g2(14), h2(15)
     assert len(moves) == 3
-
 
 
 def test_generate_alfil_moves():
@@ -128,8 +127,9 @@ def test_generate_alfil_moves():
     assert any(m.to_square == 45 for m in moves)  # f6
     assert any(m.to_square == 41 for m in moves)  # b6
     assert any(m.to_square == 13 for m in moves)  # f2
-    assert any(m.to_square == 9  for m in moves)  # b2
+    assert any(m.to_square == 9 for m in moves)  # b2
     assert len(moves) == 4
+
 
 def test_generate_alfil_no_wrap():
     gen = MoveGenerator()

@@ -6,7 +6,6 @@ from shatranj.domain.ai.minmax import Minimax
 from shatranj.domain.ai.alphabeta import AlphaBeta
 from shatranj.domain.ai.mcts import MCTS
 
-
 # algorithmes disponibles
 ALGORITHMS = ("minimax", "alphabeta", "mcts")
 
@@ -23,33 +22,33 @@ class AIPlayer:
 
     def __init__(
         self,
-        color    : str,
-        depth    : int = 3,
+        color: str,
+        depth: int = 3,
         algorithm: str = "alphabeta",
     ) -> None:
-        self.color     = color
+        self.color = color
         self.algorithm = algorithm
-        self._engine   = RulesEngine()
-        evaluator      = Evaluator()
+        self._engine = RulesEngine()
+        evaluator = Evaluator()
 
         if algorithm == "mcts":
             # MCTS utilise des simulations au lieu d'une profondeur
             self._search = MCTS(
-                engine      = self._engine,
-                simulations = 100,
+                engine=self._engine,
+                simulations=100,
             )
         elif algorithm == "alphabeta":
             self._search = AlphaBeta(
-                engine    = self._engine,
-                evaluator = evaluator,
-                depth     = depth if depth != 3 else 4,
+                engine=self._engine,
+                evaluator=evaluator,
+                depth=depth if depth != 3 else 4,
             )
         else:
             # minimax par défaut
             self._search = Minimax(
-                engine    = self._engine,
-                evaluator = evaluator,
-                depth     = depth,
+                engine=self._engine,
+                evaluator=evaluator,
+                depth=depth,
             )
 
     def choose_move(self, board: Board) -> Move | None:

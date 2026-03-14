@@ -1,5 +1,6 @@
 from shatranj.domain.core.move import Move
 
+
 def test_move_fields():
     m = Move(from_square=12, to_square=28, piece_type="PAWN", color="WHITE")
     assert m.from_square == 12

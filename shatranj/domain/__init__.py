@@ -8,12 +8,12 @@ Responsabilités (selon architecture 3-tiers) :
     - Gestion de l'état du jeu (Game)
     - Représentation logique du plateau (Board final)
     - Validation des coups selon les règles du Shatranj
-    - Génération de tous les coups possibles 
-    - Détection échec, mat, pat 
-    - Intelligence artificielle 
-    - Gestion du temps en mode blitz 
-    - Gestion de l'historique undo/redo 
-    - Orchestration du jeu en réseau 
+    - Génération de tous les coups possibles
+    - Détection échec, mat, pat
+    - Intelligence artificielle
+    - Gestion du temps en mode blitz
+    - Gestion de l'historique undo/redo
+    - Orchestration du jeu en réseau
 
 Sous-modules :
     - core : Classes fondamentales (Game, Board, Move, Player, TimeManager)

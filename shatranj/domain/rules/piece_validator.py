@@ -4,16 +4,17 @@ from shatranj.domain.core.move import Move
 from shatranj.utils.constants import WHITE
 from shatranj.utils.constants import BOARD_SIZE
 
-
 # ------------------------------------------------------------------ #
 #  ABSTRACT BASE CLASS (Strategy interface)                           #
 # ------------------------------------------------------------------ #
+
 
 class PieceValidator(ABC):
     """
     Abstract base class for piece-specific move validators.
     Each piece type implements its own validation strategy.
     """
+
     @abstractmethod
     def is_valid(self, board: Board, move: Move) -> bool:
         raise NotImplementedError
@@ -23,18 +24,20 @@ class PieceValidator(ABC):
 #  PAWN                                                               #
 # ------------------------------------------------------------------ #
 
+
 class PawnValidator(PieceValidator):
     """
     Pawn movement rules:
 
       - Forward: 1 square straight ahead, must be empty
       - Capture: 1 square diagonally forward, must contain enemy piece
-      
+
     We use divmod to get rank and file separately, preventing edge-wrapping bugs.
     """
+
     def is_valid(self, board: Board, move: Move) -> bool:
         frm_rank, frm_file = divmod(move.from_square, BOARD_SIZE)
-        to_rank,  to_file  = divmod(move.to_square,   BOARD_SIZE)
+        to_rank, to_file = divmod(move.to_square, BOARD_SIZE)
 
         direction = 1 if move.color == WHITE else -1
         rank_diff = to_rank - frm_rank
@@ -56,14 +59,16 @@ class PawnValidator(PieceValidator):
 #  ROOK                                                               #
 # ------------------------------------------------------------------ #
 
+
 class RookValidator(PieceValidator):
     """
     Rook moves horizontally or vertically any distance.
     Cannot jump over pieces - we check all intermediate squares.
     """
+
     def is_valid(self, board: Board, move: Move) -> bool:
         frm_rank, frm_file = divmod(move.from_square, BOARD_SIZE)
-        to_rank,  to_file  = divmod(move.to_square,   BOARD_SIZE)
+        to_rank, to_file = divmod(move.to_square, BOARD_SIZE)
 
         # Diagonal move -> invalid
         if frm_file != to_file and frm_rank != to_rank:
@@ -89,34 +94,39 @@ class RookValidator(PieceValidator):
 #  KNIGHT                                                             #
 # ------------------------------------------------------------------ #
 
+
 class KnightValidator(PieceValidator):
     """
     Knight moves in L-shape: (±1, ±2) or (±2, ±1).
     Can jump over pieces.
     """
+
     def is_valid(self, board: Board, move: Move) -> bool:
         frm_rank, frm_file = divmod(move.from_square, BOARD_SIZE)
-        to_rank,  to_file  = divmod(move.to_square,   BOARD_SIZE)
+        to_rank, to_file = divmod(move.to_square, BOARD_SIZE)
 
         rank_diff = abs(to_rank - frm_rank)
         file_diff = abs(to_file - frm_file)
 
-        return (rank_diff == 2 and file_diff == 1) or \
-               (rank_diff == 1 and file_diff == 2)
+        return (rank_diff == 2 and file_diff == 1) or (
+            rank_diff == 1 and file_diff == 2
+        )
 
 
 # ------------------------------------------------------------------ #
 #  ALFIL                                                              #
 # ------------------------------------------------------------------ #
 
+
 class AlfilValidator(PieceValidator):
     """
     Alfil jumps exactly 2 squares diagonally.
     Can jump over pieces. Stays on same color squares.
     """
+
     def is_valid(self, board: Board, move: Move) -> bool:
         frm_rank, frm_file = divmod(move.from_square, BOARD_SIZE)
-        to_rank,  to_file  = divmod(move.to_square,   BOARD_SIZE)
+        to_rank, to_file = divmod(move.to_square, BOARD_SIZE)
 
         rank_diff = abs(to_rank - frm_rank)
         file_diff = abs(to_file - frm_file)
@@ -128,14 +138,16 @@ class AlfilValidator(PieceValidator):
 #  FERZ                                                               #
 # ------------------------------------------------------------------ #
 
+
 class FerzValidator(PieceValidator):
     """
     Ferz moves exactly 1 square diagonally.
     Ancestor of the modern Queen.
     """
+
     def is_valid(self, board: Board, move: Move) -> bool:
         frm_rank, frm_file = divmod(move.from_square, BOARD_SIZE)
-        to_rank,  to_file  = divmod(move.to_square,   BOARD_SIZE)
+        to_rank, to_file = divmod(move.to_square, BOARD_SIZE)
 
         rank_diff = abs(to_rank - frm_rank)
         file_diff = abs(to_file - frm_file)
@@ -147,14 +159,16 @@ class FerzValidator(PieceValidator):
 #  SHAH                                                               #
 # ------------------------------------------------------------------ #
 
+
 class ShahValidator(PieceValidator):
     """
     Shah (King) moves exactly 1 square in any direction (8 possibilities).
     Using max(rank_diff, file_diff) == 1 elegantly covers all directions.
     """
+
     def is_valid(self, board: Board, move: Move) -> bool:
         frm_rank, frm_file = divmod(move.from_square, BOARD_SIZE)
-        to_rank,  to_file  = divmod(move.to_square,   BOARD_SIZE)
+        to_rank, to_file = divmod(move.to_square, BOARD_SIZE)
 
         rank_diff = abs(to_rank - frm_rank)
         file_diff = abs(to_file - frm_file)

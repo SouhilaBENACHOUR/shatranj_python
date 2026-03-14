@@ -7,24 +7,31 @@ Role: draws the board and pieces using Cairo + SVG images.
 
 import os
 import gi
-gi.require_version("Gtk", "4.0")
-gi.require_version("Rsvg", "2.0")
-from gi.repository import Gtk, Rsvg
 import cairo
-
+from gi.repository import Gtk, Rsvg
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import (
-    WHITE, BLACK, BOARD_SIZE,
-    SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN,
+    WHITE,
+    BLACK,
+    BOARD_SIZE,
+    SHAH,
+    FERZ,
+    ROOK,
+    ALFIL,
+    KNIGHT,
+    PAWN,
 )
 
+gi.require_version("Gtk", "4.0")
+gi.require_version("Rsvg", "2.0")
+
 # Colors
-LIGHT_SQUARE = (0.94, 0.85, 0.71)       # beige
-DARK_SQUARE  = (0.71, 0.53, 0.39)       # brown
-HIGHLIGHT    = (0.20, 0.70, 0.50, 0.6)  # green (selected)
-HINT_COLOR   = (0.20, 0.70, 0.50, 0.3)  # green (valid destination)
+LIGHT_SQUARE = (0.94, 0.85, 0.71)  # beige
+DARK_SQUARE = (0.71, 0.53, 0.39)  # brown
+HIGHLIGHT = (0.20, 0.70, 0.50, 0.6)  # green (selected)
+HINT_COLOR = (0.20, 0.70, 0.50, 0.3)  # green (valid destination)
 
 
 class BoardWidget(Gtk.DrawingArea):
@@ -75,9 +82,9 @@ class BoardWidget(Gtk.DrawingArea):
 
         # Drag handler (drag'n'drop)
         drag = Gtk.GestureDrag.new()
-        drag.connect("drag-begin",  self._on_drag_begin)
+        drag.connect("drag-begin", self._on_drag_begin)
         drag.connect("drag-update", self._on_drag_update)
-        drag.connect("drag-end",    self._on_drag_end)
+        drag.connect("drag-end", self._on_drag_end)
         self.add_controller(drag)
 
     # ------------------------------------------------------------------
@@ -108,18 +115,18 @@ class BoardWidget(Gtk.DrawingArea):
         """Load SVG piece images from the pieces/ directory."""
         pieces_dir = os.path.join(os.path.dirname(__file__), "pieces")
         file_map = {
-            (SHAH,   WHITE): "wK.svg",
-            (FERZ,   WHITE): "wF.svg",
-            (ROOK,   WHITE): "wR.svg",
-            (ALFIL,  WHITE): "wA.svg",
+            (SHAH, WHITE): "wK.svg",
+            (FERZ, WHITE): "wF.svg",
+            (ROOK, WHITE): "wR.svg",
+            (ALFIL, WHITE): "wA.svg",
             (KNIGHT, WHITE): "wN.svg",
-            (PAWN,   WHITE): "wP.svg",
-            (SHAH,   BLACK): "bK.svg",
-            (FERZ,   BLACK): "bF.svg",
-            (ROOK,   BLACK): "bR.svg",
-            (ALFIL,  BLACK): "bA.svg",
+            (PAWN, WHITE): "wP.svg",
+            (SHAH, BLACK): "bK.svg",
+            (FERZ, BLACK): "bF.svg",
+            (ROOK, BLACK): "bR.svg",
+            (ALFIL, BLACK): "bA.svg",
             (KNIGHT, BLACK): "bN.svg",
-            (PAWN,   BLACK): "bP.svg",
+            (PAWN, BLACK): "bP.svg",
         }
         handles = {}
         for key, filename in file_map.items():
@@ -277,7 +284,8 @@ class BoardWidget(Gtk.DrawingArea):
         if piece is not None and piece[1] == self._current_color:
             self._selected_square = clicked_square
             self._valid_moves = [
-                m for m in self._engine.generate_legal_moves(
+                m
+                for m in self._engine.generate_legal_moves(
                     self._board, self._current_color
                 )
                 if m.from_square == clicked_square
@@ -319,9 +327,8 @@ class BoardWidget(Gtk.DrawingArea):
         self._selected_square = None
 
         self._valid_moves = [
-            m for m in self._engine.generate_legal_moves(
-                self._board, self._current_color
-            )
+            m
+            for m in self._engine.generate_legal_moves(self._board, self._current_color)
             if m.from_square == square
         ]
         self.queue_draw()

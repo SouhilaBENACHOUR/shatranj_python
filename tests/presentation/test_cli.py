@@ -16,7 +16,12 @@ Lancement :
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+from shatranj.domain.core.move import Move
+from io import StringIO
+from shatranj.presentation.cli.cli import CLI
+from shatranj.presentation.cli.game_state import GameState
+from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN
 
 
 class TestGameState:
@@ -24,19 +29,18 @@ class TestGameState:
 
     def setup_method(self):
         """Appelé avant chaque test. Crée un état de jeu frais."""
-        from shatranj.presentation.cli.game_state import GameState        
+
+        from shatranj.presentation.cli.game_state import GameState
+
         self.state = GameState()
 
     def test_initial_turn_is_white(self):
         """Au début, c'est aux blancs de jouer."""
-        from shatranj.utils.constants import WHITE
+
         assert self.state.current_color == WHITE
 
     def test_apply_move_switches_turn(self):
         """Après un coup blanc, c'est aux noirs de jouer."""
-        from shatranj.utils.constants import WHITE, BLACK
-        from shatranj.domain.core.move import Move
-        from shatranj.utils.constants import PAWN
 
         # Coup : pion blanc de e2 (case 12) vers e3 (case 20)
         move = Move(
@@ -50,13 +54,10 @@ class TestGameState:
 
     def test_undo_restores_turn(self):
         """Après undo, c'est à nouveau aux blancs de jouer."""
-        from shatranj.utils.constants import WHITE, BLACK
-        from shatranj.domain.core.move import Move
-        from shatranj.utils.constants import PAWN
 
         move = Move(
             from_square=12,  # e2
-            to_square=20,    # e3
+            to_square=20,  # e3
             piece_type=PAWN,
             color=WHITE,
         )
@@ -82,9 +83,6 @@ class TestGameState:
 
     def test_apply_clears_redo_stack(self):
         """Jouer un nouveau coup après undo efface le redo stack."""
-        from shatranj.utils.constants import WHITE, BLACK
-        from shatranj.domain.core.move import Move
-        from shatranj.utils.constants import PAWN
 
         move1 = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
         self.state.apply_move(move1)
@@ -105,7 +103,7 @@ class TestDisplay:
     def test_board_to_string_has_8_rows(self):
         """Le plateau affiché a bien 8 lignes de pièces + 1 ligne de colonnes."""
         from shatranj.domain.core.board import Board
-        from shatranj.presentation.cli.display import board_to_string 
+        from shatranj.presentation.cli.display import board_to_string
 
         board = Board(setup=True)
         result = board_to_string(board)
@@ -138,43 +136,49 @@ class TestDisplay:
         assert "\033[" in result
 
 
-
 class TestMoveParser:
     """Tests pour la notation algébrique."""
 
     def setup_method(self):
         from shatranj.domain.core.board import Board
+
         self.board = Board(setup=True)
 
     def test_algebraic_to_square_e2(self):
         """e2 doit correspondre à la case 12 (rang 1, colonne 4)."""
         from shatranj.domain.core.board import Board
+
         assert Board.algebraic_to_square("e2") == 12
 
     def test_algebraic_to_square_a1(self):
         """a1 = case 0."""
         from shatranj.domain.core.board import Board
+
         assert Board.algebraic_to_square("a1") == 0
 
     def test_algebraic_to_square_h8(self):
         """h8 = case 63."""
         from shatranj.domain.core.board import Board
+
         assert Board.algebraic_to_square("h8") == 63
 
     def test_square_to_algebraic_12(self):
         """Case 12 -> 'e2'."""
         from shatranj.domain.core.board import Board
+
         assert Board.square_to_algebraic(12) == "e2"
 
     def test_invalid_square_raises(self):
         """Une case invalide lève ValueError."""
         from shatranj.domain.core.board import Board
+
         with pytest.raises(ValueError):
             Board.algebraic_to_square("z9")
 
     def test_looks_like_move_valid(self):
         """'e2-e4' est reconnu comme un coup valide."""
         import re
+
         pattern = r"^[A-Za-z]?[a-h][1-8][-x][a-h][1-8]$"
         assert re.match(pattern, "e2-e4")
         assert re.match(pattern, "e2xe4")
@@ -183,10 +187,11 @@ class TestMoveParser:
     def test_looks_like_move_invalid(self):
         """'hello' n'est pas un coup."""
         import re
+
         pattern = r"^[A-Za-z]?[a-h][1-8][-x][a-h][1-8]$"
         assert not re.match(pattern, "hello")
         assert not re.match(pattern, "new")
-        assert not re.match(pattern, "e2e4")  
+        assert not re.match(pattern, "e2e4")
 
 
 class TestMoveValidatorIntegration:
@@ -195,29 +200,24 @@ class TestMoveValidatorIntegration:
     def setup_method(self):
         from shatranj.domain.core.board import Board
         from shatranj.domain.rules.move_validator import MoveValidator
+
         self.board = Board(setup=True)
         self.validator = MoveValidator()
 
     def test_pawn_e2_e3_is_valid(self):
         """Un pion blanc peut avancer d'une case."""
-        from shatranj.domain.core.move import Move
-        from shatranj.utils.constants import WHITE, PAWN
 
         move = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
         assert self.validator.is_valid_move(self.board, move)
 
     def test_pawn_e2_e4_is_invalid(self):
         """Un pion ne peut pas avancer de 2 cases au Shatranj (pas de double pas)."""
-        from shatranj.domain.core.move import Move
-        from shatranj.utils.constants import WHITE, PAWN
 
         move = Move(from_square=12, to_square=28, piece_type=PAWN, color=WHITE)
         assert not self.validator.is_valid_move(self.board, move)
 
     def test_pawn_cannot_move_backward(self):
         """Un pion ne peut pas reculer."""
-        from shatranj.domain.core.move import Move
-        from shatranj.utils.constants import WHITE, PAWN
 
         # De e2 (12) vers e1 (4) : vers l'arrière
         move = Move(from_square=12, to_square=4, piece_type=PAWN, color=WHITE)
@@ -225,12 +225,11 @@ class TestMoveValidatorIntegration:
 
     def test_move_from_empty_square_invalid(self):
         """On ne peut pas bouger depuis une case vide."""
-        from shatranj.domain.core.move import Move
-        from shatranj.utils.constants import WHITE, PAWN
 
         # La case e4 (28) est vide en position initiale
         move = Move(from_square=28, to_square=36, piece_type=PAWN, color=WHITE)
         assert not self.validator.is_valid_move(self.board, move)
+
 
 class TestDoLoad:
     """Tests for the _do_load method of the CLI."""
@@ -238,6 +237,7 @@ class TestDoLoad:
     def setup_method(self):
         """Creates a fresh CLI before each test."""
         from shatranj.presentation.cli.cli import CLI
+
         self.cli = CLI()
 
     def _write_file(self, path, content):
@@ -251,7 +251,6 @@ class TestDoLoad:
 
     def test_load_valid_file(self, tmp_path):
         """Loading a valid file reconstructs the correct state."""
-        from shatranj.utils.constants import WHITE
 
         content = (
             "[settings]\n"
@@ -280,7 +279,6 @@ class TestDoLoad:
 
     def test_load_restores_current_color_black(self, tmp_path):
         """Current player is BLACK if the file says B."""
-        from shatranj.utils.constants import BLACK
 
         content = (
             "[settings]\n"
@@ -559,18 +557,13 @@ class TestDoLoad:
         with patch("sys.stderr", stderr):
             self.cli._do_load([str(save_file)])
 
-        assert "Invalid move in history" in stderr.getvalue()        
+        assert "Invalid move in history" in stderr.getvalue()
 
 
 class TestCliMoveLegality:
     """Tests for full move legality checks in CLI."""
 
     def test_reject_shah_move_into_attacked_square(self):
-        from io import StringIO
-
-        from shatranj.presentation.cli.cli import CLI
-        from shatranj.presentation.cli.game_state import GameState
-        from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK
 
         cli = CLI()
         cli._state = GameState()
@@ -578,9 +571,9 @@ class TestCliMoveLegality:
         board.clear()
 
         # White Shah on e1, black rook on e8 attacks the e-file.
-        board.place_piece(SHAH, WHITE, 4)    # e1
-        board.place_piece(SHAH, BLACK, 63)   # h8
-        board.place_piece(ROOK, BLACK, 60)   # e8
+        board.place_piece(SHAH, WHITE, 4)  # e1
+        board.place_piece(SHAH, BLACK, 63)  # h8
+        board.place_piece(ROOK, BLACK, 60)  # e8
         cli._state.current_color = WHITE
 
         stderr = StringIO()
@@ -597,21 +590,18 @@ class TestCliAIVsAI:
     """Tests for AI vs AI mode."""
 
     def test_new_ai_vs_ai_configures_two_ai_players(self):
-        from shatranj.presentation.cli.cli import CLI
-        from shatranj.utils.constants import WHITE, BLACK
 
         cli = CLI()
-        with patch("shatranj.presentation.cli.cli.print_board"), patch.object(CLI, "_auto_play_ai_turns") as auto_play:
+        with (
+            patch("shatranj.presentation.cli.cli.print_board"),
+            patch.object(CLI, "_auto_play_ai_turns") as auto_play,
+        ):
             cli._do_new(["ai-vs-ai"])
 
         assert set(cli._ai_players.keys()) == {WHITE, BLACK}
         auto_play.assert_called_once()
 
     def test_auto_play_ai_turns_applies_two_plies(self):
-        from shatranj.domain.core.move import Move
-        from shatranj.presentation.cli.cli import CLI
-        from shatranj.presentation.cli.game_state import GameState
-        from shatranj.utils.constants import WHITE, BLACK, PAWN
 
         class ScriptedAI:
             def __init__(self, color: str, scripted_move: Move) -> None:
@@ -639,10 +629,6 @@ class TestCliAIVsAI:
         assert cli._state is None
 
     def test_do_ai_move_displays_piece_name(self, capsys):
-        from shatranj.domain.core.move import Move
-        from shatranj.presentation.cli.cli import CLI
-        from shatranj.presentation.cli.game_state import GameState
-        from shatranj.utils.constants import WHITE, PAWN
 
         class ScriptedAI:
             def __init__(self, scripted_move: Move) -> None:
@@ -668,26 +654,22 @@ class TestCliDrawRules:
     """Tests for draw rules used to stop infinite AI loops."""
 
     def test_threefold_repetition_is_detected_and_ends_game(self):
-        from shatranj.domain.core.move import Move
-        from shatranj.presentation.cli.cli import CLI
-        from shatranj.presentation.cli.game_state import GameState
-        from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK
 
         cli = CLI()
         cli._state = GameState()
         board = cli._state.board
         board.clear()
-        board.place_piece(SHAH, WHITE, 4)    # e1
-        board.place_piece(ROOK, WHITE, 0)    # a1
-        board.place_piece(SHAH, BLACK, 60)   # e8
-        board.place_piece(ROOK, BLACK, 63)   # h8
+        board.place_piece(SHAH, WHITE, 4)  # e1
+        board.place_piece(ROOK, WHITE, 0)  # a1
+        board.place_piece(SHAH, BLACK, 60)  # e8
+        board.place_piece(ROOK, BLACK, 63)  # h8
         cli._state.current_color = WHITE
 
         cycle = [
-            Move(4, 12, SHAH, WHITE),    # e1-e2
-            Move(60, 52, SHAH, BLACK),   # e8-e7
-            Move(12, 4, SHAH, WHITE),    # e2-e1
-            Move(52, 60, SHAH, BLACK),   # e7-e8
+            Move(4, 12, SHAH, WHITE),  # e1-e2
+            Move(60, 52, SHAH, BLACK),  # e8-e7
+            Move(12, 4, SHAH, WHITE),  # e2-e1
+            Move(52, 60, SHAH, BLACK),  # e7-e8
         ]
         for move in cycle + cycle:
             cli._state.apply_move(move)
@@ -697,10 +679,6 @@ class TestCliDrawRules:
         assert cli._state is None
 
     def test_fifty_move_rule_detected(self):
-        from shatranj.domain.core.move import Move
-        from shatranj.presentation.cli.cli import CLI
-        from shatranj.presentation.cli.game_state import GameState
-        from shatranj.utils.constants import WHITE, BLACK, SHAH
 
         cli = CLI()
         cli._state = GameState()

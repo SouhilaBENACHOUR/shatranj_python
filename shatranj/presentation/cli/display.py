@@ -14,26 +14,32 @@ import sys
 
 from shatranj.domain.core.board import Board
 from shatranj.utils.constants import (
-    WHITE, BLACK,
-    SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN,
+    WHITE,
+    BLACK,
+    SHAH,
+    FERZ,
+    ROOK,
+    ALFIL,
+    KNIGHT,
+    PAWN,
 )
 from shatranj.utils.constants import BOARD_SIZE
 
 # Dictionary: (piece_type, color) -> ASCII letter
 # White pieces = UPPERCASE, Black pieces = lowercase
 PIECE_SYMBOLS = {
-    (SHAH,   WHITE): "K",
-    (FERZ,   WHITE): "F",
-    (ROOK,   WHITE): "R",
-    (ALFIL,  WHITE): "A",
+    (SHAH, WHITE): "K",
+    (FERZ, WHITE): "F",
+    (ROOK, WHITE): "R",
+    (ALFIL, WHITE): "A",
     (KNIGHT, WHITE): "N",
-    (PAWN,   WHITE): "P",
-    (SHAH,   BLACK): "k",
-    (FERZ,   BLACK): "f",
-    (ROOK,   BLACK): "r",
-    (ALFIL,  BLACK): "a",
+    (PAWN, WHITE): "P",
+    (SHAH, BLACK): "k",
+    (FERZ, BLACK): "f",
+    (ROOK, BLACK): "r",
+    (ALFIL, BLACK): "a",
     (KNIGHT, BLACK): "n",
-    (PAWN,   BLACK): "p",
+    (PAWN, BLACK): "p",
 }
 
 # ANSI color codes:

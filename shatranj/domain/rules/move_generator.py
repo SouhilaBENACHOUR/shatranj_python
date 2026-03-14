@@ -1,7 +1,8 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
+from shatranj.utils.constants import WHITE, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
 from shatranj.utils.constants import BOARD_SIZE, NUM_SQUARES
+
 
 class MoveGenerator:
     def generate_pawn_moves(self, board: Board, color: str) -> list[Move]:
@@ -59,12 +60,15 @@ class MoveGenerator:
                         moves.append(Move(sq, cur, ROOK, color))
                     else:
                         if target[1] != color:
-                            moves.append(Move(sq, cur, ROOK, color, captured_piece=target[0]))
+                            moves.append(
+                                Move(sq, cur, ROOK, color, captured_piece=target[0])
+                            )
                         break  # blocked
 
                     cur += step
 
         return moves
+
     def generate_knight_moves(self, board: Board, color: str) -> list[Move]:
         moves = []
 
@@ -118,11 +122,13 @@ class MoveGenerator:
                 elif target[1] != color:
                     # Square occupied by an enemy → capture
                     # target[1] = color of the target piece
-                    moves.append(Move(sq, to_sq, KNIGHT, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, to_sq, KNIGHT, color, captured_piece=target[0])
+                    )
                 # If target[1] == color → friendly piece, skip
 
         return moves
-    
+
     def generate_ferz_moves(self, board: Board, color: str) -> list[Move]:
         moves = []
 
@@ -182,7 +188,7 @@ class MoveGenerator:
                 # If target[1] == color → friendly piece, skip
 
         return moves
-    
+
     def generate_shah_moves(self, board: Board, color: str) -> list[Move]:
         moves = []
 
@@ -243,7 +249,7 @@ class MoveGenerator:
                 # If target[1] == color → friendly piece, skip
 
         return moves
-    
+
     def generate_alfil_moves(self, board: Board, color: str) -> list[Move]:
         moves = []
 
@@ -301,7 +307,9 @@ class MoveGenerator:
                     moves.append(Move(sq, to_sq, ALFIL, color))
                 elif target[1] != color:
                     # Square occupied by an enemy → capture
-                    moves.append(Move(sq, to_sq, ALFIL, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, to_sq, ALFIL, color, captured_piece=target[0])
+                    )
                 # If target[1] == color → friendly piece, skip
 
         return moves

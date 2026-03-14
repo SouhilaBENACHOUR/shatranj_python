@@ -16,21 +16,19 @@ General structure:
 """
 
 import readline  # Enables line editing, history, and Tab completion
-import re        # For parsing algebraic notation with a regex
-import sys       # For sys.exit() and sys.stderr
+import re  # For parsing algebraic notation with a regex
+import sys  # For sys.exit() and sys.stderr
 
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import WHITE, BLACK
-from shatranj.domain.core.board import Board
 from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN
 from shatranj.domain.ai.ai_player import AIPlayer
+from shatranj.domain.core.board import Board
 
 # Import our own modules
 # We use relative imports because we are in the same package
-from .display import print_board, board_to_string
+from .display import print_board
 from .game_state import GameState
-
 
 # ---------------------------------------------------------------------
 # Constants
@@ -43,9 +41,19 @@ FIFTY_MOVE_RULE_PLIES = 100  # 50 full moves = 100 half-moves (plies)
 
 # List of all recognized commands (for Tab completion, F18)
 COMMANDS = [
-    "new", "help", "quit", "load", "save",
-    "pause", "hint", "undo", "redo",
-    "show board", "show history", "show time", "show configuration",
+    "new",
+    "help",
+    "quit",
+    "load",
+    "save",
+    "pause",
+    "hint",
+    "undo",
+    "redo",
+    "show board",
+    "show history",
+    "show time",
+    "show configuration",
     "set",
 ]
 
@@ -63,6 +71,7 @@ PIECE_LABELS = {
 # Main CLI class
 # ---------------------------------------------------------------------
 
+
 class CLI:
     """
     Interactive shell for playing Shatranj on the command line.
@@ -76,10 +85,10 @@ class CLI:
     """
 
     def __init__(self, verbose: bool = False, debug: bool = False) -> None:
-        self._state: GameState | None = None   # No game at startup
+        self._state: GameState | None = None  # No game at startup
         self._engine = RulesEngine()
         self._running = False
-        self._saved = True          # Nothing to save at startup
+        self._saved = True  # Nothing to save at startup
         self._verbose = verbose
         self._ai_players: dict[str, AIPlayer] = {}
         self._debug = debug
@@ -170,17 +179,17 @@ class CLI:
 
         # Single-word commands
         handlers = {
-            "new":    self._do_new,
-            "help":   self._do_help,
-            "quit":   self._do_quit,
-            "q":      self._do_quit,
-            "load":   self._do_load,
-            "save":   self._do_save,
-            "pause":  self._do_pause,
-            "hint":   self._do_hint,
-            "undo":   self._do_undo,
-            "redo":   self._do_redo,
-            "set":    self._do_set,
+            "new": self._do_new,
+            "help": self._do_help,
+            "quit": self._do_quit,
+            "q": self._do_quit,
+            "load": self._do_load,
+            "save": self._do_save,
+            "pause": self._do_pause,
+            "hint": self._do_hint,
+            "undo": self._do_undo,
+            "redo": self._do_redo,
+            "set": self._do_set,
         }
 
         if cmd in handlers:
@@ -231,7 +240,6 @@ class CLI:
           This method converts "e2" -> 12 (rank=1, file=4 -> 1*8+4=12).
           It is already implemented in board.py, so we reuse it.
         """
-        from shatranj.domain.core.board import Board
 
         # Strip the piece prefix if present (e.g. "N" in "Ng8-f6")
         text = text.strip()
@@ -244,11 +252,11 @@ class CLI:
             return None
 
         from_str = text[0:2]  # "e2"
-        to_str   = text[3:5]  # "e4"
+        to_str = text[3:5]  # "e4"
 
         try:
             from_sq = Board.algebraic_to_square(from_str)
-            to_sq   = Board.algebraic_to_square(to_str)
+            to_sq = Board.algebraic_to_square(to_str)
         except ValueError as err:
             self._error(str(err))
             return None
@@ -300,9 +308,7 @@ class CLI:
 
         # Check that the right player is moving
         if move.color != self._state.current_color:
-            self._error(
-                f"It's {self._state.current_color}'s turn, not {move.color}'s."
-            )
+            self._error(f"It's {self._state.current_color}'s turn, not {move.color}'s.")
             return
 
         # Full legality check: geometry + Shah safety (no self-check)
@@ -341,7 +347,7 @@ class CLI:
           - Stalemate  -> not in check but no legal moves (opponent wins)
           - Bare King  -> current player has only their Shah left
         """
-        current  = self._state.current_color
+        current = self._state.current_color
         opponent = BLACK if current == WHITE else WHITE
 
         # Checkmate -> current player loses
@@ -519,7 +525,9 @@ class CLI:
             algo = args[2].lower() if len(args) >= 3 else "alphabeta"
 
             if algo not in ("minimax", "alphabeta", "mcts"):
-                self._error(f"Unknown algorithm: '{algo}'. Use minimax, alphabeta or mcts.")
+                self._error(
+                    f"Unknown algorithm: '{algo}'. Use minimax, alphabeta or mcts."
+                )
                 return
 
             if ai_color == "BLACK":
@@ -560,7 +568,11 @@ class CLI:
                     success = self._save_to_file(path)
                     if not success:
                         # Save failed: ask again (F15)
-                        answer2 = input("Save failed. Try to save again? [y/N] ").strip().lower()
+                        answer2 = (
+                            input("Save failed. Try to save again? [y/N] ")
+                            .strip()
+                            .lower()
+                        )
                         if answer2 in ("y", "yes"):
                             path2 = input("Enter file path to save: ").strip()
                             self._save_to_file(path2)
@@ -607,16 +619,19 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _print_command_help(self, cmd: str) -> None:
         """Display detailed help for a specific command."""
         help_texts = {
-            "new":    "new [ARGS]  -  Start a new game. Args: 'ai white', 'ai black', 'ai-vs-ai'.",
-            "quit":   "quit  -  Quit the program. You'll be asked to save if needed.",
-            "help":   "help [CMD]  -  Show help. With CMD: show help for that command.",
-            "load":   "load FILE  -  Load a saved game from FILE (.shatranj format).",
-            "save":   "save FILE  -  Save the current game to FILE.",
-            "hint":   "hint  -  Get a move suggestion from the engine.",
-            "undo":   "undo [N]  -  Undo the last N moves (default 1).",
-            "redo":   "redo [N]  -  Redo the last N undone moves (default 1).",
-            "pause":  "pause  -  Pause/resume the blitz timer.",
-            "set":    "set PARAM=VALUE  -  Change a setting. E.g.: set debug=true",
+            "new": (
+                "new [ARGS]  -  Start a new game. "
+                "Args: 'ai white', 'ai black', 'ai-vs-ai'."
+            ),
+            "quit": "quit  -  Quit the program. You'll be asked to save if needed.",
+            "help": "help [CMD]  -  Show help. With CMD: show help for that command.",
+            "load": "load FILE  -  Load a saved game from FILE (.shatranj format).",
+            "save": "save FILE  -  Save the current game to FILE.",
+            "hint": "hint  -  Get a move suggestion from the engine.",
+            "undo": "undo [N]  -  Undo the last N moves (default 1).",
+            "redo": "redo [N]  -  Redo the last N undone moves (default 1).",
+            "pause": "pause  -  Pause/resume the blitz timer.",
+            "set": "set PARAM=VALUE  -  Change a setting. E.g.: set debug=true",
         }
         if cmd in help_texts:
             print(help_texts[cmd])
@@ -650,8 +665,6 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             print("No moves played yet.")
             return
 
-        from shatranj.domain.core.board import Board
-
         print("\nMove history:")
         # Group moves in pairs (white, black)
         i = 0
@@ -662,7 +675,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             # White move
             move = history[i]
             from_alg = Board.square_to_algebraic(move.from_square)
-            to_alg   = Board.square_to_algebraic(move.to_square)
+            to_alg = Board.square_to_algebraic(move.to_square)
             sep = "x" if move.captured_piece else "-"
             line += f"  W {from_alg}{sep}{to_alg}"
             i += 1
@@ -671,7 +684,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             if i < len(history):
                 move = history[i]
                 from_alg = Board.square_to_algebraic(move.from_square)
-                to_alg   = Board.square_to_algebraic(move.to_square)
+                to_alg = Board.square_to_algebraic(move.to_square)
                 sep = "x" if move.captured_piece else "-"
                 line += f"  B {from_alg}{sep}{to_alg}"
                 i += 1
@@ -687,7 +700,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_show_configuration(self) -> None:
         """Display the current configuration."""
-        print(f"\nCurrent configuration:")
+        print("\nCurrent configuration:")
         print(f"  verbose = {self._verbose}")
         print(f"  debug   = {self._debug}")
         print()
@@ -791,8 +804,6 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             self._error("No game in progress.")
             return
 
-        from shatranj.domain.core.board import Board
-
         legal_moves = self._engine.generate_legal_moves(
             self._state.board, self._state.current_color
         )
@@ -844,13 +855,13 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             return
 
         # Remove comments and empty lines
-        lines = [l for l in lines if l and not l.startswith("#")]
+        lines = [line for line in lines if line and not line.startswith("#")]
 
         try:
             # --- Find sections ---
             idx_settings = lines.index("[settings]")
-            idx_game     = lines.index("[game]")
-            idx_history  = lines.index("[history]")
+            idx_game = lines.index("[game]")
+            idx_history = lines.index("[history]")
 
             # --- Read [settings] ---
             for line in lines[idx_settings + 1 : idx_game]:
@@ -881,12 +892,18 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
             # Map piece symbols to (piece_type, color)
             SYMBOL_MAP = {
-                "K": (SHAH,   WHITE), "F": (FERZ,   WHITE),
-                "R": (ROOK,   WHITE), "A": (ALFIL,  WHITE),
-                "N": (KNIGHT, WHITE), "P": (PAWN,   WHITE),
-                "k": (SHAH,   BLACK), "f": (FERZ,   BLACK),
-                "r": (ROOK,   BLACK), "a": (ALFIL,  BLACK),
-                "n": (KNIGHT, BLACK), "p": (PAWN,   BLACK),
+                "K": (SHAH, WHITE),
+                "F": (FERZ, WHITE),
+                "R": (ROOK, WHITE),
+                "A": (ALFIL, WHITE),
+                "N": (KNIGHT, WHITE),
+                "P": (PAWN, WHITE),
+                "k": (SHAH, BLACK),
+                "f": (FERZ, BLACK),
+                "r": (ROOK, BLACK),
+                "a": (ALFIL, BLACK),
+                "n": (KNIGHT, BLACK),
+                "p": (PAWN, BLACK),
             }
 
             new_board = Board(setup=False)
@@ -903,7 +920,9 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     if symbol == "_":
                         continue  # empty square
                     if symbol not in SYMBOL_MAP:
-                        self._error(f"Unknown piece symbol: '{symbol}' at row {rank_idx + 1}")
+                        self._error(
+                            f"Unknown piece symbol: '{symbol}' at row {rank_idx + 1}"
+                        )
                         return
                     piece, color = SYMBOL_MAP[symbol]
                     square = rank * 8 + file_idx
@@ -911,13 +930,13 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
             # --- Read [history] ---
             history_moves = []
-            for line in lines[idx_history + 1:]:
+            for line in lines[idx_history + 1 :]:
                 # Format: "W e2-e3 B e7-e6"
                 tokens = line.split()
                 i = 0
                 while i + 1 < len(tokens):
                     color_tok = tokens[i].upper()
-                    move_tok  = tokens[i + 1]
+                    move_tok = tokens[i + 1]
                     i += 2
 
                     color = WHITE if color_tok == "W" else BLACK
@@ -929,7 +948,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
                     try:
                         from_sq = Board.algebraic_to_square(move_tok[0:2])
-                        to_sq   = Board.algebraic_to_square(move_tok[3:5])
+                        to_sq = Board.algebraic_to_square(move_tok[3:5])
                     except ValueError as err:
                         self._error(f"Invalid square in history: {err}")
                         return
@@ -946,7 +965,9 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     else:
                         piece_type = PAWN  # fallback
 
-                    history_moves.append(Move(from_sq, to_sq, piece_type, color, captured))
+                    history_moves.append(
+                        Move(from_sq, to_sq, piece_type, color, captured)
+                    )
 
             # --- Build GameState from loaded data ---
             from shatranj.presentation.cli.game_state import GameState
@@ -1010,19 +1031,21 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             W e2-e4 B e7-e5
             ...
         """
-        from shatranj.domain.core.board import Board
-        from shatranj.utils.constants import (
-            SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN, WHITE, BLACK
-        )
 
         # Piece symbols for saving (F23)
         SYMBOLS = {
-            (SHAH,   WHITE): "K", (FERZ,   WHITE): "F",
-            (ROOK,   WHITE): "R", (ALFIL,  WHITE): "A",
-            (KNIGHT, WHITE): "N", (PAWN,   WHITE): "P",
-            (SHAH,   BLACK): "k", (FERZ,   BLACK): "f",
-            (ROOK,   BLACK): "r", (ALFIL,  BLACK): "a",
-            (KNIGHT, BLACK): "n", (PAWN,   BLACK): "p",
+            (SHAH, WHITE): "K",
+            (FERZ, WHITE): "F",
+            (ROOK, WHITE): "R",
+            (ALFIL, WHITE): "A",
+            (KNIGHT, WHITE): "N",
+            (PAWN, WHITE): "P",
+            (SHAH, BLACK): "k",
+            (FERZ, BLACK): "f",
+            (ROOK, BLACK): "r",
+            (ALFIL, BLACK): "a",
+            (KNIGHT, BLACK): "n",
+            (PAWN, BLACK): "p",
         }
 
         try:
@@ -1061,7 +1084,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     move = history[i]
                     color_letter = "W" if move.color == WHITE else "B"
                     from_alg = Board.square_to_algebraic(move.from_square)
-                    to_alg   = Board.square_to_algebraic(move.to_square)
+                    to_alg = Board.square_to_algebraic(move.to_square)
                     sep = "x" if move.captured_piece else "-"
                     line_parts.append(f"{color_letter} {from_alg}{sep}{to_alg}")
                     i += 1
@@ -1070,7 +1093,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                         move = history[i]
                         color_letter = "W" if move.color == WHITE else "B"
                         from_alg = Board.square_to_algebraic(move.from_square)
-                        to_alg   = Board.square_to_algebraic(move.to_square)
+                        to_alg = Board.square_to_algebraic(move.to_square)
                         sep = "x" if move.captured_piece else "-"
                         line_parts.append(f"{color_letter} {from_alg}{sep}{to_alg}")
                         i += 1

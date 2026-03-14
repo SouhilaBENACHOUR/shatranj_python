@@ -25,17 +25,17 @@ class MCTSNode:
 
     def __init__(
         self,
-        move  : Move | None,
+        move: Move | None,
         parent: "MCTSNode | None",
-        color : str,
+        color: str,
     ) -> None:
-        self.move     = move
-        self.parent   = parent
-        self.color    = color
-        self.children : list["MCTSNode"] = []
-        self.wins     : float = 0.0
-        self.visits   : int   = 0
-        self.untried  : list[Move] = []  # sera rempli lors de l'expansion
+        self.move = move
+        self.parent = parent
+        self.color = color
+        self.children: list["MCTSNode"] = []
+        self.wins: float = 0.0
+        self.visits: int = 0
+        self.untried: list[Move] = []  # sera rempli lors de l'expansion
 
     def is_fully_expanded(self) -> bool:
         """Retourne True si tous les coups ont été explorés."""
@@ -53,8 +53,8 @@ class MCTSNode:
         """
         return max(
             self.children,
-            key=lambda c: (c.wins / c.visits) +
-                          exploration * math.sqrt(math.log(self.visits) / c.visits)
+            key=lambda c: (c.wins / c.visits)
+            + exploration * math.sqrt(math.log(self.visits) / c.visits),
         )
 
     def best_move_child(self) -> "MCTSNode":
@@ -82,12 +82,12 @@ class MCTS:
 
     def __init__(
         self,
-        engine     : RulesEngine,
+        engine: RulesEngine,
         simulations: int = 500,
     ) -> None:
-        self._engine      = engine
+        self._engine = engine
         self._simulations = simulations  # nombre de simulations par coup
-        self._depth       = simulations  # pour compatibilité avec _do_ai_move
+        self._depth = simulations  # pour compatibilité avec _do_ai_move
 
     def best_move(self, board: Board, color: str) -> Move | None:
         """
@@ -101,37 +101,37 @@ class MCTS:
         # crée la racine de l'arbre
         root = MCTSNode(move=None, parent=None, color=color)
         root.untried = list(legal_moves)
-        root.visits  = 1
+        root.visits = 1
 
         # répète les simulations
         for _ in range(self._simulations):
-            node        = root
-            board_copy  = self._copy_board(board)
-            sim_color   = color
+            node = root
+            board_copy = self._copy_board(board)
+            sim_color = color
 
             # ----------------------------------------------------------
             # 1. SELECTION
             # descend dans l'arbre tant que le nœud est fully expanded
             # ----------------------------------------------------------
             while node.is_fully_expanded() and node.children:
-                node       = node.best_child()
+                node = node.best_child()
                 board_copy.apply_move(node.move)
-                sim_color  = BLACK if sim_color == WHITE else WHITE
+                sim_color = BLACK if sim_color == WHITE else WHITE
 
             # ----------------------------------------------------------
             # 2. EXPANSION
             # explore un coup non essayé depuis ce nœud
             # ----------------------------------------------------------
             if node.untried:
-                move      = random.choice(node.untried)
+                move = random.choice(node.untried)
                 node.untried.remove(move)
                 board_copy.apply_move(move)
                 sim_color = BLACK if sim_color == WHITE else WHITE
 
                 # crée un nouveau nœud enfant
-                child           = MCTSNode(move=move, parent=node, color=sim_color)
-                legal_child     = self._engine.generate_legal_moves(board_copy, sim_color)
-                child.untried   = list(legal_child)
+                child = MCTSNode(move=move, parent=node, color=sim_color)
+                legal_child = self._engine.generate_legal_moves(board_copy, sim_color)
+                child.untried = list(legal_child)
                 node.children.append(child)
                 node = child
 
@@ -154,10 +154,10 @@ class MCTS:
 
     def _rollout(
         self,
-        board       : Board,
+        board: Board,
         current_color: str,
-        ai_color    : str,
-        max_moves   : int = 50,
+        ai_color: str,
+        max_moves: int = 50,
     ) -> float:
         """
         Simule une partie aléatoire jusqu'à la fin.
@@ -205,15 +205,15 @@ class MCTS:
         """
         while node is not None:
             node.visits += 1
-            node.wins   += result
-            result       = 1.0 - result  # inverse le résultat pour le parent
-            node         = node.parent
+            node.wins += result
+            result = 1.0 - result  # inverse le résultat pour le parent
+            node = node.parent
 
     def _copy_board(self, board: Board) -> Board:
         """
         Crée une copie profonde du board pour les simulations.
         On copie uniquement les bitboards — c'est suffisant.
         """
-        new_board         = Board(setup=False)
+        new_board = Board(setup=False)
         new_board._boards = dict(board._boards)
         return new_board

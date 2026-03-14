@@ -11,10 +11,11 @@ def test_alphabeta_returns_a_move():
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, WHITE, 1)
     board.place_piece(SHAH, BLACK, 63)
-    engine   = RulesEngine()
+    engine = RulesEngine()
     alphabeta = AlphaBeta(engine=engine, evaluator=Evaluator(), depth=2)
     move = alphabeta.best_move(board, WHITE)
     assert move is not None
+
 
 def test_alphabeta_returns_none_when_no_moves():
     """AlphaBeta retourne None si aucun coup disponible."""
@@ -23,23 +24,25 @@ def test_alphabeta_returns_none_when_no_moves():
     board.place_piece(ROOK, BLACK, 8)
     board.place_piece(ROOK, BLACK, 1)
     board.place_piece(SHAH, BLACK, 9)
-    engine   = RulesEngine()
+    engine = RulesEngine()
     alphabeta = AlphaBeta(engine=engine, evaluator=Evaluator(), depth=2)
     move = alphabeta.best_move(board, WHITE)
     assert move is None
 
+
 def test_alphabeta_captures_winning_piece():
     """AlphaBeta doit capturer une pièce adverse si c'est le meilleur coup."""
     board = Board(setup=False)
-    board.place_piece(SHAH, WHITE, 0)    # a1
-    board.place_piece(ROOK, WHITE, 16)   # a3
-    board.place_piece(SHAH, BLACK, 63)   # h8
-    board.place_piece(PAWN, BLACK, 24)   # a4 — capturable par la tour
-    engine   = RulesEngine()
+    board.place_piece(SHAH, WHITE, 0)  # a1
+    board.place_piece(ROOK, WHITE, 16)  # a3
+    board.place_piece(SHAH, BLACK, 63)  # h8
+    board.place_piece(PAWN, BLACK, 24)  # a4 — capturable par la tour
+    engine = RulesEngine()
     alphabeta = AlphaBeta(engine=engine, evaluator=Evaluator(), depth=2)
     move = alphabeta.best_move(board, WHITE)
     assert move is not None
     assert move.to_square == 24
+
 
 def test_alphabeta_same_result_as_minimax():
     """
@@ -54,10 +57,10 @@ def test_alphabeta_same_result_as_minimax():
     board.place_piece(SHAH, BLACK, 63)
     board.place_piece(PAWN, BLACK, 24)
 
-    engine    = RulesEngine()
+    engine = RulesEngine()
     evaluator = Evaluator()
 
-    minimax   = Minimax(engine=engine, evaluator=evaluator, depth=2)
+    minimax = Minimax(engine=engine, evaluator=evaluator, depth=2)
     alphabeta = AlphaBeta(engine=engine, evaluator=evaluator, depth=2)
 
     move_mm = minimax.best_move(board, WHITE)

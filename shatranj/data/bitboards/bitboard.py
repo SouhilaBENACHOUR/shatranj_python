@@ -3,7 +3,9 @@ Low-level bitboard helpers.
 
 A bitboard is a 64-bit integer where each bit represents a square (0..63).
 """
+
 from shatranj.utils.constants import NUM_SQUARES
+
 
 def check_square(square: int) -> bool:
     if square < 0 or square >= NUM_SQUARES:

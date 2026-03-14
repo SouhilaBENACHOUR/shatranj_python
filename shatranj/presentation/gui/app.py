@@ -5,10 +5,10 @@ Role: creates the GTK application and the main window.
 """
 
 import gi
-gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gio
-
 from shatranj.presentation.gui.window import ShatranjWindow
+
+gi.require_version("Gtk", "4.0")
 
 
 class ShatranjApp(Gtk.Application):

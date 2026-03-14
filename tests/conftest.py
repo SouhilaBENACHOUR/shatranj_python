@@ -12,4 +12,4 @@ Fixtures disponibles :
     - temp_save_file : Fichier temporaire
     - mock_board : Mock de Board
     - sample_moves : Liste de Move valides
-"""    
+"""

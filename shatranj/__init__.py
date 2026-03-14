@@ -21,7 +21,7 @@ Modules principaux :
 
 Exécution du programme (cahier des charges F1) :
     Ligne de commande : shatranj [OPTIONS] [ARGUMENTS]
-    
+
     Options obligatoires :
         -h, --help      : Affiche l'aide
         -V, --version   : Affiche la version
@@ -58,7 +58,7 @@ __all__ = [
     "__version__",
     "__author__",
     "__license__",
-    # Classes principales 
+    # Classes principales
     # "Game",
     # "Board",
     # "Bitboard",
