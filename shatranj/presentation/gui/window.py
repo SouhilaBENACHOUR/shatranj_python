@@ -8,9 +8,10 @@ Contains:
 """
 
 import gi
-from gi.repository import Gtk, Gio
+from gi.repository import Gtk, Gio, GLib
 from shatranj.presentation.gui.board_widget import BoardWidget
 from shatranj.domain.rules.rules_engine import RulesEngine
+from shatranj.domain.rules.BlitzClock import BlitzClock
 from shatranj.presentation.cli.game_state import GameState
 from shatranj.utils.constants import WHITE, BLACK
 from shatranj.presentation.cli.cli import CLI
@@ -22,13 +23,21 @@ gi.require_version("Gtk", "4.0")
 class ShatranjWindow(Gtk.ApplicationWindow):
     """Main application window."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, blitz: bool = False, blitz_time_minutes: int = 30, **kwargs) -> None:
         super().__init__(**kwargs)
 
         self.set_title("Shatranj")
         self.set_default_size(800, 600)
         self._engine = RulesEngine()
         self._state: GameState | None = None
+        
+        # Blitz mode attributes
+        self._blitz_enabled = blitz
+        self._blitz_time_minutes = blitz_time_minutes
+        self._clock: BlitzClock | None = None
+        self._clock_paused = False
+        self._timer_id: int | None = None
+        
         self._build_ui()
         self._build_menu()
         self._build_shortcuts()
@@ -176,6 +185,22 @@ class ShatranjWindow(Gtk.ApplicationWindow):
     def _on_new_game(self, *_) -> None:
         self._state = GameState()
         self._board_widget.set_board(self._state.board, self._state.current_color)
+        
+        # Initialize blitz clock if enabled
+        if self._blitz_enabled:
+            self._clock = BlitzClock(
+                initial_time_seconds=self._blitz_time_minutes * 60,
+                increment=2  # 2-second increment
+            )
+            self._clock.start_turn(self._state.current_color)
+            self._start_timer_update()
+            self._update_timer_display()
+        else:
+            self._clock = None
+            if self._timer_id is not None:
+                GLib.source_remove(self._timer_id)
+                self._timer_id = None
+            self._timer_label.set_label("--:--")
 
     def _on_load_game(self, *_) -> None:
         dialog = Gtk.FileDialog()
@@ -238,7 +263,14 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         print("Redo")
 
     def _on_pause(self, *_) -> None:
-        print("Pause")
+        if self._clock is None:
+            return
+        self._clock_paused = not self._clock_paused
+        status = "paused" if self._clock_paused else "resumed"
+        dialog = Gtk.AlertDialog()
+        dialog.set_message("Timer")
+        dialog.set_detail(f"Blitz timer {status}.")
+        dialog.show(self)
 
     def _on_hint(self, *_) -> None:
         if self._state is None:
@@ -263,7 +295,24 @@ class ShatranjWindow(Gtk.ApplicationWindow):
     def _on_move_played(self, move) -> None:
         if self._state is None:
             return
+        
+        # Check for time expiration in blitz mode
+        if self._clock is not None and not self._clock_paused:
+            if self._clock.is_flagged(self._state.current_color):
+                self._show_game_over_dialog(f"Time Out! {BLACK if self._state.current_color == WHITE else WHITE} wins!")
+                return
+        
+        # Stop current player's clock
+        if self._clock is not None and not self._clock_paused:
+            self._clock.end_turn()
+        
         self._state.apply_move(move)
+        
+        # Start next player's clock
+        if self._clock is not None and not self._clock_paused:
+            self._clock.start_turn(self._state.current_color)
+            self._update_timer_display()
+        
         self._board_widget.set_board(self._state.board, self._state.current_color)
         self._update_history()
         self._check_game_over()
@@ -311,9 +360,54 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _show_game_over_dialog(self, message: str) -> None:
         """Show a dialog when the game is over."""
+        if self._timer_id is not None:
+            GLib.source_remove(self._timer_id)
+            self._timer_id = None
+        
         dialog = Gtk.AlertDialog()
         dialog.set_message("Game Over")
         dialog.set_detail(message)
         dialog.show(self)
         self._state = None
         self._board_widget.set_board(None, WHITE)
+        self._clock = None
+
+    # ------------------------------------------------------------------
+    # Blitz timer
+    # ------------------------------------------------------------------
+
+    def _start_timer_update(self) -> None:
+        """Start the timer update loop (100ms)."""
+        if self._timer_id is not None:
+            GLib.source_remove(self._timer_id)
+        self._timer_id = GLib.timeout_add(100, self._on_timer_tick)
+
+    def _on_timer_tick(self) -> bool:
+        """Called every 100ms to update the display."""
+        if self._clock is None or self._state is None:
+            return False
+        
+        # Check for time expiration
+        if not self._clock_paused:
+            if self._clock.is_flagged(self._state.current_color):
+                opponent = BLACK if self._state.current_color == WHITE else WHITE
+                self._show_game_over_dialog(f"Time Out! {opponent} wins!")
+                return False
+        
+        self._update_timer_display()
+        return True  # Keep running
+
+    def _update_timer_display(self) -> None:
+        """Update the timer display."""
+        if self._clock is None:
+            self._timer_label.set_label("--:--")
+            return
+        
+        current_player = self._state.current_color if self._state else WHITE
+        remaining = self._clock.get_remaining_time(current_player)
+        remaining = max(0, remaining)
+        
+        minutes = int(remaining) // 60
+        seconds = int(remaining) % 60
+        status = " (PAUSED)" if self._clock_paused else ""
+        self._timer_label.set_label(f"{minutes:02d}:{seconds:02d}{status}")

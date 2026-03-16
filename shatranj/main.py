@@ -158,7 +158,7 @@ def main() -> int:
         try:
             from shatranj.presentation.gui.app import run_gui
 
-            return run_gui()
+            return run_gui(blitz=args.blitz, blitz_time_minutes=args.time)
         except ModuleNotFoundError:
             print(
                 "Error: GUI requires GTK which is not available on Windows.",
@@ -171,7 +171,12 @@ def main() -> int:
     # On importe ici pour éviter les imports circulaires
     from shatranj.presentation.cli.cli import CLI
 
-    cli = CLI(verbose=args.verbose, debug=args.debug)
+    cli = CLI(
+        verbose=args.verbose,
+        debug=args.debug,
+        blitz=args.blitz,
+        blitz_time_minutes=args.time
+    )
 
     # Si un fichier de sauvegarde est donné, on le charge automatiquement (F4)
     if args.savefile:

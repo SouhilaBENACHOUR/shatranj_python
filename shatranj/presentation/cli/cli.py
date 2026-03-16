@@ -20,7 +20,9 @@ import re  # For parsing algebraic notation with a regex
 import sys  # For sys.exit() and sys.stderr
 
 from shatranj.domain.core.move import Move
+from shatranj.domain.rules.BlitzClock import BlitzClock
 from shatranj.domain.rules.rules_engine import RulesEngine
+from shatranj.domain.rules.move_validator import MoveValidator
 from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN
 from shatranj.domain.ai.ai_player import AIPlayer
 from shatranj.domain.core.board import Board
@@ -84,7 +86,7 @@ class CLI:
       _verbose : True if verbose mode is enabled
     """
 
-    def __init__(self, verbose: bool = False, debug: bool = False) -> None:
+    def __init__(self, verbose: bool = False, debug: bool = False, blitz: bool = False, blitz_time_minutes: int = 30) -> None:
         self._state: GameState | None = None  # No game at startup
         self._engine = RulesEngine()
         self._running = False
@@ -92,6 +94,12 @@ class CLI:
         self._verbose = verbose
         self._ai_players: dict[str, AIPlayer] = {}
         self._debug = debug
+        
+        # Blitz mode attributes
+        self._blitz_enabled = blitz
+        self._blitz_time_minutes = blitz_time_minutes
+        self._clock: BlitzClock | None = None
+        self._clock_paused = False
 
         # Configure readline for Tab completion (F18)
         readline.set_completer(self._completer)
@@ -302,6 +310,15 @@ class CLI:
             self._error("No game in progress. Type 'new' to start a game.")
             return
 
+        # Check for time expiration in blitz mode
+        if self._clock is not None and not self._clock_paused:
+            if self._clock.is_flagged(self._state.current_color):
+                opponent = BLACK if self._state.current_color == WHITE else WHITE
+                print(f"\n!!! TIME OUT !!! {self._state.current_color} lost on time.")
+                print(f"Checkmate! {opponent} wins!")
+                self._state = None
+                return
+
         move = self._parse_move(text)
         if move is None:
             return
@@ -319,6 +336,10 @@ class CLI:
             self._error(f"Illegal move: {text}")
             return
 
+        # Stop current player's clock
+        if self._clock is not None and not self._clock_paused:
+            self._clock.end_turn()
+        
         # Apply the player's move
         self._state.apply_move(move)
         self._saved = False
@@ -327,7 +348,18 @@ class CLI:
 
         # Display the updated board
         print_board(self._state.board)
+        
+        # Start next player's clock
+        if self._clock is not None and not self._clock_paused:
+            self._clock.start_turn(self._state.current_color)
+        
         print(f"\nIt's now {self._state.current_color}'s turn.")
+        
+        # Show time in blitz mode
+        if self._clock is not None:
+            w_time = self._clock.get_remaining_time(WHITE)
+            b_time = self._clock.get_remaining_time(BLACK)
+            print(f"Time: White {max(0, w_time):.1f}s | Black {max(0, b_time):.1f}s")
 
         # Check if the game is over after the player's move
         if self._check_game_over():
@@ -335,6 +367,7 @@ class CLI:
 
         # If the next turn is controlled by an AI, chain it automatically
         self._auto_play_ai_turns()
+
 
     def _check_game_over(self) -> bool:
         """
@@ -447,6 +480,15 @@ class CLI:
         if self._state is None:
             return
 
+        # Check for time expiration in blitz mode
+        if self._clock is not None and not self._clock_paused:
+            if self._clock.is_flagged(self._state.current_color):
+                opponent = BLACK if self._state.current_color == WHITE else WHITE
+                print(f"\n!!! TIME OUT !!! {self._state.current_color} lost on time.")
+                print(f"Checkmate! {opponent} wins!")
+                self._state = None
+                return
+
         # get the AI that plays the current color
         ai_player = self._ai_players.get(self._state.current_color)
         if ai_player is None:
@@ -462,6 +504,10 @@ class CLI:
             self._check_game_over()
             return
 
+        # Stop current player's clock
+        if self._clock is not None and not self._clock_paused:
+            self._clock.end_turn()
+
         # display the move played by the AI in algebraic notation
         print(f"AI plays: {self._format_move_with_piece(move)}")
 
@@ -471,7 +517,18 @@ class CLI:
 
         # display the updated board
         print_board(self._state.board)
+        
+        # Start next player's clock
+        if self._clock is not None and not self._clock_paused:
+            self._clock.start_turn(self._state.current_color)
+        
         print(f"\nIt's now {self._state.current_color}'s turn.")
+        
+        # Show time in blitz mode
+        if self._clock is not None:
+            w_time = self._clock.get_remaining_time(WHITE)
+            b_time = self._clock.get_remaining_time(BLACK)
+            print(f"Time: White {max(0, w_time):.1f}s | Black {max(0, b_time):.1f}s")
 
         # check if the game is over after the AI's move
         self._check_game_over()
@@ -508,6 +565,17 @@ class CLI:
         self._state = GameState()
         self._saved = True
         self._ai_players = {}  # Reset AI players
+        self._clock_paused = False
+        
+        # Initialize blitz clock if enabled
+        if self._blitz_enabled:
+            self._clock = BlitzClock(
+                initial_time_seconds=self._blitz_time_minutes * 60,
+                increment=2  # 2-second increment per move
+            )
+            print(f"Blitz mode: {self._blitz_time_minutes}m + 2s increment")
+        else:
+            self._clock = None
 
         # Configure AI if requested:
         # - "new ai black" / "new ai white"
@@ -695,8 +763,17 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_show_time(self) -> None:
         """Display remaining time (blitz mode only)."""
-        # Blitz mode not yet implemented: informational message
-        print("Time display is only available in blitz mode (use -b at startup).")
+        if not self._blitz_enabled or self._clock is None:
+            print("Time display is only available in blitz mode (use -b at startup).")
+            return
+        
+        w_time = self._clock.get_remaining_time(WHITE)
+        b_time = self._clock.get_remaining_time(BLACK)
+        status = "(PAUSED)" if self._clock_paused else ""
+        print(f"\nBlitz Time {status}")
+        print(f"  White: {max(0, w_time):.1f}s")
+        print(f"  Black: {max(0, b_time):.1f}s")
+        print()
 
     def _do_show_configuration(self) -> None:
         """Display the current configuration."""
@@ -1109,8 +1186,14 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             return False
 
     def _do_pause(self, args: list[str]) -> None:
-        """Pause the timer (blitz mode only)."""
-        print("Pause is only available in blitz mode.")
+        """Pause/resume the timer (blitz mode only)."""
+        if not self._blitz_enabled or self._clock is None:
+            print("Pause is only available in blitz mode (use -b at startup).")
+            return
+        
+        self._clock_paused = not self._clock_paused
+        status = "paused" if self._clock_paused else "resumed"
+        print(f"Blitz timer {status}.")
 
     def _do_set(self, args: list[str]) -> None:
         """
