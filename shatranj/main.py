@@ -1,129 +1,150 @@
 """
 main.py - Point d'entrée du programme Shatranj
 
-Rôle : gère les options de ligne de commande (F1, F4 du cahier des charges)
-       puis lance l'interface appropriée (CLI par défaut).
+Role: handles command-line options (F1, F4 of the specification)
+      then launches the appropriate interface (CLI by default).
 
-Pourquoi argparse ?
-  Le cahier des charges (section 1.12) impose argparse pour Python.
-  argparse gère automatiquement -h/--help et les messages d'erreur.
+Why argparse?
+  The specification (section 1.12) requires argparse for Python.
+  argparse automatically handles -h/--help and error messages.
 
-Options gérées (F1) :
-  -h / --help     : affiche l'aide
-  -V / --version  : affiche la version
-  -v / --verbose  : mode verbeux
-  -d / --debug    : mode debug
-  -b / --blitz    : mode blitz (F5)
-  -t / --time     : temps en minutes pour le blitz (F5)
-  -g / --gui      : interface graphique (F7) - pas encore implémentée
-  -a / --ai       : joueur artificiel (F8) - pas encore implémenté
+Options handled (F1):
+  -h / --help        : show help
+  -V / --version     : show version
+  -v / --verbose     : verbose mode
+  -d / --debug       : debug mode
+  -b / --blitz       : blitz mode (F5)
+  -t / --time        : time in minutes for blitz (F5)
+  -g / --gui         : graphical interface (F7)
+  -a / --ai          : AI player color: W or B (F8)
+  --ai-mode          : AI algorithm: minimax, alphabeta, mcts
+  --ai-depth         : search depth for minimax/alphabeta
 """
 
 import argparse
 import sys
 
-# Version du programme
 VERSION = "0.1.0"
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
     """
-    Construit et retourne le parser d'arguments.
+    Build and return the argument parser.
 
-    On sépare la construction du parser de son utilisation
-    pour faciliter les tests unitaires.
+    We separate the parser construction from its use
+    to make unit testing easier.
     """
     parser = argparse.ArgumentParser(
         prog="shatranj",
         description="Shatranj - Indian Chess game",
-        # epilog affiché après la liste des options dans --help
         epilog="Examples:\n"
-        "  shatranj              Start a new game (CLI)\n"
-        "  shatranj -b -t 15    Start a blitz game (15 min per player)\n"
-        "  shatranj save.shatranj  Resume a saved game\n",
+               "  shatranj                                          Start a new game (CLI)\n"
+               "  shatranj -a B                                     AI plays BLACK (alphabeta)\n"
+               "  shatranj -a W --ai-mode minimax                   AI plays WHITE with minimax\n"
+               "  shatranj -a B --ai-mode mcts                      AI plays BLACK with MCTS\n"
+               "  shatranj -a W --ai-mode minimax --ai-depth 6      Minimax depth 6\n"
+               "  shatranj -a W --ai-minimax-scoring material       Simple evaluation\n"
+               "  shatranj -a W --ai-minimax-scoring positional     Positional evaluation\n"
+               "  shatranj -a W --ai-minimax-scoring advanced       Advanced evaluation\n"
+               "  shatranj -b -t 15                                 Blitz game (15 min)\n",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    # -V / --version : affiche la version et quitte (F1)
+    # -V / --version
     parser.add_argument(
-        "-V",
-        "--version",
+        "-V", "--version",
         action="version",
         version=f"%(prog)s {VERSION}",
     )
 
-    # -v / --verbose : augmente la verbosité (F1)
+    # -v / --verbose
     parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",  # True si présent, False sinon
+        "-v", "--verbose",
+        action="store_true",
         default=False,
         help="Increase verbosity",
     )
 
-    # -d / --debug : affiche les messages de debug (F1)
+    # -d / --debug
     parser.add_argument(
-        "-d",
-        "--debug",
+        "-d", "--debug",
         action="store_true",
         default=False,
         help="Enable debug messages",
     )
 
-    # -b / --blitz : mode blitz (F5)
+    # -b / --blitz
     parser.add_argument(
-        "-b",
-        "--blitz",
+        "-b", "--blitz",
         action="store_true",
         default=False,
         help="Start a blitz game (timed)",
     )
 
-    # -t / --time : temps en minutes pour le blitz (F5)
+    # -t / --time
     parser.add_argument(
-        "-t",
-        "--time",
+        "-t", "--time",
         type=int,
         default=30,
         metavar="TIME",
         help="Time limit in minutes for blitz mode (default: 30)",
     )
 
-    # -g / --gui : interface graphique (F7)
+    # -g / --gui
     parser.add_argument(
-        "-g",
-        "--gui",
+        "-g", "--gui",
         action="store_true",
         default=False,
-        help="Launch the graphical interface (not yet implemented)",
+        help="Launch the graphical interface",
     )
 
-    # -a / --ai : joueur artificiel (F8)
-    # nargs="?" signifie : optionnel, avec une valeur possible
+    # -a / --ai : color of the AI player (W or B)
     parser.add_argument(
-        "-a",
-        "--ai",
-        nargs="?",  # 0 ou 1 argument
-        const="black",  # valeur si -a sans argument
-        default=None,  # valeur si -a absent
+        "-a", "--ai",
+        nargs="?",
+        const="B",
+        default=None,
         metavar="COLOR",
-        help="Replace player COLOR with AI (default: black). "
-        "Colors: white, black, all",
+        help="Replace player COLOR with AI. Colors: W (white), B (black)",
     )
 
-    # -c / --contest : mode contest (F6)
+    # --ai-mode : AI algorithm
     parser.add_argument(
-        "-c",
-        "--contest",
+        "--ai-mode",
+        default="alphabeta",
+        metavar="MODE",
+        help="AI algorithm: minimax, alphabeta (default), mcts",
+    )
+
+    # --ai-depth : search depth
+    parser.add_argument(
+        "--ai-depth",
+        type=int,
+        default=None,
+        metavar="DEPTH",
+        help="Search depth for minimax/alphabeta (default: 3 for minimax, 4 for alphabeta)",
+    )
+
+    # --ai-minimax-scoring : evaluation function
+    parser.add_argument(
+        "--ai-minimax-scoring",
+        default="advanced",
+        metavar="SCORING",
+        help="Evaluation function: material, positional, advanced (default)",
+    )
+
+    # -c / --contest
+    parser.add_argument(
+        "-c", "--contest",
         action="store_true",
         default=False,
         help="Contest mode: read a position from a file and output the best move",
     )
 
-    # Argument positionnel optionnel : fichier de sauvegarde (F4)
+    # positional: save file
     parser.add_argument(
         "savefile",
-        nargs="?",  # 0 ou 1 argument positionnel
+        nargs="?",
         default=None,
         metavar="SAVEFILE",
         help="Save file to load at startup",
@@ -134,17 +155,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     """
-    Point d'entrée principal.
+    Main entry point.
 
-    Retourne 0 en cas de succès, 1 en cas d'erreur (F1).
+    Returns 0 on success, 1 on error (F1).
     """
     parser = build_argument_parser()
     args = parser.parse_args()
 
-    # --- Validation des options ---
-
-    # F5 : -t sans -b affiche un avertissement
-    # (on vérifie si --time a été explicitement donné)
+    # -t without -b: warning
     time_given_explicitly = "--time" in sys.argv or "-t" in sys.argv
     if time_given_explicitly and not args.blitz:
         print(
@@ -152,38 +170,57 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    # --- Lancement de l'interface ---
+    # --- Launch interface ---
 
-    if args.gui:  # ← 4 espaces, CORRECT
+    if args.gui:
         try:
             from shatranj.presentation.gui.app import run_gui
-
             return run_gui()
         except ModuleNotFoundError:
-            print(
-                "Error: GUI requires GTK which is not available on Windows.",
-                file=sys.stderr,
-            )
+            print("Error: GUI requires GTK which is not available on Windows.", file=sys.stderr)
             print("Please use Linux or WSL to run the GUI.", file=sys.stderr)
             return 1
 
-    # Par défaut : interface CLI
-    # On importe ici pour éviter les imports circulaires
     from shatranj.presentation.cli.cli import CLI
 
     cli = CLI(verbose=args.verbose, debug=args.debug)
 
-    # Si un fichier de sauvegarde est donné, on le charge automatiquement (F4)
+    # configure AI if -a is given
+    if args.ai:
+        ai_color = args.ai.upper()
+        if ai_color not in ("W", "B"):
+            print(f"Error: invalid color '{args.ai}'. Use W or B.", file=sys.stderr)
+            return 1
+
+        algo = args.ai_mode.lower()
+        if algo not in ("minimax", "alphabeta", "mcts"):
+            print(f"Error: unknown algorithm '{algo}'. Use minimax, alphabeta or mcts.", file=sys.stderr)
+            return 1
+
+        scoring = args.ai_minimax_scoring.lower()
+        if scoring not in ("material", "positional", "advanced"):
+            print(f"Error: unknown scoring '{scoring}'. Use material, positional or advanced.", file=sys.stderr)
+            return 1
+
+        # default depth depending on algorithm
+        if args.ai_depth is not None:
+            depth = args.ai_depth
+        elif algo == "alphabeta":
+            depth = 4
+        elif algo == "mcts":
+            depth = 500
+        else:
+            depth = 3
+
+        color_str = "white" if ai_color == "W" else "black"
+        cli._do_new(["ai", color_str, algo, str(depth), scoring])
+
     if args.savefile:
-        # On simule la commande "load FILE"
         cli._do_load([args.savefile])
 
-    # Lance la boucle interactive
     cli.run()
-
     return 0
 
 
 if __name__ == "__main__":
-    # sys.exit() convertit le code de retour int en exit code du processus
     sys.exit(main())
