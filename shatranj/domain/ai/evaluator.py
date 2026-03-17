@@ -8,102 +8,435 @@ Three evaluation functions:
 """
 
 from shatranj.domain.core.board import Board
-from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import (
-    WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
-)
+from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
 
 # Material values
 PIECE_VALUES = {
-    PAWN  : 1,
-    ALFIL : 2,
-    FERZ  : 2,
+    PAWN: 1,
+    ALFIL: 2,
+    FERZ: 2,
     KNIGHT: 6,
-    ROOK  : 9,
-    SHAH  : 0,
+    ROOK: 9,
+    SHAH: 0,
 }
 
 # Positional bonus tables (64 squares, rank 0 = a1, rank 7 = h8)
 # Positive = good for WHITE, will be mirrored for BLACK
 
 PAWN_TABLE = [
-    0,  0,  0,  0,  0,  0,  0,  0,
-    5,  5,  5,  5,  5,  5,  5,  5,
-    1,  1,  2,  3,  3,  2,  1,  1,
-    0,  0,  1,  2,  2,  1,  0,  0,
-    0,  0,  0,  2,  2,  0,  0,  0,
-    0, -1, -1,  0,  0, -1, -1,  0,
-    0,  1,  1, -2, -2,  1,  1,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    1,
+    1,
+    2,
+    3,
+    3,
+    2,
+    1,
+    1,
+    0,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    2,
+    2,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    0,
+    1,
+    1,
+    -2,
+    -2,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
 ]
 
 KNIGHT_TABLE = [
-    -5, -4, -3, -3, -3, -3, -4, -5,
-    -4, -2,  0,  0,  0,  0, -2, -4,
-    -3,  0,  1,  2,  2,  1,  0, -3,
-    -3,  1,  2,  3,  3,  2,  1, -3,
-    -3,  0,  2,  3,  3,  2,  0, -3,
-    -3,  1,  1,  2,  2,  1,  1, -3,
-    -4, -2,  0,  1,  1,  0, -2, -4,
-    -5, -4, -3, -3, -3, -3, -4, -5,
+    -5,
+    -4,
+    -3,
+    -3,
+    -3,
+    -3,
+    -4,
+    -5,
+    -4,
+    -2,
+    0,
+    0,
+    0,
+    0,
+    -2,
+    -4,
+    -3,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    -3,
+    -3,
+    1,
+    2,
+    3,
+    3,
+    2,
+    1,
+    -3,
+    -3,
+    0,
+    2,
+    3,
+    3,
+    2,
+    0,
+    -3,
+    -3,
+    1,
+    1,
+    2,
+    2,
+    1,
+    1,
+    -3,
+    -4,
+    -2,
+    0,
+    1,
+    1,
+    0,
+    -2,
+    -4,
+    -5,
+    -4,
+    -3,
+    -3,
+    -3,
+    -3,
+    -4,
+    -5,
 ]
 
 ROOK_TABLE = [
-    0,  0,  0,  0,  0,  0,  0,  0,
-    1,  2,  2,  2,  2,  2,  2,  1,
-   -1,  0,  0,  0,  0,  0,  0, -1,
-   -1,  0,  0,  0,  0,  0,  0, -1,
-   -1,  0,  0,  0,  0,  0,  0, -1,
-   -1,  0,  0,  0,  0,  0,  0, -1,
-   -1,  0,  0,  0,  0,  0,  0, -1,
-    0,  0,  0,  1,  1,  0,  0,  0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    1,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
 ]
 
 FERZ_TABLE = [
-    -2, -1, -1, -1, -1, -1, -1, -2,
-    -1,  0,  0,  0,  0,  0,  0, -1,
-    -1,  0,  1,  1,  1,  1,  0, -1,
-    -1,  0,  1,  2,  2,  1,  0, -1,
-    -1,  0,  1,  2,  2,  1,  0, -1,
-    -1,  0,  1,  1,  1,  1,  0, -1,
-    -1,  0,  1,  0,  0,  1,  0, -1,
-    -2, -1, -1, -1, -1, -1, -1, -2,
+    -2,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -2,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    -1,
+    -2,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -2,
 ]
 
 ALFIL_TABLE = [
-    -2, -1, -1, -1, -1, -1, -1, -2,
-    -1,  0,  0,  0,  0,  0,  0, -1,
-    -1,  0,  1,  1,  1,  1,  0, -1,
-    -1,  0,  1,  2,  2,  1,  0, -1,
-    -1,  0,  1,  2,  2,  1,  0, -1,
-    -1,  0,  1,  1,  1,  1,  0, -1,
-    -1,  0,  0,  0,  0,  0,  0, -1,
-    -2, -1, -1, -1, -1, -1, -1, -2,
+    -2,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -2,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    -1,
+    -1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    -2,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -2,
 ]
 
 SHAH_TABLE_MIDGAME = [
-    -3, -4, -4, -5, -5, -4, -4, -3,
-    -3, -4, -4, -5, -5, -4, -4, -3,
-    -3, -4, -4, -5, -5, -4, -4, -3,
-    -3, -4, -4, -5, -5, -4, -4, -3,
-    -2, -3, -3, -4, -4, -3, -3, -2,
-    -1, -2, -2, -2, -2, -2, -2, -1,
-     2,  2,  0,  0,  0,  0,  2,  2,
-     2,  3,  1,  0,  0,  1,  3,  2,
+    -3,
+    -4,
+    -4,
+    -5,
+    -5,
+    -4,
+    -4,
+    -3,
+    -3,
+    -4,
+    -4,
+    -5,
+    -5,
+    -4,
+    -4,
+    -3,
+    -3,
+    -4,
+    -4,
+    -5,
+    -5,
+    -4,
+    -4,
+    -3,
+    -3,
+    -4,
+    -4,
+    -5,
+    -5,
+    -4,
+    -4,
+    -3,
+    -2,
+    -3,
+    -3,
+    -4,
+    -4,
+    -3,
+    -3,
+    -2,
+    -1,
+    -2,
+    -2,
+    -2,
+    -2,
+    -2,
+    -2,
+    -1,
+    2,
+    2,
+    0,
+    0,
+    0,
+    0,
+    2,
+    2,
+    2,
+    3,
+    1,
+    0,
+    0,
+    1,
+    3,
+    2,
 ]
 
 POSITION_TABLES = {
-    PAWN  : PAWN_TABLE,
+    PAWN: PAWN_TABLE,
     KNIGHT: KNIGHT_TABLE,
-    ROOK  : ROOK_TABLE,
-    FERZ  : FERZ_TABLE,
-    ALFIL : ALFIL_TABLE,
-    SHAH  : SHAH_TABLE_MIDGAME,
+    ROOK: ROOK_TABLE,
+    FERZ: FERZ_TABLE,
+    ALFIL: ALFIL_TABLE,
+    SHAH: SHAH_TABLE_MIDGAME,
 }
 
 # Center squares bonus for advanced evaluation
 CENTER_SQUARES = {27, 28, 35, 36}  # d4, e4, d5, e5
-NEAR_CENTER    = {18, 19, 20, 21, 26, 29, 34, 37, 42, 43, 44, 45}
+NEAR_CENTER = {18, 19, 20, 21, 26, 29, 34, 37, 42, 43, 44, 45}
 
 
 class Evaluator:
@@ -118,7 +451,10 @@ class Evaluator:
 
     def __init__(self, mode: str = "advanced") -> None:
         if mode not in ("material", "positional", "advanced"):
-            raise ValueError(f"Unknown evaluation mode: '{mode}'. Use material, positional or advanced.")
+            raise ValueError(
+                f"Unknown evaluation mode: '{mode}'.Use material, "
+                "positional or advanced."
+            )
         self._mode = mode
 
     def evaluate(self, board: Board, color: str) -> float:
@@ -148,10 +484,10 @@ class Evaluator:
         score = 0
 
         for piece, value in PIECE_VALUES.items():
-            own_bb  = board._boards.get((piece, color), 0)
-            opp_bb  = board._boards.get((piece, opponent), 0)
-            score  += value * bin(own_bb).count("1")
-            score  -= value * bin(opp_bb).count("1")
+            own_bb = board._boards.get((piece, color), 0)
+            opp_bb = board._boards.get((piece, opponent), 0)
+            score += value * bin(own_bb).count("1")
+            score -= value * bin(opp_bb).count("1")
 
         return score
 
@@ -167,30 +503,30 @@ class Evaluator:
         Positions are mirrored for BLACK (rank 0 becomes rank 7).
         """
         opponent = BLACK if color == WHITE else WHITE
-        score    = self._eval_material(board, color)
+        score = self._eval_material(board, color)
 
         for piece, table in POSITION_TABLES.items():
             # own pieces: use table directly
             own_bb = board._boards.get((piece, color), 0)
-            sq     = 0
-            bb     = own_bb
+            sq = 0
+            bb = own_bb
             while bb:
-                lsb    = bb & (-bb)
-                sq     = lsb.bit_length() - 1
+                lsb = bb & (-bb)
+                sq = lsb.bit_length() - 1
                 # mirror for BLACK (rank 7-rank)
-                idx    = sq if color == WHITE else (7 - sq // 8) * 8 + sq % 8
+                idx = sq if color == WHITE else (7 - sq // 8) * 8 + sq % 8
                 score += table[idx] * 0.1
-                bb    &= bb - 1
+                bb &= bb - 1
 
             # opponent pieces: subtract
             opp_bb = board._boards.get((piece, opponent), 0)
-            bb     = opp_bb
+            bb = opp_bb
             while bb:
-                lsb    = bb & (-bb)
-                sq     = lsb.bit_length() - 1
-                idx    = sq if opponent == WHITE else (7 - sq // 8) * 8 + sq % 8
+                lsb = bb & (-bb)
+                sq = lsb.bit_length() - 1
+                idx = sq if opponent == WHITE else (7 - sq // 8) * 8 + sq % 8
                 score -= table[idx] * 0.1
-                bb    &= bb - 1
+                bb &= bb - 1
 
         return score
 
@@ -207,7 +543,7 @@ class Evaluator:
         Shah safety : shah far from center = safer
         """
         opponent = BLACK if color == WHITE else WHITE
-        score    = self._eval_positional(board, color)
+        score = self._eval_positional(board, color)
 
         # --- Mobility ---
         # count pieces that have moves available (approximation without full legal gen)
@@ -233,7 +569,8 @@ class Evaluator:
         Uses a fast approximation (pseudo-legal moves count).
         """
         from shatranj.domain.rules.move_generator import MoveGenerator
-        gen   = MoveGenerator()
+
+        gen = MoveGenerator()
         moves = gen.generate_all_moves(board, color)
         return len(moves)
 
@@ -248,7 +585,7 @@ class Evaluator:
         for piece in PIECE_VALUES:
             bb = board._boards.get((piece, color), 0)
             while bb:
-                sq  = (bb & -bb).bit_length() - 1
+                sq = (bb & -bb).bit_length() - 1
                 if sq in CENTER_SQUARES:
                     score += 2
                 elif sq in NEAR_CENTER:
@@ -264,15 +601,16 @@ class Evaluator:
         A shah in the center is dangerous (negative score).
         """
         from shatranj.data.bitboards.bitboard import get_lsb
+
         shah_bb = board._boards.get((SHAH, color), 0)
         if not shah_bb:
             return 0
 
-        sq   = get_lsb(shah_bb).bit_length() - 1
+        sq = get_lsb(shah_bb).bit_length() - 1
         rank = sq // 8
 
         # back rank (rank 0 for WHITE, rank 7 for BLACK) = safest
         if color == WHITE:
-            return 3 - rank      # rank 0 → +3, rank 7 → -4
+            return 3 - rank  # rank 0 → +3, rank 7 → -4
         else:
-            return rank - 4      # rank 7 → +3, rank 0 → -4
+            return rank - 4  # rank 7 → +3, rank 0 → -4

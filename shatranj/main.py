@@ -38,28 +38,30 @@ def build_argument_parser() -> argparse.ArgumentParser:
         prog="shatranj",
         description="Shatranj - Indian Chess game",
         epilog="Examples:\n"
-               "  shatranj                                          Start a new game (CLI)\n"
-               "  shatranj -a B                                     AI plays BLACK (alphabeta)\n"
-               "  shatranj -a W --ai-mode minimax                   AI plays WHITE with minimax\n"
-               "  shatranj -a B --ai-mode mcts                      AI plays BLACK with MCTS\n"
-               "  shatranj -a W --ai-mode minimax --ai-depth 6      Minimax depth 6\n"
-               "  shatranj -a W --ai-minimax-scoring material       Simple evaluation\n"
-               "  shatranj -a W --ai-minimax-scoring positional     Positional evaluation\n"
-               "  shatranj -a W --ai-minimax-scoring advanced       Advanced evaluation\n"
-               "  shatranj -b -t 15                                 Blitz game (15 min)\n",
+        "  shatranj                                       Start a new game (CLI)\n"
+        "  shatranj -a B                                  AI plays BLACK (alphabeta)\n"
+        "  shatranj -a W --ai-mode minimax                AI plays WHITE with minimax\n"
+        "  shatranj -a B --ai-mode mcts                   AI plays BLACK with MCTS\n"
+        "  shatranj -a W --ai-mode minimax --ai-depth 6   Minimax depth 6\n"
+        "  shatranj -a W --ai-minimax-scoring material    Simple evaluation\n"
+        "  shatranj -a W --ai-minimax-scoring positional  Positional evaluation\n"
+        "  shatranj -a W --ai-minimax-scoring advanced    Advanced evaluation\n"
+        "  shatranj -b -t 15                              Blitz game (15 min)\n",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     # -V / --version
     parser.add_argument(
-        "-V", "--version",
+        "-V",
+        "--version",
         action="version",
         version=f"%(prog)s {VERSION}",
     )
 
     # -v / --verbose
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         default=False,
         help="Increase verbosity",
@@ -67,7 +69,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -d / --debug
     parser.add_argument(
-        "-d", "--debug",
+        "-d",
+        "--debug",
         action="store_true",
         default=False,
         help="Enable debug messages",
@@ -75,7 +78,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -b / --blitz
     parser.add_argument(
-        "-b", "--blitz",
+        "-b",
+        "--blitz",
         action="store_true",
         default=False,
         help="Start a blitz game (timed)",
@@ -83,7 +87,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -t / --time
     parser.add_argument(
-        "-t", "--time",
+        "-t",
+        "--time",
         type=int,
         default=30,
         metavar="TIME",
@@ -92,7 +97,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -g / --gui
     parser.add_argument(
-        "-g", "--gui",
+        "-g",
+        "--gui",
         action="store_true",
         default=False,
         help="Launch the graphical interface",
@@ -100,7 +106,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -a / --ai : color of the AI player (W or B)
     parser.add_argument(
-        "-a", "--ai",
+        "-a",
+        "--ai",
         nargs="?",
         const="B",
         default=None,
@@ -122,7 +129,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         metavar="DEPTH",
-        help="Search depth for minimax/alphabeta (default: 3 for minimax, 4 for alphabeta)",
+        help="Search depth for minimax/alphabeta"
+        " (default: 3 for minimax, 4 for alphabeta)",
     )
 
     # --ai-minimax-scoring : evaluation function
@@ -135,7 +143,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # -c / --contest
     parser.add_argument(
-        "-c", "--contest",
+        "-c",
+        "--contest",
         action="store_true",
         default=False,
         help="Contest mode: read a position from a file and output the best move",
@@ -175,9 +184,13 @@ def main() -> int:
     if args.gui:
         try:
             from shatranj.presentation.gui.app import run_gui
+
             return run_gui()
         except ModuleNotFoundError:
-            print("Error: GUI requires GTK which is not available on Windows.", file=sys.stderr)
+            print(
+                "Error: GUI requires GTK which is not available on Windows.",
+                file=sys.stderr,
+            )
             print("Please use Linux or WSL to run the GUI.", file=sys.stderr)
             return 1
 
@@ -194,12 +207,19 @@ def main() -> int:
 
         algo = args.ai_mode.lower()
         if algo not in ("minimax", "alphabeta", "mcts"):
-            print(f"Error: unknown algorithm '{algo}'. Use minimax, alphabeta or mcts.", file=sys.stderr)
+            print(
+                f"Error: unknown algorithm '{algo}'. Use minimax, alphabeta or mcts.",
+                file=sys.stderr,
+            )
             return 1
 
         scoring = args.ai_minimax_scoring.lower()
         if scoring not in ("material", "positional", "advanced"):
-            print(f"Error: unknown scoring '{scoring}'. Use material, positional or advanced.", file=sys.stderr)
+            print(
+                f"Error: unknown scoring '{scoring}'."
+                " Use material, positional or advanced.",
+                file=sys.stderr,
+            )
             return 1
 
         # default depth depending on algorithm

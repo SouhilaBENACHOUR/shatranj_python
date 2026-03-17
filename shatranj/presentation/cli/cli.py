@@ -532,7 +532,9 @@ class CLI:
             algo = args[2].lower() if len(args) >= 3 else "alphabeta"
 
             if algo not in ("minimax", "alphabeta", "mcts"):
-                self._error(f"Unknown algorithm: '{algo}'. Use minimax, alphabeta or mcts.")
+                self._error(
+                    f"Unknown algorithm: '{algo}'. Use minimax, alphabeta or mcts."
+                )
                 return
 
             # optional depth as 4th argument
@@ -543,7 +545,9 @@ class CLI:
                         self._error("Depth must be a positive integer.")
                         return
                 except ValueError:
-                    self._error(f"Invalid depth: '{args[3]}'. Expected a positive integer.")
+                    self._error(
+                        f"Invalid depth: '{args[3]}'. Expected a positive integer."
+                    )
                     return
             else:
                 # default depth depending on algorithm
@@ -558,26 +562,36 @@ class CLI:
             scoring = args[4].lower() if len(args) >= 5 else "advanced"
 
             if scoring not in ("material", "positional", "advanced"):
-                self._error(f"Unknown scoring: '{scoring}'. Use material, positional or advanced.")
+                self._error(
+                    f"Unknown scoring: '{scoring}'. Use material,"
+                    " positional or advanced."
+                )
                 return
 
             if ai_color == "BLACK":
                 self._ai_players[BLACK] = AIPlayer(
-                    color     = BLACK,
-                    depth     = depth,
-                    algorithm = algo,
-                    scoring   = scoring,
+                    color=BLACK,
+                    depth=depth,
+                    algorithm=algo,
+                    scoring=scoring,
                 )
-                print(f"New game started! You play WHITE, AI plays BLACK ({algo}, depth={depth}, scoring={scoring}).")
+                print(
+                    f"New game started! You play WHITE, AI plays BLACK ({algo}, "
+                    "depth={depth},"
+                    " scoring={scoring})."
+                )
 
             elif ai_color == "WHITE":
                 self._ai_players[WHITE] = AIPlayer(
-                    color     = WHITE,
-                    depth     = depth,
-                    algorithm = algo,
-                    scoring   = scoring,
+                    color=WHITE,
+                    depth=depth,
+                    algorithm=algo,
+                    scoring=scoring,
                 )
-                print(f"New game started! AI plays WHITE ({algo}, depth={depth}, scoring={scoring}), you play BLACK.")
+                print(
+                    f"New game started! AI plays WHITE ({algo},"
+                    " depth={depth}, scoring={scoring}), you play BLACK."
+                )
 
             else:
                 self._error(f"Unknown color: '{args[1]}'. Use 'black' or 'white'.")
@@ -591,7 +605,7 @@ class CLI:
         print()
         # If the current player is controlled by an AI, it plays immediately
         self._auto_play_ai_turns()
-        
+
     def _do_quit(self, args: list[str]) -> None:
         """
         Quit the program.
