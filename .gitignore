@@ -19,3 +19,4 @@ htmlcov/
 # ignore generated files
 *.dot
 *.png
+docs/build/
