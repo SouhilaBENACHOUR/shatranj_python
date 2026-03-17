@@ -24,6 +24,24 @@ PIECES = (SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN)
 COLORS = (WHITE, BLACK)
 START_BACK_RANK = (ROOK, KNIGHT, ALFIL, FERZ, SHAH, ALFIL, KNIGHT, ROOK)
 
+# Symbols used for ASCII display and FEN export
+PIECE_TO_SYMBOL = {
+    (SHAH, WHITE): "K",
+    (FERZ, WHITE): "F",
+    (ROOK, WHITE): "R",
+    (ALFIL, WHITE): "A",
+    (KNIGHT, WHITE): "N",
+    (PAWN, WHITE): "P",
+    (SHAH, BLACK): "k",
+    (FERZ, BLACK): "f",
+    (ROOK, BLACK): "r",
+    (ALFIL, BLACK): "a",
+    (KNIGHT, BLACK): "n",
+    (PAWN, BLACK): "p",
+}
+
+SYMBOL_TO_PIECE = {v: k for k, v in PIECE_TO_SYMBOL.items()}
+
 
 class Board:
     def __init__(self, setup: bool = True) -> None:
@@ -146,3 +164,49 @@ class Board:
         if captured is not None:
             piece, color = captured
             self.set_piece(piece, color, move.to_square)  # restore la pièce capturée
+
+    def to_fen(self) -> str:
+        """
+        Convert the board to a simplified FEN-like string representation.
+        Format: piece positions separated by commas, e.g., "r,n,a,f,k,a,n,r,p,p,p,p,p,p,p,p,.,.,.,.,.,.,.,.,.,.,.,.,.,.,P,P,P,P,P,P,P,P,R,N,A,F,K,A,N,R"
+        """
+        pieces = []
+        for rank in range(7, -1, -1):  # From rank 8 to rank 1 (top to bottom)
+            for file in range(8):  # From file a to h (left to right)
+                square = rank * 8 + file
+                piece = self.get_piece_at(square)
+                if piece is None:
+                    pieces.append(".")
+                else:
+                    piece_type, color = piece
+                    symbol = PIECE_TO_SYMBOL[(piece_type, color)]
+                    pieces.append(symbol)
+        return ",".join(pieces)
+
+    @classmethod
+    def from_fen(cls, fen: str) -> "Board":
+        """
+        Create a board from a FEN-like string representation.
+        """
+        board = cls(setup=False)  # Don't setup default position
+        pieces = fen.split(",")
+        
+        if len(pieces) != 64:
+            raise ValueError(f"Invalid FEN: expected 64 pieces, got {len(pieces)}")
+        
+        for i, piece_symbol in enumerate(pieces):
+            if piece_symbol == ".":
+                continue
+
+            if piece_symbol not in SYMBOL_TO_PIECE:
+                raise ValueError(f"Unknown piece symbol: {piece_symbol}")
+
+            # Map index to square
+            rank = 7 - (i // 8)
+            file = i % 8
+            square = rank * 8 + file
+
+            piece_type, color = SYMBOL_TO_PIECE[piece_symbol]
+            board.set_piece(piece_type, color, square)
+
+        return board
