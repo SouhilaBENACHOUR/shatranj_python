@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-Rôle : Configuration projet Python Contenu :
-
-    Métadonnées : name, version, authors
-    Dépendances : pytest, coverage, sphinx, pygobject, keras, scikit-learn
-    Scripts : [project.scripts] shatranj = "shatranj.__main__:main"
-    Config pytest, black, coverage
-=======
 [build-system]
 requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
@@ -53,4 +45,3 @@ include = ["shatranj*"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=shatranj --cov-report=term-missing"
->>>>>>> feature/start
