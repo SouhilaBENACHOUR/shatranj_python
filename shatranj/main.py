@@ -43,6 +43,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "  shatranj -a W --ai-mode minimax                AI plays WHITE with minimax\n"
         "  shatranj -a B --ai-mode mcts                   AI plays BLACK with MCTS\n"
         "  shatranj -a W --ai-mode minimax --ai-depth 6   Minimax depth 6\n"
+        "  shatranj -a W --ai-mode alphabeta --ai-scoring positional"
         "  shatranj -a W --ai-minimax-scoring material    Simple evaluation\n"
         "  shatranj -a W --ai-minimax-scoring positional  Positional evaluation\n"
         "  shatranj -a W --ai-minimax-scoring advanced    Advanced evaluation\n"
@@ -118,9 +119,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
     # --ai-mode : AI algorithm
     parser.add_argument(
         "--ai-mode",
-        default="alphabeta",
+        default="minimax",
         metavar="MODE",
-        help="AI algorithm: minimax, alphabeta (default), mcts",
+        help="AI algorithm: minimax, alphabeta, mcts",
     )
 
     # --ai-depth : search depth
@@ -135,7 +136,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     # --ai-minimax-scoring : evaluation function
     parser.add_argument(
-        "--ai-minimax-scoring",
+        "--ai-scoring",
         default="advanced",
         metavar="SCORING",
         help="Evaluation function: material, positional, advanced (default)",
@@ -213,7 +214,7 @@ def main() -> int:
             )
             return 1
 
-        scoring = args.ai_minimax_scoring.lower()
+        scoring = args.ai_scoring.lower()
         if scoring not in ("material", "positional", "advanced"):
             print(f"Error: unknown scoring '{scoring}'.", file=sys.stderr)
             return 1

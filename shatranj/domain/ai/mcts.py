@@ -4,23 +4,28 @@ import random
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
+from shatranj.domain.ai.transposition_table import (
+    ZobristHasher,
+    TranspositionTable,
+    EXACT,
+)
 from shatranj.utils.constants import WHITE, BLACK
 
 
 class MCTSNode:
     """
-    Un nœud dans l'arbre MCTS.
+    A node in the MCTS tree.
 
-    Chaque nœud représente une position du jeu après un coup.
+    Each node represents a game position after a move.
 
-    Attributs :
-      move      → le coup qui a mené à cette position (None pour la racine)
-      parent    → le nœud parent (None pour la racine)
-      children  → les nœuds enfants (coups explorés)
-      wins      → nombre de victoires simulées depuis ce nœud
-      visits    → nombre de fois que ce nœud a été visité
-      untried   → coups pas encore explorés depuis cette position
-      color     → couleur du joueur qui vient de jouer ce coup
+    Attributes:
+      move     -> the move that led to this position (None for root)
+      parent   -> the parent node (None for root)
+      children -> explored child nodes
+      wins     -> number of simulated wins from this node
+      visits   -> number of times this node was visited
+      untried  -> moves not yet explored from this position
+      color    -> color of the player who just played this move
     """
 
     def __init__(
@@ -35,21 +40,17 @@ class MCTSNode:
         self.children: list["MCTSNode"] = []
         self.wins: float = 0.0
         self.visits: int = 0
-        self.untried: list[Move] = []  # sera rempli lors de l'expansion
+        self.untried: list[Move] = []
 
     def is_fully_expanded(self) -> bool:
-        """Retourne True si tous les coups ont été explorés."""
+        """Return True if all moves have been explored."""
         return len(self.untried) == 0
 
     def best_child(self, exploration: float = 1.41) -> "MCTSNode":
         """
-        Choisit le meilleur enfant selon la formule UCB1.
+        Choose the best child using the UCB1 formula.
 
         UCB1 = wins/visits + exploration * sqrt(ln(parent.visits) / visits)
-
-        Le premier terme exploite les bons coups connus.
-        Le second terme explore les coups peu visités.
-        exploration = 1.41 ≈ sqrt(2) est la valeur standard.
         """
         return max(
             self.children,
@@ -59,51 +60,55 @@ class MCTSNode:
 
     def best_move_child(self) -> "MCTSNode":
         """
-        Retourne l'enfant le plus visité.
-        Utilisé à la fin pour choisir le coup final.
-        On prend le plus visité (pas le meilleur UCB1) car c'est plus robuste.
+        Return the most visited child.
+        Used at the end to choose the final move.
+        Most visited is more robust than best UCB1.
         """
         return max(self.children, key=lambda c: c.visits)
 
 
 class MCTS:
     """
-    Monte Carlo Tree Search.
+    Monte Carlo Tree Search with Transposition Table.
 
-    Principe :
-      On répète N fois (simulations) :
-        1. SELECTION  → descend dans l'arbre avec UCB1
-        2. EXPANSION  → explore un coup non essayé
-        3. SIMULATION → joue aléatoirement jusqu'à la fin (rollout)
-        4. BACKPROP   → remonte le résultat dans l'arbre
+    Each simulation:
+      1. SELECTION  -> descend the tree using UCB1
+      2. EXPANSION  -> explore an untried move
+      3. SIMULATION -> play randomly until end (rollout)
+      4. BACKPROP   -> propagate the result up the tree
 
-      À la fin on choisit le coup le plus visité.
+    The transposition table caches rollout results to avoid
+    re-simulating positions already seen.
     """
 
     def __init__(
         self,
         engine: RulesEngine,
-        simulations: int = 100,
+        simulations: int = 500,
     ) -> None:
         self._engine = engine
-        self._simulations = simulations  # nombre de simulations par coup
-        self._depth = simulations  # pour compatibilité avec _do_ai_move
+        self._simulations = simulations
+        self._depth = simulations  # for compatibility with _do_ai_move
+        self._hasher = ZobristHasher()
+        self._tt = TranspositionTable()
 
     def best_move(self, board: Board, color: str) -> Move | None:
         """
-        Retourne le meilleur coup pour 'color' avec MCTS.
-        Retourne None si aucun coup n'est disponible.
+        Return the best move for 'color' using MCTS + TT.
+        Returns None if no move is available.
         """
         legal_moves = self._engine.generate_legal_moves(board, color)
         if not legal_moves:
             return None
 
-        # crée la racine de l'arbre
+        # clear the table at the start of each search
+        self._tt.clear()
+
+        # create the root node
         root = MCTSNode(move=None, parent=None, color=color)
         root.untried = list(legal_moves)
         root.visits = 1
 
-        # répète les simulations
         for _ in range(self._simulations):
             node = root
             board_copy = self._copy_board(board)
@@ -111,7 +116,6 @@ class MCTS:
 
             # ----------------------------------------------------------
             # 1. SELECTION
-            # descend dans l'arbre tant que le nœud est fully expanded
             # ----------------------------------------------------------
             while node.is_fully_expanded() and node.children:
                 node = node.best_child()
@@ -120,7 +124,6 @@ class MCTS:
 
             # ----------------------------------------------------------
             # 2. EXPANSION
-            # explore un coup non essayé depuis ce nœud
             # ----------------------------------------------------------
             if node.untried:
                 move = random.choice(node.untried)
@@ -128,7 +131,6 @@ class MCTS:
                 board_copy.apply_move(move)
                 sim_color = BLACK if sim_color == WHITE else WHITE
 
-                # crée un nouveau nœud enfant
                 child = MCTSNode(move=move, parent=node, color=sim_color)
                 legal_child = self._engine.generate_legal_moves(board_copy, sim_color)
                 child.untried = list(legal_child)
@@ -136,18 +138,15 @@ class MCTS:
                 node = child
 
             # ----------------------------------------------------------
-            # 3. SIMULATION (rollout)
-            # joue aléatoirement jusqu'à la fin de la partie
+            # 3. SIMULATION (rollout) with TT
             # ----------------------------------------------------------
             result = self._rollout(board_copy, sim_color, color)
 
             # ----------------------------------------------------------
             # 4. BACKPROPAGATION
-            # remonte le résultat dans tous les nœuds ancêtres
             # ----------------------------------------------------------
             self._backpropagate(node, result)
 
-        # retourne le coup du nœud le plus visité
         if not root.children:
             return random.choice(legal_moves)
         return root.best_move_child().move
@@ -160,59 +159,70 @@ class MCTS:
         max_moves: int = 50,
     ) -> float:
         """
-        Simule une partie aléatoire jusqu'à la fin.
+        Simulate a random game until the end.
 
-        Retourne :
-          1.0  → victoire pour l'IA
-          0.0  → défaite pour l'IA
-          0.5  → match nul
+        Checks the TT first to avoid redundant rollouts.
+
+        Returns:
+          1.0 -> AI wins
+          0.0 -> AI loses
+          0.5 -> draw
         """
         color = current_color
+
+        # check TT for this position
+        key = self._hasher.compute_key(board, color)
+        tt_score, should_use = self._tt.get(key, 0, float("-inf"), float("+inf"))
+        if should_use:
+            return tt_score
 
         for _ in range(max_moves):
             legal_moves = self._engine.generate_legal_moves(board, color)
 
-            # plus de coups → mat ou pat
+            # no moves -> checkmate or stalemate
             if not legal_moves:
                 if self._engine._is_in_check(board, color):
-                    # mat → l'adversaire a gagné
                     opponent = BLACK if color == WHITE else WHITE
-                    return 1.0 if opponent == ai_color else 0.0
+                    result = 1.0 if opponent == ai_color else 0.0
                 else:
-                    # pat → nul
-                    return 0.5
+                    result = 0.5
+                self._tt.store(key, result, 0, EXACT)
+                return result
 
-            # bare king → victoire pour l'adversaire
+            # bare king -> opponent wins
             if self._engine.is_bare_king(board, color):
                 opponent = BLACK if color == WHITE else WHITE
-                return 1.0 if opponent == ai_color else 0.0
+                result = 1.0 if opponent == ai_color else 0.0
+                self._tt.store(key, result, 0, EXACT)
+                return result
 
-            # joue un coup aléatoire
+            # play a random move
             move = random.choice(legal_moves)
             board.apply_move(move)
             color = BLACK if color == WHITE else WHITE
 
-        # limite atteinte → nul
+        # move limit reached -> draw
+        self._tt.store(key, 0.5, 0, EXACT)
         return 0.5
 
     def _backpropagate(self, node: "MCTSNode", result: float) -> None:
         """
-        Remonte le résultat depuis le nœud feuille jusqu'à la racine.
+        Propagate the result from the leaf node up to the root.
 
-        Chaque nœud ancêtre reçoit :
-          - +1 visite
-          - +result en wins (ou +1-result si c'est l'adversaire)
+        Each ancestor node receives:
+          - +1 visit
+          - +result wins (or +1-result for the parent)
         """
         while node is not None:
             node.visits += 1
             node.wins += result
-            result = 1.0 - result  # inverse le résultat pour le parent
+            result = 1.0 - result
             node = node.parent
 
     def _copy_board(self, board: Board) -> Board:
         """
-        Crée une copie profonde du board pour les simulations.
-        On copie uniquement les bitboards — c'est suffisant.
+        Create a copy of the board for simulations.
+        Only copies the bitboards — sufficient for move simulation.
         """
         new_board = Board(setup=False)
         new_board._boards = dict(board._boards)

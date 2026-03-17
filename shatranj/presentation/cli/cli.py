@@ -574,9 +574,8 @@ class CLI:
                     scoring=scoring,
                 )
                 print(
-                    f"New game started! You play WHITE, AI plays BLACK ({algo}, "
-                    "depth={depth},"
-                    " scoring={scoring})."
+                    f"New game started! You play WHITE, AI plays BLACK "
+                    f"({algo}, depth={depth}, scoring={scoring})."
                 )
 
             elif ai_color == "WHITE":
@@ -587,10 +586,9 @@ class CLI:
                     scoring=scoring,
                 )
                 print(
-                    f"New game started! AI plays WHITE ({algo},"
-                    " depth={depth}, scoring={scoring}), you play BLACK."
+                    f"New game started! AI plays WHITE "
+                    f"({algo}, depth={depth}, scoring={scoring}), you play BLACK."
                 )
-
             else:
                 self._error(f"Unknown color: '{args[1]}'. Use 'black' or 'white'.")
                 return
@@ -886,9 +884,13 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
         algo = type(search).__name__
         depth = getattr(search, "_depth", None)
+        scoring = getattr(ai_player, "scoring", None)
+
         if depth is None:
             return f" (algorithm: {algo})"
-        return f" (algorithm: {algo}, depth: {depth})"
+        if scoring is None:
+            return f" (algorithm: {algo}, depth: {depth})"
+        return f" (algorithm: {algo}, depth: {depth}, scoring: {scoring})"
 
     def _do_load(self, args: list[str]) -> None:
         """
