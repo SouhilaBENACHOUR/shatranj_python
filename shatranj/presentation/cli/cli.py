@@ -116,28 +116,26 @@ class CLI:
         print("Start a new game with 'new'.")
         print()
 
+        # launch AI game if configured from command line (-a flag)
+        if hasattr(self, "_pending_new"):
+            self._do_new(self._pending_new)
+            del self._pending_new
+
         while self._running:
             try:
-                # input() with readline active handles editing and history
                 raw = input(PROMPT).strip()
             except EOFError:
-                # Ctrl+D: quit cleanly
                 print()
                 self._do_quit([])
                 break
             except KeyboardInterrupt:
-                # Ctrl+C: move to next line without quitting
                 print()
                 continue
 
-            # Ignore empty lines
             if not raw:
                 continue
 
-            # Add to readline history (for up/down arrow keys)
             readline.add_history(raw)
-
-            # Parse and execute the command
             self._dispatch(raw)
 
     # ------------------------------------------------------------------
@@ -552,9 +550,9 @@ class CLI:
             else:
                 # default depth depending on algorithm
                 if algo == "alphabeta":
-                    depth = 4
+                    depth = 3
                 elif algo == "mcts":
-                    depth = 500
+                    depth = 100
                 else:
                     depth = 3
 

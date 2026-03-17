@@ -215,11 +215,7 @@ def main() -> int:
 
         scoring = args.ai_minimax_scoring.lower()
         if scoring not in ("material", "positional", "advanced"):
-            print(
-                f"Error: unknown scoring '{scoring}'."
-                " Use material, positional or advanced.",
-                file=sys.stderr,
-            )
+            print(f"Error: unknown scoring '{scoring}'.", file=sys.stderr)
             return 1
 
         # default depth depending on algorithm
@@ -228,12 +224,14 @@ def main() -> int:
         elif algo == "alphabeta":
             depth = 4
         elif algo == "mcts":
-            depth = 500
+            depth = 100
         else:
             depth = 3
 
         color_str = "white" if ai_color == "W" else "black"
-        cli._do_new(["ai", color_str, algo, str(depth), scoring])
+
+        # store AI config to launch inside run() — avoids double board display
+        cli._pending_new = ["ai", color_str, algo, str(depth), scoring]
 
     if args.savefile:
         cli._do_load([args.savefile])

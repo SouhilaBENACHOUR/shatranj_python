@@ -8,6 +8,7 @@ Three evaluation functions:
 """
 
 from shatranj.domain.core.board import Board
+from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
 
 # Material values
@@ -568,10 +569,9 @@ class Evaluator:
         Count the number of squares reachable by all pieces of 'color'.
         Uses a fast approximation (pseudo-legal moves count).
         """
-        from shatranj.domain.rules.move_generator import MoveGenerator
 
-        gen = MoveGenerator()
-        moves = gen.generate_all_moves(board, color)
+        gen = RulesEngine()
+        moves = gen.generate_pseudo_legal_moves(board, color)
         return len(moves)
 
     def _center_control(self, board: Board, color: str) -> int:
