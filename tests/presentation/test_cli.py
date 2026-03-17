@@ -1,0 +1,691 @@
+"""
+test_cli.py - Tests unitaires pour le CLI
+
+On teste chaque composant indépendamment (unitaire) :
+  - le parsing de coups
+  - le dispatch des commandes
+  - game_state (undo/redo)
+  - display
+
+Pourquoi tester chaque méthode séparément ?
+  Si un test échoue, on sait exactement quelle partie est cassée.
+  C'est le principe des tests unitaires.
+
+Lancement :
+  pytest tests/test_cli.py -v
+"""
+
+import pytest
+from unittest.mock import patch
+from shatranj.domain.core.move import Move
+from io import StringIO
+from shatranj.presentation.cli.cli import CLI
+from shatranj.presentation.cli.game_state import GameState
+from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN
+
+
+class TestGameState:
+    """Tests pour la classe GameState."""
+
+    def setup_method(self):
+        """Appelé avant chaque test. Crée un état de jeu frais."""
+
+        from shatranj.presentation.cli.game_state import GameState
+
+        self.state = GameState()
+
+    def test_initial_turn_is_white(self):
+        """Au début, c'est aux blancs de jouer."""
+
+        assert self.state.current_color == WHITE
+
+    def test_apply_move_switches_turn(self):
+        """Après un coup blanc, c'est aux noirs de jouer."""
+
+        # Coup : pion blanc de e2 (case 12) vers e3 (case 20)
+        move = Move(
+            from_square=12,
+            to_square=20,
+            piece_type=PAWN,
+            color=WHITE,
+        )
+        self.state.apply_move(move)
+        assert self.state.current_color == BLACK
+
+    def test_undo_restores_turn(self):
+        """Après undo, c'est à nouveau aux blancs de jouer."""
+
+        move = Move(
+            from_square=12,  # e2
+            to_square=20,  # e3
+            piece_type=PAWN,
+            color=WHITE,
+        )
+        self.state.apply_move(move)
+        assert self.state.current_color == BLACK
+
+        self.state.undo()
+        assert self.state.current_color == WHITE
+
+    def test_undo_empty_history_returns_none(self):
+        """Undo sans historique retourne None sans planter."""
+        result = self.state.undo()
+        assert result is None
+
+    def test_redo_empty_returns_none(self):
+        """Redo sans undo préalable retourne None."""
+        result = self.state.redo()
+        assert result is None
+
+    def test_history_is_empty_at_start(self):
+        """L'historique est vide au démarrage."""
+        assert self.state.get_history() == []
+
+    def test_apply_clears_redo_stack(self):
+        """Jouer un nouveau coup après undo efface le redo stack."""
+
+        move1 = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
+        self.state.apply_move(move1)
+        self.state.undo()
+        assert self.state.can_redo()
+
+        # On joue un coup différent
+        move2 = Move(from_square=11, to_square=19, piece_type=PAWN, color=WHITE)
+        self.state.apply_move(move2)
+
+        # Le redo stack doit être vide
+        assert not self.state.can_redo()
+
+
+class TestDisplay:
+    """Tests pour l'affichage ASCII du plateau."""
+
+    def test_board_to_string_has_8_rows(self):
+        """Le plateau affiché a bien 8 lignes de pièces + 1 ligne de colonnes."""
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.display import board_to_string
+
+        board = Board(setup=True)
+        result = board_to_string(board)
+        lines = result.strip().split("\n")
+        # 8 rangs + 1 ligne de légende (a b c d e f g h)
+        assert len(lines) == 9
+
+    def test_board_to_string_contains_pieces(self):
+        """Le plateau en position initiale contient les pièces attendues."""
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.display import board_to_string
+
+        board = Board(setup=True)
+        result = board_to_string(board)
+        assert "R" in result  # Tour blanche
+        assert "r" in result  # Tour noire
+        assert "K" in result  # Shah blanc
+        assert "k" in result  # Shah noir
+        assert "P" in result  # Pion blanc
+        assert "p" in result  # Pion noir
+
+    def test_board_to_string_with_color_contains_ansi_codes(self):
+        """Le mode coloré injecte des séquences ANSI autour des pièces."""
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.display import board_to_string
+
+        board = Board(setup=True)
+        result = board_to_string(board, use_color=True)
+
+        assert "\033[" in result
+
+
+class TestMoveParser:
+    """Tests pour la notation algébrique."""
+
+    def setup_method(self):
+        from shatranj.domain.core.board import Board
+
+        self.board = Board(setup=True)
+
+    def test_algebraic_to_square_e2(self):
+        """e2 doit correspondre à la case 12 (rang 1, colonne 4)."""
+        from shatranj.domain.core.board import Board
+
+        assert Board.algebraic_to_square("e2") == 12
+
+    def test_algebraic_to_square_a1(self):
+        """a1 = case 0."""
+        from shatranj.domain.core.board import Board
+
+        assert Board.algebraic_to_square("a1") == 0
+
+    def test_algebraic_to_square_h8(self):
+        """h8 = case 63."""
+        from shatranj.domain.core.board import Board
+
+        assert Board.algebraic_to_square("h8") == 63
+
+    def test_square_to_algebraic_12(self):
+        """Case 12 -> 'e2'."""
+        from shatranj.domain.core.board import Board
+
+        assert Board.square_to_algebraic(12) == "e2"
+
+    def test_invalid_square_raises(self):
+        """Une case invalide lève ValueError."""
+        from shatranj.domain.core.board import Board
+
+        with pytest.raises(ValueError):
+            Board.algebraic_to_square("z9")
+
+    def test_looks_like_move_valid(self):
+        """'e2-e4' est reconnu comme un coup valide."""
+        import re
+
+        pattern = r"^[A-Za-z]?[a-h][1-8][-x][a-h][1-8]$"
+        assert re.match(pattern, "e2-e4")
+        assert re.match(pattern, "e2xe4")
+        assert re.match(pattern, "Ng8-f6")
+
+    def test_looks_like_move_invalid(self):
+        """'hello' n'est pas un coup."""
+        import re
+
+        pattern = r"^[A-Za-z]?[a-h][1-8][-x][a-h][1-8]$"
+        assert not re.match(pattern, "hello")
+        assert not re.match(pattern, "new")
+        assert not re.match(pattern, "e2e4")
+
+
+class TestMoveValidatorIntegration:
+    """Tests d'intégration entre Board et MoveValidator."""
+
+    def setup_method(self):
+        from shatranj.domain.core.board import Board
+        from shatranj.domain.rules.move_validator import MoveValidator
+
+        self.board = Board(setup=True)
+        self.validator = MoveValidator()
+
+    def test_pawn_e2_e3_is_valid(self):
+        """Un pion blanc peut avancer d'une case."""
+
+        move = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
+        assert self.validator.is_valid_move(self.board, move)
+
+    def test_pawn_e2_e4_is_invalid(self):
+        """Un pion ne peut pas avancer de 2 cases au Shatranj (pas de double pas)."""
+
+        move = Move(from_square=12, to_square=28, piece_type=PAWN, color=WHITE)
+        assert not self.validator.is_valid_move(self.board, move)
+
+    def test_pawn_cannot_move_backward(self):
+        """Un pion ne peut pas reculer."""
+
+        # De e2 (12) vers e1 (4) : vers l'arrière
+        move = Move(from_square=12, to_square=4, piece_type=PAWN, color=WHITE)
+        assert not self.validator.is_valid_move(self.board, move)
+
+    def test_move_from_empty_square_invalid(self):
+        """On ne peut pas bouger depuis une case vide."""
+
+        # La case e4 (28) est vide en position initiale
+        move = Move(from_square=28, to_square=36, piece_type=PAWN, color=WHITE)
+        assert not self.validator.is_valid_move(self.board, move)
+
+
+class TestDoLoad:
+    """Tests for the _do_load method of the CLI."""
+
+    def setup_method(self):
+        """Creates a fresh CLI before each test."""
+        from shatranj.presentation.cli.cli import CLI
+
+        self.cli = CLI()
+
+    def _write_file(self, path, content):
+        """Helper: writes a temporary file."""
+        with open(path, "w", encoding="ascii") as f:
+            f.write(content)
+
+    # ----------------------------------------------------------------
+    # Valid file
+    # ----------------------------------------------------------------
+
+    def test_load_valid_file(self, tmp_path):
+        """Loading a valid file reconstructs the correct state."""
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._state is not None
+        assert self.cli._state.current_color == WHITE
+        assert self.cli._saved is True
+
+    def test_load_restores_current_color_black(self, tmp_path):
+        """Current player is BLACK if the file says B."""
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "B\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._state.current_color == BLACK
+
+    def test_load_restores_settings(self, tmp_path):
+        """Verbose and debug settings are correctly restored."""
+        content = (
+            "[settings]\n"
+            "verbose=true\n"
+            "debug=true\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._verbose is True
+        assert self.cli._debug is True
+
+    def test_load_restores_history(self, tmp_path):
+        """Move history is correctly restored from file."""
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "B\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ P _ _ _ _ _\n"
+            "P P _ P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+            "W c2-c3\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        history = self.cli._state.get_history()
+        assert len(history) == 1
+
+    def test_load_restores_history_two_moves(self, tmp_path):
+        """History with 2 moves is correctly restored."""
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p _ p p p p\n"
+            "_ _ _ p _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ P _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P _ P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+            "W e2-e4 B d7-d6\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        history = self.cli._state.get_history()
+        assert len(history) == 2
+
+    def test_load_with_comments(self, tmp_path):
+        """Comments in the file are ignored."""
+        content = (
+            "# This is a comment\n"
+            "[settings]\n"
+            "verbose=false\n"
+            "# another comment\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        self.cli._do_load([str(save_file)])
+
+        assert self.cli._state is not None
+
+    # ----------------------------------------------------------------
+    # Errors
+    # ----------------------------------------------------------------
+
+    def test_load_no_args(self):
+        """No argument provided shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([])
+
+        assert "Usage" in stderr.getvalue()
+        assert self.cli._state is None
+
+    def test_load_file_not_found(self):
+        """Non-existent file shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load(["fichier_inexistant.shatranj"])
+
+        assert "Could not open" in stderr.getvalue()
+        assert self.cli._state is None
+
+    def test_load_invalid_color(self, tmp_path):
+        """Invalid color in file shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "X\n"  # invalid color
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Invalid player color" in stderr.getvalue()
+
+    def test_load_invalid_board_row(self, tmp_path):
+        """Invalid board row shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p\n"  # only 7 pieces
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Invalid board row" in stderr.getvalue()
+
+    def test_load_invalid_piece_symbol(self, tmp_path):
+        """Unknown piece symbol shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "W\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P X\n"  # X is invalid
+            "R N A F K A N R\n"
+            "[history]\n"
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Unknown piece symbol" in stderr.getvalue()
+
+    def test_load_invalid_move_in_history(self, tmp_path):
+        """Invalid move in history shows an error."""
+        from unittest.mock import patch
+        from io import StringIO
+
+        content = (
+            "[settings]\n"
+            "verbose=false\n"
+            "debug=false\n"
+            "[game]\n"
+            "B\n"
+            "r n a f k a n r\n"
+            "p p p p p p p p\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n"
+            "P P P P P P P P\n"
+            "R N A F K A N R\n"
+            "[history]\n"
+            "W invalid_move\n"  # invalid move
+        )
+        save_file = tmp_path / "game.shatranj"
+        self._write_file(save_file, content)
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_load([str(save_file)])
+
+        assert "Invalid move in history" in stderr.getvalue()
+
+
+class TestCliMoveLegality:
+    """Tests for full move legality checks in CLI."""
+
+    def test_reject_shah_move_into_attacked_square(self):
+
+        cli = CLI()
+        cli._state = GameState()
+        board = cli._state.board
+        board.clear()
+
+        # White Shah on e1, black rook on e8 attacks the e-file.
+        board.place_piece(SHAH, WHITE, 4)  # e1
+        board.place_piece(SHAH, BLACK, 63)  # h8
+        board.place_piece(ROOK, BLACK, 60)  # e8
+        cli._state.current_color = WHITE
+
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            cli._do_play_move("e1-e2")
+
+        assert "Illegal move: e1-e2" in stderr.getvalue()
+        assert board.get_piece_at(4) == (SHAH, WHITE)
+        assert board.get_piece_at(12) is None
+        assert cli._state.current_color == WHITE
+
+
+class TestCliAIVsAI:
+    """Tests for AI vs AI mode."""
+
+    def test_new_ai_vs_ai_configures_two_ai_players(self):
+
+        cli = CLI()
+        with (
+            patch("shatranj.presentation.cli.cli.print_board"),
+            patch.object(CLI, "_auto_play_ai_turns") as auto_play,
+        ):
+            cli._do_new(["ai-vs-ai"])
+
+        assert set(cli._ai_players.keys()) == {WHITE, BLACK}
+        auto_play.assert_called_once()
+
+    def test_auto_play_ai_turns_applies_two_plies(self):
+
+        class ScriptedAI:
+            def __init__(self, color: str, scripted_move: Move) -> None:
+                self.color = color
+                self._scripted_move = scripted_move
+
+            def choose_move(self, board):
+                return self._scripted_move
+
+        cli = CLI()
+        cli._state = GameState()
+        state = cli._state
+        cli._ai_players = {
+            WHITE: ScriptedAI(WHITE, Move(12, 20, PAWN, WHITE)),  # e2-e3
+            BLACK: ScriptedAI(BLACK, Move(52, 44, PAWN, BLACK)),  # e7-e6
+        }
+
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            cli._auto_play_ai_turns(max_plies=2)
+
+        history = state.get_history()
+        assert len(history) == 2
+        assert history[0].from_square == 12 and history[0].to_square == 20
+        assert history[1].from_square == 52 and history[1].to_square == 44
+        assert cli._state is None
+
+    def test_do_ai_move_displays_piece_name(self, capsys):
+
+        class ScriptedAI:
+            def __init__(self, scripted_move: Move) -> None:
+                self._scripted_move = scripted_move
+
+            def choose_move(self, board):
+                return self._scripted_move
+
+        cli = CLI()
+        cli._state = GameState()
+        cli._ai_players = {
+            WHITE: ScriptedAI(Move(12, 20, PAWN, WHITE)),
+        }
+
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            cli._do_ai_move()
+
+        out = capsys.readouterr().out
+        assert "AI plays: pawn e2-e3" in out
+
+
+class TestCliDrawRules:
+    """Tests for draw rules used to stop infinite AI loops."""
+
+    def test_threefold_repetition_is_detected_and_ends_game(self):
+
+        cli = CLI()
+        cli._state = GameState()
+        board = cli._state.board
+        board.clear()
+        board.place_piece(SHAH, WHITE, 4)  # e1
+        board.place_piece(ROOK, WHITE, 0)  # a1
+        board.place_piece(SHAH, BLACK, 60)  # e8
+        board.place_piece(ROOK, BLACK, 63)  # h8
+        cli._state.current_color = WHITE
+
+        cycle = [
+            Move(4, 12, SHAH, WHITE),  # e1-e2
+            Move(60, 52, SHAH, BLACK),  # e8-e7
+            Move(12, 4, SHAH, WHITE),  # e2-e1
+            Move(52, 60, SHAH, BLACK),  # e7-e8
+        ]
+        for move in cycle + cycle:
+            cli._state.apply_move(move)
+
+        assert cli._is_draw_by_threefold_repetition()
+        assert cli._check_game_over()
+        assert cli._state is None
+
+    def test_fifty_move_rule_detected(self):
+
+        cli = CLI()
+        cli._state = GameState()
+        cli._state._history = []
+
+        for i in range(100):
+            color = WHITE if i % 2 == 0 else BLACK
+            cli._state._history.append((Move(4, 12, SHAH, color), {}))
+
+        assert cli._is_draw_by_fifty_move_rule()

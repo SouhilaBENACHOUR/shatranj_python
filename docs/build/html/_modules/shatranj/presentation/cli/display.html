@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>shatranj.presentation.cli.display &#8212; shatranj-python 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for shatranj.presentation.cli.display</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">display.py - ASCII display of the Shatranj board</span>
+
+<span class="sd">Role: transform a Board object into human-readable text for the terminal.</span>
+
+<span class="sd">Why a separate file?</span>
+<span class="sd">  - Separation of concerns: the Board does not know how to display itself,</span>
+<span class="sd">    the CLI does not know how to draw. This is the Presentation layer.</span>
+<span class="sd">  - Easy to test: we can display any Board state without side effects.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">WHITE</span><span class="p">,</span> <span class="n">BLACK</span><span class="p">,</span>
+    <span class="n">SHAH</span><span class="p">,</span> <span class="n">FERZ</span><span class="p">,</span> <span class="n">ROOK</span><span class="p">,</span> <span class="n">ALFIL</span><span class="p">,</span> <span class="n">KNIGHT</span><span class="p">,</span> <span class="n">PAWN</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">BOARD_SIZE</span>
+
+<span class="c1"># Dictionary: (piece_type, color) -&gt; ASCII letter</span>
+<span class="c1"># White pieces = UPPERCASE, Black pieces = lowercase</span>
+<span class="n">PIECE_SYMBOLS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">(</span><span class="n">SHAH</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">FERZ</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;F&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">ROOK</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;R&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">ALFIL</span><span class="p">,</span>  <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">KNIGHT</span><span class="p">,</span> <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;N&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">PAWN</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;P&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">SHAH</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;k&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">FERZ</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;f&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">ROOK</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">ALFIL</span><span class="p">,</span>  <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">KNIGHT</span><span class="p">,</span> <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">PAWN</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># ANSI color codes:</span>
+<span class="c1"># - white pieces: bright white</span>
+<span class="c1"># - black pieces: bright cyan (more readable than black on dark background)</span>
+<span class="n">ANSI_RESET</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[0m&quot;</span>
+<span class="n">ANSI_WHITE_PIECE</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[97m&quot;</span>
+<span class="n">ANSI_BLACK_PIECE</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[96m&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_supports_ansi_color</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if the current output probably supports ANSI colors.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;NO_COLOR&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TERM&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;dumb&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">isatty</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_colorize_piece</span><span class="p">(</span><span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">use_color</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply an ANSI color to a piece symbol if requested.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">use_color</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">symbol</span>
+    <span class="n">code</span> <span class="o">=</span> <span class="n">ANSI_WHITE_PIECE</span> <span class="k">if</span> <span class="n">color</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="n">ANSI_BLACK_PIECE</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">code</span><span class="si">}{</span><span class="n">symbol</span><span class="si">}{</span><span class="n">ANSI_RESET</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<div class="viewcode-block" id="board_to_string">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.display.board_to_string">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">board_to_string</span><span class="p">(</span><span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">,</span> <span class="n">use_color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return an ASCII representation of the board.</span>
+
+<span class="sd">    The board is displayed from rank 8 (top) to rank 1 (bottom),</span>
+<span class="sd">    from column a (left) to column h (right).</span>
+
+<span class="sd">    Example output::</span>
+
+<span class="sd">        8  r n a f k a n r</span>
+<span class="sd">        7  p p p p p p p p</span>
+<span class="sd">        6  . . . . . . . .</span>
+<span class="sd">        1  R N A F K A N R</span>
+<span class="sd">           a b c d e f g h</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Iterate ranks from 7 (rank 8) down to 0 (rank 1), top to bottom</span>
+    <span class="k">for</span> <span class="n">rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">BOARD_SIZE</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="c1"># The label displayed on the left (1 to 8)</span>
+        <span class="n">row_label</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">rank</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">row_squares</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Iterate columns from 0 (a) to 7 (h)</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">BOARD_SIZE</span><span class="p">):</span>
+            <span class="c1"># Compute the square index: rank * 8 + file</span>
+            <span class="c1"># Example: rank=1, file=4 -&gt; square 12 (e2)</span>
+            <span class="n">square</span> <span class="o">=</span> <span class="n">rank</span> <span class="o">*</span> <span class="n">BOARD_SIZE</span> <span class="o">+</span> <span class="n">file</span>
+            <span class="n">piece</span> <span class="o">=</span> <span class="n">board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">square</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">piece</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">row_squares</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>  <span class="c1"># empty square</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">symbol</span> <span class="o">=</span> <span class="n">PIECE_SYMBOLS</span><span class="p">[</span><span class="n">piece</span><span class="p">]</span>
+                <span class="n">row_squares</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_colorize_piece</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="n">piece</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">use_color</span><span class="p">))</span>
+
+        <span class="c1"># Format: &quot;8  r n a f k a n r&quot;</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">row_label</span><span class="si">}</span><span class="s2">  &quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">row_squares</span><span class="p">))</span>
+
+    <span class="c1"># Column labels at the bottom</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;     a b c d e f g h&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="print_board">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.display.print_board">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_board</span><span class="p">(</span><span class="n">board</span><span class="p">:</span> <span class="n">Board</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print the board directly to the terminal.&quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">board_to_string</span><span class="p">(</span><span class="n">board</span><span class="p">,</span> <span class="n">use_color</span><span class="o">=</span><span class="n">_supports_ansi_color</span><span class="p">()))</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">shatranj-python</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, EL GHALI Ayman, MARCHOUD Souhail, MEKLAT Sarah, DRIES Amina, BENACHOUR Souhila.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

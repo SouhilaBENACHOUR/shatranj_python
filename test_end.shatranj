@@ -1,0 +1,16 @@
+[settings]
+verbose=false
+debug=false
+
+[game]
+W
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _
+_ _ _ _ _ _ R _
+_ _ _ _ _ _ k K
+
+[history]

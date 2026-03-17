@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>shatranj.presentation.cli.game_state &#8212; shatranj-python 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for shatranj.presentation.cli.game_state</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">game_state.py - Complete state of a Shatranj game</span>
+
+<span class="sd">Role: holds EVERYTHING that defines a game in progress:</span>
+<span class="sd">  - the board (Board)</span>
+<span class="sd">  - whose turn it is (WHITE or BLACK)</span>
+<span class="sd">  - the move history for undo/redo</span>
+
+<span class="sd">Why a separate class from Board?</span>
+<span class="sd">  Board = just the pieces on the squares.</span>
+<span class="sd">  GameState = Board + game context (turn, history, ...).</span>
+<span class="sd">  This is the Business Logic layer described in the preliminary report.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.move</span><span class="w"> </span><span class="kn">import</span> <span class="n">Move</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">WHITE</span><span class="p">,</span> <span class="n">BLACK</span>
+
+
+<div class="viewcode-block" id="GameState">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.game_state.GameState">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GameState</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents the complete state of a game.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">      board         : the current board</span>
+<span class="sd">      current_color : color of the player whose turn it is (WHITE or BLACK)</span>
+<span class="sd">      _history      : list of played moves (for display and undo)</span>
+<span class="sd">      _redo_stack   : stack of undone moves (for redo)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Create a new board with the starting position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">board</span> <span class="o">=</span> <span class="n">Board</span><span class="p">(</span><span class="n">setup</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># White always moves first (Shatranj rule)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">WHITE</span>
+
+        <span class="c1"># Move history: list of (move, board_snapshot)</span>
+        <span class="c1"># We save a snapshot of the board BEFORE each move</span>
+        <span class="c1"># so we can go back (undo)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Move</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Redo stack: undone moves that can be replayed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_redo_stack</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Move</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Apply a move</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GameState.apply_move">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.game_state.GameState.apply_move">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply a move on the board and switch to the next player.</span>
+
+<span class="sd">        The board state BEFORE the move is saved in the history.</span>
+<span class="sd">        When a new move is played, the redo stack is cleared</span>
+<span class="sd">        (you cannot redo moves after playing a different one).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Save the current state (snapshot of the bitboards)</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_take_snapshot</span><span class="p">()</span>
+
+        <span class="c1"># Apply the move on the board</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">move_piece</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+
+        <span class="c1"># Add to history</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">move</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">))</span>
+
+        <span class="c1"># A new move clears the undone moves</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_redo_stack</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="c1"># Switch turn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_switch_turn</span><span class="p">()</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Undo / Redo</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GameState.undo">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.game_state.GameState.undo">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">undo</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Move</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Undo the last played move.</span>
+
+<span class="sd">        Returns the undone move, or None if history is empty.</span>
+
+<span class="sd">        Principle: restore the snapshot saved BEFORE that move.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Nothing to undo</span>
+
+        <span class="n">move</span><span class="p">,</span> <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+        <span class="c1"># Push the undone move onto the redo stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_redo_stack</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">move</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_take_snapshot</span><span class="p">()))</span>
+
+        <span class="c1"># Restore the board to the state before the move</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span>
+
+        <span class="c1"># Switch back to the previous player</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_switch_turn</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">move</span></div>
+
+
+<div class="viewcode-block" id="GameState.redo">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.game_state.GameState.redo">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">redo</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Move</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Replay the last undone move.</span>
+
+<span class="sd">        Returns the replayed move, or None if nothing to redo.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redo_stack</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Nothing to redo</span>
+
+        <span class="n">move</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redo_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+        <span class="c1"># Re-apply the move (like apply_move but without clearing redo stack)</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_take_snapshot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">move_piece</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">,</span> <span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">move</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_switch_turn</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">move</span></div>
+
+
+<div class="viewcode-block" id="GameState.can_undo">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.game_state.GameState.can_undo">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">can_undo</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if there is at least one move to undo.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span></div>
+
+
+<div class="viewcode-block" id="GameState.can_redo">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.game_state.GameState.can_redo">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">can_redo</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if there is at least one move to redo.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_redo_stack</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># History</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GameState.get_history">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.game_state.GameState.get_history">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_history</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Move</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the list of played moves (without snapshots).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">move</span> <span class="k">for</span> <span class="n">move</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="p">]</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Private methods</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_switch_turn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Switch the turn from WHITE to BLACK or from BLACK to WHITE.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_color</span> <span class="o">=</span> <span class="n">BLACK</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_color</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="n">WHITE</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_take_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save the current state of the board&#39;s bitboards.</span>
+
+<span class="sd">        We copy the _boards dictionary of the Board.</span>
+<span class="sd">        This is a shallow copy but it is sufficient because the values</span>
+<span class="sd">        are integers (immutable in Python).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">_boards</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_restore_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Restore the board&#39;s bitboards from a snapshot.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">_boards</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">shatranj-python</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, EL GHALI Ayman, MARCHOUD Souhail, MEKLAT Sarah, DRIES Amina, BENACHOUR Souhila.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

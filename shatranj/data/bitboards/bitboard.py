@@ -1,11 +1,59 @@
 """
-Rôle : Classe de base pour manipuler un bitboard (entier 64 bits) Fonctions :
+Low-level bitboard helpers.
 
-    __init__(value=0) : Initialise bitboard
-    set_bit(square) : Met bit à 1 (placer pièce)
-    clear_bit(square) : Met bit à 0 (retirer pièce)
-    get_bit(square) : Lit bit (case occupée ?)
-    count_bits() : Nombre de bits à 1 (nombre pièces)
-    __str__() : Affichage 8×8
-    
+A bitboard is a 64-bit integer where each bit represents a square (0..63).
 """
+
+from shatranj.utils.constants import NUM_SQUARES
+
+
+def check_square(square: int) -> bool:
+    if square < 0 or square >= NUM_SQUARES:
+        raise ValueError("must be in [0-63]")
+    return True
+
+
+def set_bit_at(bitboard: int, square: int) -> int:
+    check_square(square)
+    return bitboard | (1 << square)
+
+
+def clear_bit_at(bitboard: int, square: int) -> int:
+    check_square(square)
+    return bitboard & ~(1 << square)
+
+
+def get_bit_at(bitboard: int, square: int) -> int:
+    check_square(square)
+    return (bitboard >> square) & 1
+
+
+def inverse_bit_at(bitboard: int, square: int) -> int:
+    check_square(square)
+    return bitboard ^ (1 << square)
+
+
+def count_bits(bitboard: int) -> int:
+    return bitboard.bit_count()
+
+
+def get_lsb(bitboard: int) -> int:
+    if bitboard == 0:
+        return -1
+    return (bitboard & -bitboard).bit_length() - 1
+
+
+def pop_lsb(bitboard: int) -> tuple[int, int]:
+    idx = get_lsb(bitboard)
+    if idx == -1:
+        return -1, 0
+    return idx, bitboard ^ (1 << idx)
+
+
+def squares_from_bitboard(bitboard: int) -> list[int]:
+    squares: list[int] = []
+    bb = bitboard
+    while bb:
+        idx, bb = pop_lsb(bb)
+        squares.append(idx)
+    return squares

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>shatranj.presentation.gui.window &#8212; shatranj-python 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for shatranj.presentation.gui.window</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">window.py - Main window of the Shatranj GUI</span>
+
+<span class="sd">Contains:</span>
+<span class="sd">  - Menu bar (File, Game, Help)</span>
+<span class="sd">  - Keyboard shortcuts (F28)</span>
+<span class="sd">  - Main layout (board + right panel)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">gi</span>
+<span class="n">gi</span><span class="o">.</span><span class="n">require_version</span><span class="p">(</span><span class="s2">&quot;Gtk&quot;</span><span class="p">,</span> <span class="s2">&quot;4.0&quot;</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gi.repository</span><span class="w"> </span><span class="kn">import</span> <span class="n">Gtk</span><span class="p">,</span> <span class="n">Gio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.presentation.gui.board_widget</span><span class="w"> </span><span class="kn">import</span> <span class="n">BoardWidget</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.rules.rules_engine</span><span class="w"> </span><span class="kn">import</span> <span class="n">RulesEngine</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.presentation.cli.game_state</span><span class="w"> </span><span class="kn">import</span> <span class="n">GameState</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">WHITE</span><span class="p">,</span> <span class="n">BLACK</span>
+
+<div class="viewcode-block" id="ShatranjWindow">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.gui.window.ShatranjWindow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ShatranjWindow</span><span class="p">(</span><span class="n">Gtk</span><span class="o">.</span><span class="n">ApplicationWindow</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Main application window.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Shatranj&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_default_size</span><span class="p">(</span><span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span> <span class="o">=</span> <span class="n">RulesEngine</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">:</span> <span class="n">GameState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_ui</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_menu</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_shortcuts</span><span class="p">()</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># UI construction</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_ui</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Builds the main layout.&quot;&quot;&quot;</span>
+        <span class="n">vbox</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span><span class="n">orientation</span><span class="o">=</span><span class="n">Gtk</span><span class="o">.</span><span class="n">Orientation</span><span class="o">.</span><span class="n">VERTICAL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_child</span><span class="p">(</span><span class="n">vbox</span><span class="p">)</span>
+
+        <span class="n">hbox</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">orientation</span><span class="o">=</span><span class="n">Gtk</span><span class="o">.</span><span class="n">Orientation</span><span class="o">.</span><span class="n">HORIZONTAL</span><span class="p">,</span>
+            <span class="n">spacing</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+            <span class="n">margin_top</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+            <span class="n">margin_bottom</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+            <span class="n">margin_start</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+            <span class="n">margin_end</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">vbox</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hbox</span><span class="p">)</span>
+
+        <span class="c1"># --- Board placeholder ---</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span> <span class="o">=</span> <span class="n">BoardWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_size_request</span><span class="p">(</span><span class="mi">480</span><span class="p">,</span> <span class="mi">480</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_hexpand</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_vexpand</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">on_move_played</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_move_played</span>
+        <span class="n">hbox</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="p">)</span>
+
+        <span class="c1"># --- Right panel ---</span>
+        <span class="n">right_panel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_right_panel</span><span class="p">()</span>
+        <span class="n">hbox</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">right_panel</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_right_panel</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Box</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Right panel: timer + move history + buttons.&quot;&quot;&quot;</span>
+        <span class="n">panel</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">orientation</span><span class="o">=</span><span class="n">Gtk</span><span class="o">.</span><span class="n">Orientation</span><span class="o">.</span><span class="n">VERTICAL</span><span class="p">,</span>
+            <span class="n">spacing</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+            <span class="n">width_request</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Timer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timer_label</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Label</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;00:00&quot;</span><span class="p">)</span>
+        <span class="n">panel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_timer_label</span><span class="p">)</span>
+
+        <span class="c1"># Move history</span>
+        <span class="n">history_label</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Label</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Move History&quot;</span><span class="p">)</span>
+        <span class="n">history_label</span><span class="o">.</span><span class="n">set_halign</span><span class="p">(</span><span class="n">Gtk</span><span class="o">.</span><span class="n">Align</span><span class="o">.</span><span class="n">START</span><span class="p">)</span>
+        <span class="n">panel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">history_label</span><span class="p">)</span>
+
+        <span class="n">scroll</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">ScrolledWindow</span><span class="p">()</span>
+        <span class="n">scroll</span><span class="o">.</span><span class="n">set_vexpand</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_history_list</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">ListBox</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_history_list</span><span class="o">.</span><span class="n">set_selection_mode</span><span class="p">(</span><span class="n">Gtk</span><span class="o">.</span><span class="n">SelectionMode</span><span class="o">.</span><span class="n">NONE</span><span class="p">)</span>
+        <span class="n">scroll</span><span class="o">.</span><span class="n">set_child</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_history_list</span><span class="p">)</span>
+        <span class="n">panel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scroll</span><span class="p">)</span>
+
+        <span class="c1"># Undo / Hint buttons</span>
+        <span class="n">undo_btn</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Undo&quot;</span><span class="p">)</span>
+        <span class="n">undo_btn</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;clicked&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_undo</span><span class="p">)</span>
+        <span class="n">panel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">undo_btn</span><span class="p">)</span>
+
+        <span class="n">hint_btn</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Hint&quot;</span><span class="p">)</span>
+        <span class="n">hint_btn</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;clicked&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_hint</span><span class="p">)</span>
+        <span class="n">panel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hint_btn</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">panel</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Menu bar (F27)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_menu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Builds the menu bar.&quot;&quot;&quot;</span>
+        <span class="n">menu</span> <span class="o">=</span> <span class="n">Gio</span><span class="o">.</span><span class="n">Menu</span><span class="p">()</span>
+
+        <span class="n">file_menu</span> <span class="o">=</span> <span class="n">Gio</span><span class="o">.</span><span class="n">Menu</span><span class="p">()</span>
+        <span class="n">file_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;New Game&quot;</span><span class="p">,</span>      <span class="s2">&quot;win.new-game&quot;</span><span class="p">)</span>
+        <span class="n">file_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Load Game&quot;</span><span class="p">,</span>     <span class="s2">&quot;win.load-game&quot;</span><span class="p">)</span>
+        <span class="n">file_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Save Game&quot;</span><span class="p">,</span>     <span class="s2">&quot;win.save-game&quot;</span><span class="p">)</span>
+        <span class="n">file_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Configuration&quot;</span><span class="p">,</span> <span class="s2">&quot;win.configuration&quot;</span><span class="p">)</span>
+        <span class="n">file_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Info&quot;</span><span class="p">,</span>          <span class="s2">&quot;win.info&quot;</span><span class="p">)</span>
+        <span class="n">file_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Quit&quot;</span><span class="p">,</span>          <span class="s2">&quot;app.quit&quot;</span><span class="p">)</span>
+        <span class="n">menu</span><span class="o">.</span><span class="n">append_submenu</span><span class="p">(</span><span class="s2">&quot;File&quot;</span><span class="p">,</span> <span class="n">file_menu</span><span class="p">)</span>
+
+        <span class="n">game_menu</span> <span class="o">=</span> <span class="n">Gio</span><span class="o">.</span><span class="n">Menu</span><span class="p">()</span>
+        <span class="n">game_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Undo&quot;</span><span class="p">,</span>  <span class="s2">&quot;win.undo&quot;</span><span class="p">)</span>
+        <span class="n">game_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Redo&quot;</span><span class="p">,</span>  <span class="s2">&quot;win.redo&quot;</span><span class="p">)</span>
+        <span class="n">game_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Pause&quot;</span><span class="p">,</span> <span class="s2">&quot;win.pause&quot;</span><span class="p">)</span>
+        <span class="n">game_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Hint&quot;</span><span class="p">,</span>  <span class="s2">&quot;win.hint&quot;</span><span class="p">)</span>
+        <span class="n">menu</span><span class="o">.</span><span class="n">append_submenu</span><span class="p">(</span><span class="s2">&quot;Game&quot;</span><span class="p">,</span> <span class="n">game_menu</span><span class="p">)</span>
+
+        <span class="n">help_menu</span> <span class="o">=</span> <span class="n">Gio</span><span class="o">.</span><span class="n">Menu</span><span class="p">()</span>
+        <span class="n">help_menu</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Help&quot;</span><span class="p">,</span> <span class="s2">&quot;win.help&quot;</span><span class="p">)</span>
+        <span class="n">menu</span><span class="o">.</span><span class="n">append_submenu</span><span class="p">(</span><span class="s2">&quot;Help&quot;</span><span class="p">,</span> <span class="n">help_menu</span><span class="p">)</span>
+
+        <span class="n">actions</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;new-game&quot;</span><span class="p">:</span>      <span class="bp">self</span><span class="o">.</span><span class="n">_on_new_game</span><span class="p">,</span>
+            <span class="s2">&quot;load-game&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">_on_load_game</span><span class="p">,</span>
+            <span class="s2">&quot;save-game&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">_on_save_game</span><span class="p">,</span>
+            <span class="s2">&quot;configuration&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_configuration</span><span class="p">,</span>
+            <span class="s2">&quot;info&quot;</span><span class="p">:</span>          <span class="bp">self</span><span class="o">.</span><span class="n">_on_info</span><span class="p">,</span>
+            <span class="s2">&quot;undo&quot;</span><span class="p">:</span>          <span class="bp">self</span><span class="o">.</span><span class="n">_on_undo</span><span class="p">,</span>
+            <span class="s2">&quot;redo&quot;</span><span class="p">:</span>          <span class="bp">self</span><span class="o">.</span><span class="n">_on_redo</span><span class="p">,</span>
+            <span class="s2">&quot;pause&quot;</span><span class="p">:</span>         <span class="bp">self</span><span class="o">.</span><span class="n">_on_pause</span><span class="p">,</span>
+            <span class="s2">&quot;hint&quot;</span><span class="p">:</span>          <span class="bp">self</span><span class="o">.</span><span class="n">_on_hint</span><span class="p">,</span>
+            <span class="s2">&quot;help&quot;</span><span class="p">:</span>          <span class="bp">self</span><span class="o">.</span><span class="n">_on_help</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">callback</span> <span class="ow">in</span> <span class="n">actions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">action</span> <span class="o">=</span> <span class="n">Gio</span><span class="o">.</span><span class="n">SimpleAction</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">action</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;activate&quot;</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_action</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_application</span><span class="p">()</span><span class="o">.</span><span class="n">set_menubar</span><span class="p">(</span><span class="n">menu</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_show_menubar</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Keyboard shortcuts (F28)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_shortcuts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configures keyboard shortcuts.&quot;&quot;&quot;</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_application</span><span class="p">()</span>
+        <span class="n">shortcuts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;app.quit&quot;</span><span class="p">:</span>          <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;q&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.new-game&quot;</span><span class="p">:</span>      <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;n&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.load-game&quot;</span><span class="p">:</span>     <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;l&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.save-game&quot;</span><span class="p">:</span>     <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;s&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.configuration&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;comma&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.info&quot;</span><span class="p">:</span>          <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;i&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.undo&quot;</span><span class="p">:</span>          <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;u&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.redo&quot;</span><span class="p">:</span>          <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;r&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.pause&quot;</span><span class="p">:</span>         <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;p&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;win.hint&quot;</span><span class="p">:</span>          <span class="p">[</span><span class="s2">&quot;&lt;Ctrl&gt;h&quot;</span><span class="p">],</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">action</span><span class="p">,</span> <span class="n">accels</span> <span class="ow">in</span> <span class="n">shortcuts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">set_accels_for_action</span><span class="p">(</span><span class="n">action</span><span class="p">,</span> <span class="n">accels</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Callbacks (placeholders for now)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_new_game</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">GameState</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_load_game</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dialog</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">FileDialog</span><span class="p">()</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Load Game&quot;</span><span class="p">)</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_load_game_finish</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_load_game_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dialog</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">file</span> <span class="o">=</span> <span class="n">dialog</span><span class="o">.</span><span class="n">open_finish</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">get_path</span><span class="p">()</span>
+            <span class="c1"># Reuse CLI _do_load logic</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.presentation.cli.cli</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLI</span>
+            <span class="n">cli</span> <span class="o">=</span> <span class="n">CLI</span><span class="p">()</span>
+            <span class="n">cli</span><span class="o">.</span><span class="n">_do_load</span><span class="p">([</span><span class="n">path</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">cli</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">cli</span><span class="o">.</span><span class="n">_state</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_board</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_update_history</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_save_game</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">dialog</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">FileDialog</span><span class="p">()</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Save Game&quot;</span><span class="p">)</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_save_game_finish</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_save_game_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dialog</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">file</span> <span class="o">=</span> <span class="n">dialog</span><span class="o">.</span><span class="n">save_finish</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">get_path</span><span class="p">()</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.presentation.cli.cli</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLI</span>
+            <span class="n">cli</span> <span class="o">=</span> <span class="n">CLI</span><span class="p">()</span>
+            <span class="n">cli</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+            <span class="n">cli</span><span class="o">.</span><span class="n">_save_to_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Configuration&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span>          <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Info&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_undo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">undo</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_history</span><span class="p">()</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_redo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span>          <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Redo&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_pause</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span>         <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Pause&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">moves</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">generate_legal_moves</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">moves</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">move</span> <span class="o">=</span> <span class="n">moves</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span> <span class="k">as</span> <span class="n">B</span>
+        <span class="n">frm</span> <span class="o">=</span> <span class="n">B</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">)</span>
+        <span class="n">to</span>  <span class="o">=</span> <span class="n">B</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+        <span class="n">dialog</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">AlertDialog</span><span class="p">()</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">set_message</span><span class="p">(</span><span class="s2">&quot;Hint&quot;</span><span class="p">)</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">set_detail</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Try: </span><span class="si">{</span><span class="n">frm</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">to</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_help</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span>          <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Help&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_move_played</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">apply_move</span><span class="p">(</span><span class="n">move</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_history</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_game_over</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_update_history</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Refresh the move history list.&quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span> <span class="k">as</span> <span class="n">B</span>
+        <span class="c1"># Clear existing rows</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_history_list</span><span class="o">.</span><span class="n">get_row_at_index</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">row</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_history_list</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        <span class="c1"># Add moves</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">move</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">get_history</span><span class="p">()):</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="s2">&quot;W&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">color</span> <span class="o">==</span> <span class="s2">&quot;WHITE&quot;</span> <span class="k">else</span> <span class="s2">&quot;B&quot;</span>
+            <span class="n">frm</span> <span class="o">=</span> <span class="n">B</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">)</span>
+            <span class="n">to</span>  <span class="o">=</span> <span class="n">B</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+            <span class="n">sep</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">captured_piece</span> <span class="k">else</span> <span class="s2">&quot;-&quot;</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">Label</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">color</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">frm</span><span class="si">}{</span><span class="n">sep</span><span class="si">}{</span><span class="n">to</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">label</span><span class="o">.</span><span class="n">set_halign</span><span class="p">(</span><span class="n">Gtk</span><span class="o">.</span><span class="n">Align</span><span class="o">.</span><span class="n">START</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_history_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_game_over</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the game is over after a move.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">current</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span>
+        <span class="n">opponent</span> <span class="o">=</span> <span class="n">BLACK</span> <span class="k">if</span> <span class="n">current</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="n">WHITE</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">is_checkmate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="n">current</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_game_over_dialog</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Checkmate! </span><span class="si">{</span><span class="n">opponent</span><span class="si">}</span><span class="s2"> wins!&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">is_stalemate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="n">current</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_game_over_dialog</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Stalemate! </span><span class="si">{</span><span class="n">opponent</span><span class="si">}</span><span class="s2"> wins!&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">is_bare_king</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="n">current</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_game_over_dialog</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bare King! </span><span class="si">{</span><span class="n">opponent</span><span class="si">}</span><span class="s2"> wins!&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_show_game_over_dialog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Show a dialog when the game is over.&quot;&quot;&quot;</span>
+        <span class="n">dialog</span> <span class="o">=</span> <span class="n">Gtk</span><span class="o">.</span><span class="n">AlertDialog</span><span class="p">()</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">set_message</span><span class="p">(</span><span class="s2">&quot;Game Over&quot;</span><span class="p">)</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">set_detail</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="n">dialog</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_board_widget</span><span class="o">.</span><span class="n">set_board</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">WHITE</span><span class="p">)</span>        </div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">shatranj-python</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, EL GHALI Ayman, MARCHOUD Souhail, MEKLAT Sarah, DRIES Amina, BENACHOUR Souhila.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

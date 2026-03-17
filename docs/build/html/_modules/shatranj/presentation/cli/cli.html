@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>shatranj.presentation.cli.cli &#8212; shatranj-python 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for shatranj.presentation.cli.cli</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">cli.py - Interactive shell for the Shatranj game</span>
+
+<span class="sd">Role: entry point of the CLI interface.</span>
+<span class="sd">      Reads user commands and calls the appropriate methods.</span>
+
+<span class="sd">Why an interactive shell?</span>
+<span class="sd">  The specification (F14) requires a shell with a &quot;&gt;&gt;&quot; prompt.</span>
+<span class="sd">  readline (F16, F17, F18) automatically handles line editing, history,</span>
+<span class="sd">  and Tab completion.</span>
+
+<span class="sd">General structure:</span>
+<span class="sd">  - run()          : main loop (read -&gt; parse -&gt; execute)</span>
+<span class="sd">  - _do_XXX()      : one method per command</span>
+<span class="sd">  - _parse_move()  : converts &quot;e2-e4&quot; into a Move object</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">readline</span>  <span class="c1"># Enables line editing, history, and Tab completion</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>        <span class="c1"># For parsing algebraic notation with a regex</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>       <span class="c1"># For sys.exit() and sys.stderr</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.move</span><span class="w"> </span><span class="kn">import</span> <span class="n">Move</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.rules.rules_engine</span><span class="w"> </span><span class="kn">import</span> <span class="n">RulesEngine</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">WHITE</span><span class="p">,</span> <span class="n">BLACK</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">WHITE</span><span class="p">,</span> <span class="n">BLACK</span><span class="p">,</span> <span class="n">SHAH</span><span class="p">,</span> <span class="n">FERZ</span><span class="p">,</span> <span class="n">ROOK</span><span class="p">,</span> <span class="n">ALFIL</span><span class="p">,</span> <span class="n">KNIGHT</span><span class="p">,</span> <span class="n">PAWN</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.ai.ai_player</span><span class="w"> </span><span class="kn">import</span> <span class="n">AIPlayer</span>
+
+<span class="c1"># Import our own modules</span>
+<span class="c1"># We use relative imports because we are in the same package</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">print_board</span><span class="p">,</span> <span class="n">board_to_string</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.game_state</span><span class="w"> </span><span class="kn">import</span> <span class="n">GameState</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># Constants</span>
+<span class="c1"># ---------------------------------------------------------------------</span>
+
+<span class="n">PROMPT</span> <span class="o">=</span> <span class="s2">&quot;&gt;&gt; &quot;</span>  <span class="c1"># Prompt displayed to the user (F14)</span>
+<span class="n">AUTO_PLAY_MAX_PLIES</span> <span class="o">=</span> <span class="mi">400</span>  <span class="c1"># Safety limit to avoid infinite AI loops</span>
+<span class="n">THREEFOLD_REPETITION_COUNT</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">FIFTY_MOVE_RULE_PLIES</span> <span class="o">=</span> <span class="mi">100</span>  <span class="c1"># 50 full moves = 100 half-moves (plies)</span>
+
+<span class="c1"># List of all recognized commands (for Tab completion, F18)</span>
+<span class="n">COMMANDS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;new&quot;</span><span class="p">,</span> <span class="s2">&quot;help&quot;</span><span class="p">,</span> <span class="s2">&quot;quit&quot;</span><span class="p">,</span> <span class="s2">&quot;load&quot;</span><span class="p">,</span> <span class="s2">&quot;save&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;pause&quot;</span><span class="p">,</span> <span class="s2">&quot;hint&quot;</span><span class="p">,</span> <span class="s2">&quot;undo&quot;</span><span class="p">,</span> <span class="s2">&quot;redo&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;show board&quot;</span><span class="p">,</span> <span class="s2">&quot;show history&quot;</span><span class="p">,</span> <span class="s2">&quot;show time&quot;</span><span class="p">,</span> <span class="s2">&quot;show configuration&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;set&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">PIECE_LABELS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">PAWN</span><span class="p">:</span> <span class="s2">&quot;pawn&quot;</span><span class="p">,</span>
+    <span class="n">ROOK</span><span class="p">:</span> <span class="s2">&quot;rook&quot;</span><span class="p">,</span>
+    <span class="n">KNIGHT</span><span class="p">:</span> <span class="s2">&quot;knight&quot;</span><span class="p">,</span>
+    <span class="n">ALFIL</span><span class="p">:</span> <span class="s2">&quot;alfil&quot;</span><span class="p">,</span>
+    <span class="n">FERZ</span><span class="p">:</span> <span class="s2">&quot;ferz&quot;</span><span class="p">,</span>
+    <span class="n">SHAH</span><span class="p">:</span> <span class="s2">&quot;shah&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># Main CLI class</span>
+<span class="c1"># ---------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="CLI">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.cli.CLI">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CLI</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Interactive shell for playing Shatranj on the command line.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">      _state   : current game state (GameState)</span>
+<span class="sd">      _engine  : rules engine (RulesEngine)</span>
+<span class="sd">      _running : True while the main loop is running</span>
+<span class="sd">      _saved   : True if the game has been saved since the last move</span>
+<span class="sd">      _verbose : True if verbose mode is enabled</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">:</span> <span class="n">GameState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># No game at startup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span> <span class="o">=</span> <span class="n">RulesEngine</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">True</span>          <span class="c1"># Nothing to save at startup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AIPlayer</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="n">debug</span>
+
+        <span class="c1"># Configure readline for Tab completion (F18)</span>
+        <span class="n">readline</span><span class="o">.</span><span class="n">set_completer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_completer</span><span class="p">)</span>
+        <span class="n">readline</span><span class="o">.</span><span class="n">parse_and_bind</span><span class="p">(</span><span class="s2">&quot;tab: complete&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Configure readline for history (F17)</span>
+        <span class="c1"># Ctrl+R is handled automatically by readline</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Main loop</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="CLI.run">
+<a class="viewcode-back" href="../../../../index.html#shatranj.presentation.cli.cli.CLI.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start the main shell loop.</span>
+
+<span class="sd">        Displays a welcome message, then reads commands one by one</span>
+<span class="sd">        until the user types &quot;quit&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Welcome to Shatranj! Type &#39;help&#39; to see available commands.&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Start a new game with &#39;new&#39;.&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">()</span>
+
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_running</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># input() with readline active handles editing and history</span>
+                <span class="n">raw</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">PROMPT</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">EOFError</span><span class="p">:</span>
+                <span class="c1"># Ctrl+D: quit cleanly</span>
+                <span class="nb">print</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_do_quit</span><span class="p">([])</span>
+                <span class="k">break</span>
+            <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+                <span class="c1"># Ctrl+C: move to next line without quitting</span>
+                <span class="nb">print</span><span class="p">()</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Ignore empty lines</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">raw</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Add to readline history (for up/down arrow keys)</span>
+            <span class="n">readline</span><span class="o">.</span><span class="n">add_history</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+
+            <span class="c1"># Parse and execute the command</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dispatch</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Dispatcher: parses the command and calls the right method</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_dispatch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the command line and call the corresponding method.</span>
+
+<span class="sd">        Splits the input into words, then looks at the first word</span>
+<span class="sd">        to identify the command.</span>
+
+<span class="sd">        Special cases:</span>
+<span class="sd">          - &quot;show board&quot; and &quot;show history&quot; are two-word commands</span>
+<span class="sd">          - A move like &quot;e2-e4&quot; is not a keyword</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>  <span class="c1"># Arguments after the command</span>
+
+        <span class="c1"># Two-word commands: &quot;show board&quot;, &quot;show history&quot;, ...</span>
+        <span class="k">if</span> <span class="n">cmd</span> <span class="o">==</span> <span class="s2">&quot;show&quot;</span><span class="p">:</span>
+            <span class="n">sub</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">if</span> <span class="n">args</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">sub</span> <span class="o">==</span> <span class="s2">&quot;board&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_do_show_board</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">sub</span> <span class="o">==</span> <span class="s2">&quot;history&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_do_show_history</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">sub</span> <span class="o">==</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_do_show_time</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">sub</span> <span class="o">==</span> <span class="s2">&quot;configuration&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_do_show_configuration</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown subcommand: show </span><span class="si">{</span><span class="n">sub</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Single-word commands</span>
+        <span class="n">handlers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;new&quot;</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="n">_do_new</span><span class="p">,</span>
+            <span class="s2">&quot;help&quot;</span><span class="p">:</span>   <span class="bp">self</span><span class="o">.</span><span class="n">_do_help</span><span class="p">,</span>
+            <span class="s2">&quot;quit&quot;</span><span class="p">:</span>   <span class="bp">self</span><span class="o">.</span><span class="n">_do_quit</span><span class="p">,</span>
+            <span class="s2">&quot;q&quot;</span><span class="p">:</span>      <span class="bp">self</span><span class="o">.</span><span class="n">_do_quit</span><span class="p">,</span>
+            <span class="s2">&quot;load&quot;</span><span class="p">:</span>   <span class="bp">self</span><span class="o">.</span><span class="n">_do_load</span><span class="p">,</span>
+            <span class="s2">&quot;save&quot;</span><span class="p">:</span>   <span class="bp">self</span><span class="o">.</span><span class="n">_do_save</span><span class="p">,</span>
+            <span class="s2">&quot;pause&quot;</span><span class="p">:</span>  <span class="bp">self</span><span class="o">.</span><span class="n">_do_pause</span><span class="p">,</span>
+            <span class="s2">&quot;hint&quot;</span><span class="p">:</span>   <span class="bp">self</span><span class="o">.</span><span class="n">_do_hint</span><span class="p">,</span>
+            <span class="s2">&quot;undo&quot;</span><span class="p">:</span>   <span class="bp">self</span><span class="o">.</span><span class="n">_do_undo</span><span class="p">,</span>
+            <span class="s2">&quot;redo&quot;</span><span class="p">:</span>   <span class="bp">self</span><span class="o">.</span><span class="n">_do_redo</span><span class="p">,</span>
+            <span class="s2">&quot;set&quot;</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="n">_do_set</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">handlers</span><span class="p">:</span>
+            <span class="n">handlers</span><span class="p">[</span><span class="n">cmd</span><span class="p">](</span><span class="n">args</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># If not a known command, try to parse a move</span>
+        <span class="c1"># Expected format: &quot;e2-e4&quot; or &quot;e2xe4&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_looks_like_move</span><span class="p">(</span><span class="n">raw</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_play_move</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Unknown command</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown command: &#39;</span><span class="si">{</span><span class="n">raw</span><span class="si">}</span><span class="s2">&#39;. Type &#39;help&#39; for the list of commands.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Check if a string looks like a move (algebraic notation)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_looks_like_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return True if the text looks like a move in algebraic notation.</span>
+
+<span class="sd">        Accepted formats (F19 of the specification):</span>
+<span class="sd">          - &quot;e2-e4&quot;  : simple move</span>
+<span class="sd">          - &quot;e2xe4&quot;  : capture (lowercase x)</span>
+<span class="sd">          - &quot;Ng8-f6&quot; : with optional piece prefix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Regex: optionally a piece letter, then square-separator-square</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;^[A-Za-z]?[a-h][1-8][-x][a-h][1-8]$&quot;</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Parse a move in algebraic notation -&gt; Move object</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Move</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert a string like &quot;e2-e4&quot; into a Move object.</span>
+
+<span class="sd">        Returns None if the format is invalid.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">          &quot;e2-e4&quot;  -&gt; from_square=12, to_square=28</span>
+<span class="sd">          &quot;e2xe4&quot;  -&gt; same (capture is detected automatically by the board)</span>
+
+<span class="sd">        Why Board.algebraic_to_square?</span>
+<span class="sd">          This method converts &quot;e2&quot; -&gt; 12 (rank=1, file=4 -&gt; 1*8+4=12).</span>
+<span class="sd">          It is already implemented in board.py, so we reuse it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+
+        <span class="c1"># Strip the piece prefix if present (e.g. &quot;N&quot; in &quot;Ng8-f6&quot;)</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">==</span> <span class="mi">6</span> <span class="ow">and</span> <span class="n">text</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isupper</span><span class="p">():</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="n">text</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>  <span class="c1"># Remove &quot;N&quot;: &quot;Ng8-f6&quot; -&gt; &quot;g8-f6&quot;</span>
+
+        <span class="c1"># Accept &quot;-&quot; or &quot;x&quot; as separator</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">5</span> <span class="ow">or</span> <span class="n">text</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid move format: &#39;</span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s2">&#39;. Expected format: e2-e4&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">from_str</span> <span class="o">=</span> <span class="n">text</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># &quot;e2&quot;</span>
+        <span class="n">to_str</span>   <span class="o">=</span> <span class="n">text</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>  <span class="c1"># &quot;e4&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">from_sq</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">algebraic_to_square</span><span class="p">(</span><span class="n">from_str</span><span class="p">)</span>
+            <span class="n">to_sq</span>   <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">algebraic_to_square</span><span class="p">(</span><span class="n">to_str</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Get the piece on the source square to build the Move</span>
+        <span class="n">piece_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">from_sq</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">piece_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No piece on </span><span class="si">{</span><span class="n">from_str</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">piece_type</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="n">piece_info</span>
+
+        <span class="c1"># Get the captured piece if any</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">to_sq</span><span class="p">)</span>
+        <span class="n">captured</span> <span class="o">=</span> <span class="n">target</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">Move</span><span class="p">(</span>
+            <span class="n">from_square</span><span class="o">=</span><span class="n">from_sq</span><span class="p">,</span>
+            <span class="n">to_square</span><span class="o">=</span><span class="n">to_sq</span><span class="p">,</span>
+            <span class="n">piece_type</span><span class="o">=</span><span class="n">piece_type</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+            <span class="n">captured_piece</span><span class="o">=</span><span class="n">captured</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Commands</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_play_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Play a move entered by the user, then let the AI play if it is its turn.</span>
+
+<span class="sd">        Steps:</span>
+<span class="sd">          1. Check that a game is in progress</span>
+<span class="sd">          2. Parse the move (algebraic notation -&gt; Move)</span>
+<span class="sd">          3. Check that it is the right player&#39;s turn</span>
+<span class="sd">          4. Check that the move is legal</span>
+<span class="sd">          5. Apply the move</span>
+<span class="sd">          6. Check if the game is over</span>
+<span class="sd">          7. Let the AI play if it is its turn</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;No game in progress. Type &#39;new&#39; to start a game.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">move</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_move</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">move</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Check that the right player is moving</span>
+        <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">color</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;It&#39;s </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="si">}</span><span class="s2">&#39;s turn, not </span><span class="si">{</span><span class="n">move</span><span class="o">.</span><span class="n">color</span><span class="si">}</span><span class="s2">&#39;s.&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Full legality check: geometry + Shah safety (no self-check)</span>
+        <span class="n">legal_moves</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">generate_legal_moves</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">move</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">legal_moves</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Illegal move: </span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Apply the player&#39;s move</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">apply_move</span><span class="p">(</span><span class="n">move</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;You played: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_format_move_with_piece</span><span class="p">(</span><span class="n">move</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Display the updated board</span>
+        <span class="n">print_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">It&#39;s now </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="si">}</span><span class="s2">&#39;s turn.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check if the game is over after the player&#39;s move</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_game_over</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="c1"># If the next turn is controlled by an AI, chain it automatically</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_play_ai_turns</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_game_over</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the game is over after a move.</span>
+
+<span class="sd">        Returns True if the game is finished, False otherwise.</span>
+
+<span class="sd">        Possible outcomes in Shatranj:</span>
+<span class="sd">          - Checkmate  -&gt; current player is in check with no legal moves</span>
+<span class="sd">          - Stalemate  -&gt; not in check but no legal moves (opponent wins)</span>
+<span class="sd">          - Bare King  -&gt; current player has only their Shah left</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">current</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span>
+        <span class="n">opponent</span> <span class="o">=</span> <span class="n">BLACK</span> <span class="k">if</span> <span class="n">current</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="n">WHITE</span>
+
+        <span class="c1"># Checkmate -&gt; current player loses</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">is_checkmate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="n">current</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Checkmate! </span><span class="si">{</span><span class="n">opponent</span><span class="si">}</span><span class="s2"> wins!&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="c1"># Stalemate -&gt; victory for the one who caused it (Shatranj rule)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">is_stalemate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="n">current</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Stalemate! </span><span class="si">{</span><span class="n">opponent</span><span class="si">}</span><span class="s2"> wins!&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="c1"># Bare King -&gt; current player has only their Shah left</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">is_bare_king</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="n">current</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Bare King! </span><span class="si">{</span><span class="n">opponent</span><span class="si">}</span><span class="s2"> wins!&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="c1"># Draw by threefold repetition (as in modern chess)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_draw_by_threefold_repetition</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Draw by threefold repetition.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="c1"># Fifty-move rule: no pawn moved and no capture</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_draw_by_fifty_move_rule</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Draw by fifty-move rule.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># Game continues</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_draw_by_threefold_repetition</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Detect if the current position has occurred 3 times</span>
+<span class="sd">        (same piece placement + same player to move).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">target_color</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span>
+        <span class="n">target_signature</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">_boards</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+        <span class="n">expected_snapshot_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">_boards</span><span class="p">)</span>
+
+        <span class="n">repetitions</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># current position counts as 1</span>
+        <span class="n">color_at_state</span> <span class="o">=</span> <span class="n">target_color</span>
+
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">snapshot_before_move</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">_history</span><span class="p">):</span>
+            <span class="c1"># Previous state -&gt; turn is inverted</span>
+            <span class="n">color_at_state</span> <span class="o">=</span> <span class="n">BLACK</span> <span class="k">if</span> <span class="n">color_at_state</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="n">WHITE</span>
+            <span class="k">if</span> <span class="n">color_at_state</span> <span class="o">!=</span> <span class="n">target_color</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Some states loaded from file use empty snapshots</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">snapshot_before_move</span><span class="p">)</span> <span class="o">!=</span> <span class="n">expected_snapshot_size</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">signature</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">snapshot_before_move</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+            <span class="k">if</span> <span class="n">signature</span> <span class="o">==</span> <span class="n">target_signature</span><span class="p">:</span>
+                <span class="n">repetitions</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">repetitions</span> <span class="o">&gt;=</span> <span class="n">THREEFOLD_REPETITION_COUNT</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_draw_by_fifty_move_rule</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Detect the fifty-move rule:</span>
+<span class="sd">        100 consecutive half-moves without a pawn move or capture.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">halfmoves_without_progress</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">move</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">_history</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">piece_type</span> <span class="o">==</span> <span class="n">PAWN</span> <span class="ow">or</span> <span class="n">move</span><span class="o">.</span><span class="n">captured_piece</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">halfmoves_without_progress</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">halfmoves_without_progress</span> <span class="o">&gt;=</span> <span class="n">FIFTY_MOVE_RULE_PLIES</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_ai_move</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Let the AI play.</span>
+
+<span class="sd">        1. The AI calculates the best move using Minimax</span>
+<span class="sd">        2. If no move available -&gt; end of game</span>
+<span class="sd">        3. Otherwise apply the move and display the board</span>
+<span class="sd">        4. Check if the game is over after the AI&#39;s move</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">ai_player</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ai_player</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AI (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="si">}</span><span class="s2">) is thinking...&quot;</span><span class="p">)</span>
+        <span class="n">move</span> <span class="o">=</span> <span class="n">ai_player</span><span class="o">.</span><span class="n">choose_move</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+
+        <span class="c1"># No move available -&gt; end of game</span>
+        <span class="k">if</span> <span class="n">move</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_game_over</span><span class="p">()</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Display the move played by the AI in readable notation</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AI (</span><span class="si">{</span><span class="n">ai_player</span><span class="o">.</span><span class="n">color</span><span class="si">}</span><span class="s2">) plays: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_format_move_with_piece</span><span class="p">(</span><span class="n">move</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Apply the move on the board</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">apply_move</span><span class="p">(</span><span class="n">move</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Display the updated board</span>
+        <span class="n">print_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">It&#39;s now </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="si">}</span><span class="s2">&#39;s turn.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check if the game is over after the AI&#39;s move</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_game_over</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_auto_play_ai_turns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_plies</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">AUTO_PLAY_MAX_PLIES</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Chain AI turns as long as the current player is controlled by an AI.</span>
+
+<span class="sd">        Used for:</span>
+<span class="sd">          - human vs AI: play one AI move after the human&#39;s move</span>
+<span class="sd">          - AI vs AI: automatically run through the entire game</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">plies</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">plies</span> <span class="o">&gt;=</span> <span class="n">max_plies</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Draw by move limit (</span><span class="si">{</span><span class="n">max_plies</span><span class="si">}</span><span class="s2"> plies).&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">return</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_ai_move</span><span class="p">()</span>
+            <span class="n">plies</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_new</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start a new game.</span>
+
+<span class="sd">        If an unsaved game is in progress, ask for confirmation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span><span class="p">:</span>
+            <span class="n">answer</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Current game is not saved. Start a new game anyway? [y/N] &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">answer</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;New game cancelled.&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">GameState</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># Reset AI players</span>
+
+        <span class="c1"># Configure AI if requested:</span>
+        <span class="c1"># - &quot;new ai black&quot; / &quot;new ai white&quot;</span>
+        <span class="c1"># - &quot;new ai-vs-ai&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ai-vs-ai&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">[</span><span class="n">WHITE</span><span class="p">]</span> <span class="o">=</span> <span class="n">AIPlayer</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">WHITE</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">[</span><span class="n">BLACK</span><span class="p">]</span> <span class="o">=</span> <span class="n">AIPlayer</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">BLACK</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;New game started! AI plays WHITE and BLACK.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ai&quot;</span><span class="p">:</span>
+            <span class="n">ai_color</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">ai_color</span> <span class="o">==</span> <span class="s2">&quot;BLACK&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">[</span><span class="n">BLACK</span><span class="p">]</span> <span class="o">=</span> <span class="n">AIPlayer</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">BLACK</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;New game started! You play WHITE, AI plays BLACK.&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">ai_color</span> <span class="o">==</span> <span class="s2">&quot;WHITE&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">[</span><span class="n">WHITE</span><span class="p">]</span> <span class="o">=</span> <span class="n">AIPlayer</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">WHITE</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;New game started! AI plays WHITE, you play BLACK.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown color: &#39;</span><span class="si">{</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;. Use &#39;black&#39; or &#39;white&#39;.&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;New game started! White plays first.&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">()</span>
+        <span class="n">print_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">()</span>
+        <span class="c1"># If the current player is controlled by an AI, it plays immediately</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_play_ai_turns</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_quit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Quit the program.</span>
+
+<span class="sd">        If the game is not saved, offer to save it (F15).</span>
+<span class="sd">        If the user does not clearly answer, quit without saving</span>
+<span class="sd">        (default is N, as specified in F15).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Save the game before quitting? [y/N]&quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+            <span class="n">answer</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">answer</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">):</span>
+                <span class="c1"># Ask for the file path</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter file path to save: &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">path</span><span class="p">:</span>
+                    <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save_to_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">success</span><span class="p">:</span>
+                        <span class="c1"># Save failed: ask again (F15)</span>
+                        <span class="n">answer2</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Save failed. Try to save again? [y/N] &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">answer2</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">):</span>
+                            <span class="n">path2</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter file path to save: &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_save_to_file</span><span class="p">(</span><span class="n">path2</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No path given, quitting without saving.&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Goodbye!&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_help</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Display general help or help for a specific command.</span>
+
+<span class="sd">        Usage: help [CMD]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_print_command_help</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_print_general_help</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_print_general_help</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Display the list of all available commands.&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">Available commands:</span>
+<span class="s2">  new [ARGS]          Start a new game (e.g. ai white, ai black, ai-vs-ai)</span>
+<span class="s2">  help [CMD]          Show this help or help for CMD</span>
+<span class="s2">  quit                Quit the program</span>
+<span class="s2">  load FILE           Load a game from a file</span>
+<span class="s2">  save FILE           Save the current game to a file</span>
+<span class="s2">  pause               Pause the blitz timer</span>
+<span class="s2">  hint                Show a move suggestion</span>
+<span class="s2">  undo [N]            Undo the last N moves (default: 1)</span>
+<span class="s2">  redo [N]            Redo the last N undone moves (default: 1)</span>
+<span class="s2">  show board          Display the current board</span>
+<span class="s2">  show history        Display the move history</span>
+<span class="s2">  show time           Display remaining time (blitz mode)</span>
+<span class="s2">  show configuration  Display current configuration</span>
+<span class="s2">  set PARAM=VALUE     Change a configuration parameter</span>
+
+<span class="s2">To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_print_command_help</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Display detailed help for a specific command.&quot;&quot;&quot;</span>
+        <span class="n">help_texts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;new&quot;</span><span class="p">:</span>    <span class="s2">&quot;new [ARGS]  -  Start a new game. Args: &#39;ai white&#39;, &#39;ai black&#39;, &#39;ai-vs-ai&#39;.&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;quit&quot;</span><span class="p">:</span>   <span class="s2">&quot;quit  -  Quit the program. You&#39;ll be asked to save if needed.&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help&quot;</span><span class="p">:</span>   <span class="s2">&quot;help [CMD]  -  Show help. With CMD: show help for that command.&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;load&quot;</span><span class="p">:</span>   <span class="s2">&quot;load FILE  -  Load a saved game from FILE (.shatranj format).&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;save&quot;</span><span class="p">:</span>   <span class="s2">&quot;save FILE  -  Save the current game to FILE.&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;hint&quot;</span><span class="p">:</span>   <span class="s2">&quot;hint  -  Get a move suggestion from the engine.&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;undo&quot;</span><span class="p">:</span>   <span class="s2">&quot;undo [N]  -  Undo the last N moves (default 1).&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;redo&quot;</span><span class="p">:</span>   <span class="s2">&quot;redo [N]  -  Redo the last N undone moves (default 1).&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;pause&quot;</span><span class="p">:</span>  <span class="s2">&quot;pause  -  Pause/resume the blitz timer.&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;set&quot;</span><span class="p">:</span>    <span class="s2">&quot;set PARAM=VALUE  -  Change a setting. E.g.: set debug=true&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">help_texts</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">help_texts</span><span class="p">[</span><span class="n">cmd</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown command: &#39;</span><span class="si">{</span><span class="n">cmd</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_show_board</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Display the current state of the board.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;No game in progress. Type &#39;new&#39; to start a game.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="nb">print</span><span class="p">()</span>
+        <span class="n">print_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_show_history</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Display the history of played moves.</span>
+
+<span class="sd">        Format (F24 of the specification):</span>
+<span class="sd">          W e2-e4 B Ng8-f6</span>
+<span class="sd">          W d2-d4 B Nf6xe4</span>
+<span class="sd">          ...</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;No game in progress.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">history</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">get_history</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">history</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No moves played yet.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Move history:&quot;</span><span class="p">)</span>
+        <span class="c1"># Group moves in pairs (white, black)</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">turn</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">):</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">turn</span><span class="si">:</span><span class="s2">3</span><span class="si">}</span><span class="s2">.&quot;</span>
+
+            <span class="c1"># White move</span>
+            <span class="n">move</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">from_alg</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">)</span>
+            <span class="n">to_alg</span>   <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+            <span class="n">sep</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">captured_piece</span> <span class="k">else</span> <span class="s2">&quot;-&quot;</span>
+            <span class="n">line</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  W </span><span class="si">{</span><span class="n">from_alg</span><span class="si">}{</span><span class="n">sep</span><span class="si">}{</span><span class="n">to_alg</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># Black move (if it exists)</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">):</span>
+                <span class="n">move</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">from_alg</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">)</span>
+                <span class="n">to_alg</span>   <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+                <span class="n">sep</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">captured_piece</span> <span class="k">else</span> <span class="s2">&quot;-&quot;</span>
+                <span class="n">line</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  B </span><span class="si">{</span><span class="n">from_alg</span><span class="si">}{</span><span class="n">sep</span><span class="si">}{</span><span class="n">to_alg</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="n">turn</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="nb">print</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_show_time</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Display remaining time (blitz mode only).&quot;&quot;&quot;</span>
+        <span class="c1"># Blitz mode not yet implemented: informational message</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Time display is only available in blitz mode (use -b at startup).&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_show_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Display the current configuration.&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Current configuration:&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  verbose = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  debug   = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_undo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Undo the last move(s).</span>
+
+<span class="sd">        In human vs AI mode, undo 2 moves per undo call:</span>
+<span class="sd">          1. the AI&#39;s move</span>
+<span class="sd">          2. the player&#39;s move</span>
+<span class="sd">        Otherwise undo 1 move (player vs player mode).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;No game in progress.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;N must be a positive integer.&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid number: &#39;</span><span class="si">{</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+        <span class="c1"># In human vs AI mode, undo in pairs (player + AI)</span>
+        <span class="n">human_vs_ai</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">moves_to_undo</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">human_vs_ai</span> <span class="k">else</span> <span class="n">n</span>
+
+        <span class="n">undone</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">moves_to_undo</span><span class="p">):</span>
+            <span class="n">move</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">undo</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">move</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">actual</span> <span class="o">=</span> <span class="n">undone</span> <span class="o">//</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">human_vs_ai</span> <span class="k">else</span> <span class="n">undone</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Nothing more to undo (undid </span><span class="si">{</span><span class="n">actual</span><span class="si">}</span><span class="s2"> move(s)).&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">undone</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">undone</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">actual</span> <span class="o">=</span> <span class="n">undone</span> <span class="o">//</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">human_vs_ai</span> <span class="k">else</span> <span class="n">undone</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Undid </span><span class="si">{</span><span class="n">actual</span><span class="si">}</span><span class="s2"> move(s).&quot;</span><span class="p">)</span>
+            <span class="n">print_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">It&#39;s now </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="si">}</span><span class="s2">&#39;s turn.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_redo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Redo the last undone move(s).</span>
+
+<span class="sd">        In human vs AI mode, redo 2 moves per redo call:</span>
+<span class="sd">          1. the player&#39;s move</span>
+<span class="sd">          2. the AI&#39;s move</span>
+<span class="sd">        Otherwise redo 1 move (player vs player mode).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;No game in progress.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;N must be a positive integer.&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid number: &#39;</span><span class="si">{</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+        <span class="c1"># In human vs AI mode, redo in pairs (player + AI)</span>
+        <span class="n">human_vs_ai</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">moves_to_redo</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">human_vs_ai</span> <span class="k">else</span> <span class="n">n</span>
+
+        <span class="n">redone</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">moves_to_redo</span><span class="p">):</span>
+            <span class="n">move</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">redo</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">move</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">actual</span> <span class="o">=</span> <span class="n">redone</span> <span class="o">//</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">human_vs_ai</span> <span class="k">else</span> <span class="n">redone</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Nothing more to redo (redid </span><span class="si">{</span><span class="n">actual</span><span class="si">}</span><span class="s2"> move(s)).&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">redone</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">redone</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">actual</span> <span class="o">=</span> <span class="n">redone</span> <span class="o">//</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">human_vs_ai</span> <span class="k">else</span> <span class="n">redone</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Redid </span><span class="si">{</span><span class="n">actual</span><span class="si">}</span><span class="s2"> move(s).&quot;</span><span class="p">)</span>
+            <span class="n">print_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">It&#39;s now </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="si">}</span><span class="s2">&#39;s turn.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Display a move suggestion.</span>
+
+<span class="sd">        For now: returns the first legal move found.</span>
+<span class="sd">        A real AI would use Minimax or MCTS (F31-F35).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;No game in progress.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+
+        <span class="n">legal_moves</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">generate_legal_moves</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">legal_moves</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No legal moves available.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Take the first legal move (simple, no AI for now)</span>
+        <span class="n">suggested</span> <span class="o">=</span> <span class="n">legal_moves</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hint: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_format_move_with_piece</span><span class="p">(</span><span class="n">suggested</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_format_move_with_piece</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">move</span><span class="p">:</span> <span class="n">Move</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a human-readable move: &#39;pawn e2-e3&#39; or &#39;rook a1xa8&#39;.&quot;&quot;&quot;</span>
+        <span class="n">piece_name</span> <span class="o">=</span> <span class="n">PIECE_LABELS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">piece_type</span><span class="p">,</span> <span class="n">move</span><span class="o">.</span><span class="n">piece_type</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="n">from_alg</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">)</span>
+        <span class="n">to_alg</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">captured_piece</span> <span class="k">else</span> <span class="s2">&quot;-&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">piece_name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">from_alg</span><span class="si">}{</span><span class="n">sep</span><span class="si">}{</span><span class="n">to_alg</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a game from a file.</span>
+
+<span class="sd">        Usage: load FILE</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;Usage: load FILE&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;ascii&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()]</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not open &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Remove comments and empty lines</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lines</span> <span class="k">if</span> <span class="n">l</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># --- Find sections ---</span>
+            <span class="n">idx_settings</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;[settings]&quot;</span><span class="p">)</span>
+            <span class="n">idx_game</span>     <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;[game]&quot;</span><span class="p">)</span>
+            <span class="n">idx_history</span>  <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;[history]&quot;</span><span class="p">)</span>
+
+            <span class="c1"># --- Read [settings] ---</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="n">idx_settings</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">idx_game</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="s2">&quot;=&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                    <span class="n">key</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+                    <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="n">val</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;verbose&quot;</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span> <span class="o">=</span> <span class="n">val</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;debug&quot;</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="n">val</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">)</span>
+
+            <span class="c1"># --- Read [game] ---</span>
+            <span class="n">game_lines</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">idx_game</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">idx_history</span><span class="p">]</span>
+
+            <span class="c1"># First line = current player color</span>
+            <span class="n">color_letter</span> <span class="o">=</span> <span class="n">game_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">color_letter</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;W&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid player color: &#39;</span><span class="si">{</span><span class="n">color_letter</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="n">current_color</span> <span class="o">=</span> <span class="n">WHITE</span> <span class="k">if</span> <span class="n">color_letter</span> <span class="o">==</span> <span class="s2">&quot;W&quot;</span> <span class="k">else</span> <span class="n">BLACK</span>
+
+            <span class="c1"># Next 8 lines = the board (rank 8 at top, rank 1 at bottom)</span>
+            <span class="n">board_lines</span> <span class="o">=</span> <span class="n">game_lines</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">9</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">board_lines</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">8</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;Invalid board format: expected 8 rows&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="c1"># Map piece symbols to (piece_type, color)</span>
+            <span class="n">SYMBOL_MAP</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;K&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">SHAH</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">),</span> <span class="s2">&quot;F&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">FERZ</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">),</span>
+                <span class="s2">&quot;R&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">ROOK</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">),</span> <span class="s2">&quot;A&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">ALFIL</span><span class="p">,</span>  <span class="n">WHITE</span><span class="p">),</span>
+                <span class="s2">&quot;N&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">KNIGHT</span><span class="p">,</span> <span class="n">WHITE</span><span class="p">),</span> <span class="s2">&quot;P&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">PAWN</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">),</span>
+                <span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">SHAH</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">),</span> <span class="s2">&quot;f&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">FERZ</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">),</span>
+                <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">ROOK</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">),</span> <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">ALFIL</span><span class="p">,</span>  <span class="n">BLACK</span><span class="p">),</span>
+                <span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">KNIGHT</span><span class="p">,</span> <span class="n">BLACK</span><span class="p">),</span> <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">PAWN</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">),</span>
+            <span class="p">}</span>
+
+            <span class="n">new_board</span> <span class="o">=</span> <span class="n">Board</span><span class="p">(</span><span class="n">setup</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">rank_idx</span><span class="p">,</span> <span class="n">board_line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">board_lines</span><span class="p">):</span>
+                <span class="c1"># rank 8 is at top (rank_idx=0) -&gt; rank=7</span>
+                <span class="c1"># rank 1 is at bottom (rank_idx=7) -&gt; rank=0</span>
+                <span class="n">rank</span> <span class="o">=</span> <span class="mi">7</span> <span class="o">-</span> <span class="n">rank_idx</span>
+                <span class="n">symbols</span> <span class="o">=</span> <span class="n">board_line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">symbols</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">8</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid board row </span><span class="si">{</span><span class="n">rank_idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: &#39;</span><span class="si">{</span><span class="n">board_line</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>
+                <span class="k">for</span> <span class="n">file_idx</span><span class="p">,</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">symbols</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">symbol</span> <span class="o">==</span> <span class="s2">&quot;_&quot;</span><span class="p">:</span>
+                        <span class="k">continue</span>  <span class="c1"># empty square</span>
+                    <span class="k">if</span> <span class="n">symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">SYMBOL_MAP</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown piece symbol: &#39;</span><span class="si">{</span><span class="n">symbol</span><span class="si">}</span><span class="s2">&#39; at row </span><span class="si">{</span><span class="n">rank_idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">return</span>
+                    <span class="n">piece</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="n">SYMBOL_MAP</span><span class="p">[</span><span class="n">symbol</span><span class="p">]</span>
+                    <span class="n">square</span> <span class="o">=</span> <span class="n">rank</span> <span class="o">*</span> <span class="mi">8</span> <span class="o">+</span> <span class="n">file_idx</span>
+                    <span class="n">new_board</span><span class="o">.</span><span class="n">place_piece</span><span class="p">(</span><span class="n">piece</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">square</span><span class="p">)</span>
+
+            <span class="c1"># --- Read [history] ---</span>
+            <span class="n">history_moves</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="n">idx_history</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]:</span>
+                <span class="c1"># Format: &quot;W e2-e3 B e7-e6&quot;</span>
+                <span class="n">tokens</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">while</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">):</span>
+                    <span class="n">color_tok</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+                    <span class="n">move_tok</span>  <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+
+                    <span class="n">color</span> <span class="o">=</span> <span class="n">WHITE</span> <span class="k">if</span> <span class="n">color_tok</span> <span class="o">==</span> <span class="s2">&quot;W&quot;</span> <span class="k">else</span> <span class="n">BLACK</span>
+
+                    <span class="c1"># Parse &quot;e2-e3&quot; or &quot;e2xe3&quot;</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">move_tok</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">5</span> <span class="ow">or</span> <span class="n">move_tok</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid move in history: &#39;</span><span class="si">{</span><span class="n">move_tok</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                        <span class="k">return</span>
+
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">from_sq</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">algebraic_to_square</span><span class="p">(</span><span class="n">move_tok</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">])</span>
+                        <span class="n">to_sq</span>   <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">algebraic_to_square</span><span class="p">(</span><span class="n">move_tok</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">])</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid square in history: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">return</span>
+
+                    <span class="c1"># Determine if it is a capture</span>
+                    <span class="n">captured</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="k">if</span> <span class="n">move_tok</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;x&quot;</span><span class="p">:</span>
+                        <span class="n">captured</span> <span class="o">=</span> <span class="s2">&quot;unknown&quot;</span>
+
+                    <span class="c1"># Get piece type from the reconstructed board</span>
+                    <span class="n">piece_info</span> <span class="o">=</span> <span class="n">new_board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">from_sq</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">piece_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">piece_type</span> <span class="o">=</span> <span class="n">piece_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">piece_type</span> <span class="o">=</span> <span class="n">PAWN</span>  <span class="c1"># fallback</span>
+
+                    <span class="n">history_moves</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Move</span><span class="p">(</span><span class="n">from_sq</span><span class="p">,</span> <span class="n">to_sq</span><span class="p">,</span> <span class="n">piece_type</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">captured</span><span class="p">))</span>
+
+            <span class="c1"># --- Build GameState from loaded data ---</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.presentation.cli.game_state</span><span class="w"> </span><span class="kn">import</span> <span class="n">GameState</span>
+
+            <span class="n">new_state</span> <span class="o">=</span> <span class="n">GameState</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">GameState</span><span class="p">)</span>
+            <span class="n">new_state</span><span class="o">.</span><span class="n">board</span> <span class="o">=</span> <span class="n">new_board</span>
+            <span class="n">new_state</span><span class="o">.</span><span class="n">current_color</span> <span class="o">=</span> <span class="n">current_color</span>
+            <span class="n">new_state</span><span class="o">.</span><span class="n">_history</span> <span class="o">=</span> <span class="p">[(</span><span class="n">move</span><span class="p">,</span> <span class="p">{})</span> <span class="k">for</span> <span class="n">move</span> <span class="ow">in</span> <span class="n">history_moves</span><span class="p">]</span>
+            <span class="n">new_state</span><span class="o">.</span><span class="n">_redo_stack</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">new_state</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ai_players</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Game loaded from &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="n">print_board</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">It&#39;s </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="si">}</span><span class="s2">&#39;s turn.&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error parsing file &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected error loading &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save the current game to a file.</span>
+
+<span class="sd">        Usage: save FILE</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;No game in progress.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;Usage: save FILE&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save_to_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_save_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save the game to an ASCII text file (F20-F24).</span>
+
+<span class="sd">        Returns True if the save succeeded, False otherwise.</span>
+
+<span class="sd">        File format::</span>
+
+<span class="sd">            [settings]</span>
+<span class="sd">            verbose=false</span>
+<span class="sd">            debug=false</span>
+
+<span class="sd">            [game]</span>
+<span class="sd">            W</span>
+<span class="sd">            R N A F K A N R</span>
+<span class="sd">            P P P P P P P P</span>
+<span class="sd">            ...</span>
+
+<span class="sd">            [history]</span>
+<span class="sd">            W e2-e4 B e7-e5</span>
+<span class="sd">            ...</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.domain.core.board</span><span class="w"> </span><span class="kn">import</span> <span class="n">Board</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">shatranj.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+            <span class="n">SHAH</span><span class="p">,</span> <span class="n">FERZ</span><span class="p">,</span> <span class="n">ROOK</span><span class="p">,</span> <span class="n">ALFIL</span><span class="p">,</span> <span class="n">KNIGHT</span><span class="p">,</span> <span class="n">PAWN</span><span class="p">,</span> <span class="n">WHITE</span><span class="p">,</span> <span class="n">BLACK</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Piece symbols for saving (F23)</span>
+        <span class="n">SYMBOLS</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="p">(</span><span class="n">SHAH</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">FERZ</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;F&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">ROOK</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;R&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">ALFIL</span><span class="p">,</span>  <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">KNIGHT</span><span class="p">,</span> <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;N&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">PAWN</span><span class="p">,</span>   <span class="n">WHITE</span><span class="p">):</span> <span class="s2">&quot;P&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">SHAH</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">FERZ</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;f&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">ROOK</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">ALFIL</span><span class="p">,</span>  <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">KNIGHT</span><span class="p">,</span> <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">PAWN</span><span class="p">,</span>   <span class="n">BLACK</span><span class="p">):</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;ascii&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="c1"># --- Section [settings] ---</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[settings]</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;verbose=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;debug=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="c1"># --- Section [game] ---</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[game]</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="c1"># Current player color</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">current_color</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Board rank by rank (from rank 8 to rank 1, F23)</span>
+                <span class="k">for</span> <span class="n">rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+                        <span class="n">sq</span> <span class="o">=</span> <span class="n">rank</span> <span class="o">*</span> <span class="mi">8</span> <span class="o">+</span> <span class="n">file</span>
+                        <span class="n">piece</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">board</span><span class="o">.</span><span class="n">get_piece_at</span><span class="p">(</span><span class="n">sq</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">piece</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SYMBOLS</span><span class="p">[</span><span class="n">piece</span><span class="p">])</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="c1"># --- Section [history] ---</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[history]</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">history</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">get_history</span><span class="p">()</span>
+                <span class="c1"># Group by pairs (white, black) on the same line (F24)</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">):</span>
+                    <span class="n">line_parts</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">move</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">color_letter</span> <span class="o">=</span> <span class="s2">&quot;W&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">color</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="s2">&quot;B&quot;</span>
+                    <span class="n">from_alg</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">)</span>
+                    <span class="n">to_alg</span>   <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+                    <span class="n">sep</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">captured_piece</span> <span class="k">else</span> <span class="s2">&quot;-&quot;</span>
+                    <span class="n">line_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">color_letter</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">from_alg</span><span class="si">}{</span><span class="n">sep</span><span class="si">}{</span><span class="n">to_alg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                    <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">):</span>
+                        <span class="n">move</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                        <span class="n">color_letter</span> <span class="o">=</span> <span class="s2">&quot;W&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">color</span> <span class="o">==</span> <span class="n">WHITE</span> <span class="k">else</span> <span class="s2">&quot;B&quot;</span>
+                        <span class="n">from_alg</span> <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">from_square</span><span class="p">)</span>
+                        <span class="n">to_alg</span>   <span class="o">=</span> <span class="n">Board</span><span class="o">.</span><span class="n">square_to_algebraic</span><span class="p">(</span><span class="n">move</span><span class="o">.</span><span class="n">to_square</span><span class="p">)</span>
+                        <span class="n">sep</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span> <span class="k">if</span> <span class="n">move</span><span class="o">.</span><span class="n">captured_piece</span> <span class="k">else</span> <span class="s2">&quot;-&quot;</span>
+                        <span class="n">line_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">color_letter</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">from_alg</span><span class="si">}{</span><span class="n">sep</span><span class="si">}{</span><span class="n">to_alg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">line_parts</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Game saved to &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="c1"># OSError covers write errors (disk full, permissions, ...)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not save to &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_pause</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pause the timer (blitz mode only).&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Pause is only available in blitz mode.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_do_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change a configuration parameter.</span>
+
+<span class="sd">        Usage: set PARAM=VALUE</span>
+<span class="sd">        Example: set debug=true</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="s2">&quot;Usage: set PARAM=VALUE&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">setting</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;=&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">setting</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid format: &#39;</span><span class="si">{</span><span class="n">setting</span><span class="si">}</span><span class="s2">&#39;. Expected: PARAM=VALUE&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">param</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">setting</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">param</span> <span class="o">==</span> <span class="s2">&quot;verbose&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span> <span class="o">=</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;verbose = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">param</span> <span class="o">==</span> <span class="s2">&quot;debug&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;debug = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown parameter: &#39;</span><span class="si">{</span><span class="n">param</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Tab completion (F18)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_completer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Completion function for readline.</span>
+
+<span class="sd">        readline calls this with state=0, 1, 2, ... until None is returned.</span>
+<span class="sd">        Returns commands that start with `text`.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">          The user types &quot;sh&quot; then Tab.</span>
+<span class="sd">          readline calls _completer(&quot;sh&quot;, 0) -&gt; &quot;show board&quot;</span>
+<span class="sd">          readline calls _completer(&quot;sh&quot;, 1) -&gt; &quot;show history&quot;</span>
+<span class="sd">          readline calls _completer(&quot;sh&quot;, 2) -&gt; &quot;show time&quot;</span>
+<span class="sd">          readline calls _completer(&quot;sh&quot;, 3) -&gt; None  (end)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">COMMANDS</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">text</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">state</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">options</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">options</span><span class="p">[</span><span class="n">state</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Error display (F10 of the specification)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print an error message to stderr (F1 of the specification).</span>
+
+<span class="sd">        The specification requires that error messages go to stderr,</span>
+<span class="sd">        not stdout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_debug_print</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print a debug message only if --debug is active.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[DEBUG] </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">shatranj-python</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, EL GHALI Ayman, MARCHOUD Souhail, MEKLAT Sarah, DRIES Amina, BENACHOUR Souhila.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

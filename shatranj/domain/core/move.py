@@ -1,10 +1,14 @@
-"""
-Rôle : Représente un coup de jeu Fonctions :
+from dataclasses import dataclass
+from typing import Optional
 
-    __init__(from_sq, to_sq, piece, is_capture, is_promo) : Constructeur
-    to_algebraic() : Convertit → "e2-e4" ou "e4xe5"
-    from_algebraic(notation) : Parse "e2-e4" → Move
-    __eq__(other) : Comparaison égalité
-    __str__() : Affichage lisible
-    Attributs : from_square, to_square, piece_type, is_capture, is_promotion
-"""
+
+# by default we need
+# __init__ (constructor) so we can do move(0, 16, "pawn", "white")
+@dataclass(frozen=True)
+class Move:
+    from_square: int
+    to_square: int
+    piece_type: str
+    color: str
+    # captured piece or none
+    captured_piece: Optional[str] = None

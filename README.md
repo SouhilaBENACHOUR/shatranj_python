@@ -1,93 +1,203 @@
-# shatranj-python
+# Shatranj (Python)
+Implementation of the historical Shatranj game in Python.
 
+# Description
+This project is a Python implementation of the historical Persian chess game "Shatranj", developed as part of a software engineering project at University of Bordeaux (Master's degre computer science 2025-2026).
 
+The goal is to build a modular, testable, and extensible game engine following modern software engineering principles.
+Shatranj is the ancestor of modern chess, originating from Persia and India. Key differences from modern chess include:
 
-## Getting started
+ Ferz (Advisor): Moves only 1 square diagonally (not like the modern Queen)
+ Alfil (Elephant): Jumps exactly 2 squares diagonally (not like the modern Bishop)
+ Pawn: No double-step initial move, promotes only to Ferz
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Keywords: Board game, two players, deterministic, perfect information
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+# Badges
 
-## Add your files
+# Visuals
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+# Installation
 
+ # Requirements
+
+ Python 3.10+
+ PyGObject (for GUI)
+ GTK 4.x (for GUI)
+
+# Setup
+```bash
+Clone the repository
+git clone https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python.git
+cd shatranj-python
 ```
-cd existing_repo
-git remote add origin https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python.git
-git branch -M main
-git push -uf origin main
+
+# Create virtual environment (recommended)
+```bash
+python3 -m venv venv
+source venv/bin/activate # On Linux/Mac
+# venv\Scripts\activate # On Windows
+```
+# Install the project
+```bash
+pip install -e .
+```
+# Install development dependencies (testing, code quality)
+```bash
+pip install pytest pytest-cov coverage flake8 black
+```
+# Usage
+Planned Usage (under development)
+```bash
+Launch CLI (default)
+shatranj
+
+# Launch GUI
+shatranj --gui
+
+# Play against AI
+shatranj --ai B
+
+# Blitz mode (30 minutes per player)
+shatranj --blitz --time 30
+
+# Load a saved game
+shatranj game.shatranj
+
+# Start multiplayer server
+shatranj --server 12345
+```
+### Command Line Options (planned)
+```bash
+-h, --help Show help message
+-V, --version Show version
+-v, --verbose Verbose mode
+-d, --debug Debug mode
+-g, --gui Launch graphical interface
+-b, --blitz Blitz mode
+-t TIME, --time TIME Time per player (minutes)
+-a [COLOR], --ai [COLOR] Play against AI (W/B/A)
+-c, --contest Contest mode
+-s [PORT], --server [PORT] Start server
+--daemon Headless server mode
 ```
 
-## Integrate with your tools
+### Interactive Shell Commands (planned)
+```bash
+new [ARGS] Start new game
+help [CMD] Show help
+quit Exit program
+load FILE Load game
+save FILE Save game
+pause Pause timer (Blitz)
+hint Show AI hint
+undo [N] Undo last move(s)
+redo [N] Redo move(s)
+show board Display board
+show history Display move history
+show time Display remaining time
+set PARAM=VALUE Change configuration
+```
+# Move Notation
+Moves will follow algebraic notation:
 
-* [Set up project integrations](https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python/-/settings/integrations)
+Simple move: e2-e4 (move from e2 to e4)
+Capture: e4xe5 (capture piece at e5)
 
-## Collaborate with your team
+# Support
+For questions or issues:
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+GitLab Issues: Issue Tracker
+Contact: Through Université de Bordeaux academic channels
 
-## Test and Deploy
+# Roadmap
 
-Use the built-in continuous integration in GitLab.
+# Current Phase: Foundation
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+ Project setup (pyproject.toml, git repository)
+ Bitboard implementation (in progress)
+ Game rules engine (in progress)
+ Move generation and validation
+ Basic CLI interface
 
-***
+Phase 2: Interfaces
 
-# Editing this README
+ Interactive CLI shell
+ GUI with PyGObject/GTK 4.x
+ Save/Load functionality (.shatranj format)
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Phase 3: AI
 
-## Suggestions for a good README
+ Minimax with Alpha-Beta pruning
+ Monte Carlo Tree Search (MCTS)
+ ML-enhanced MCTS with Random Forest
+ Multiple heuristic evaluation functions
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Phase 4: Advanced Features
 
-## Name
-Choose a self-explaining name for your project.
+ Network multiplayer
+ Blitz mode with time control
+ Internationalization (EN/FR)
+ Complete documentation
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Phase 5: Polish
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+ Test coverage ≥85%
+ Performance optimization
+ Full documentation with Sphinx
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+# Contributing
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+# Development Guidelines
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Follow PEP 8 coding standards
+Write docstrings for all functions/classes
+Maintain test coverage target of ≥85%
+Run tests before committing: pytest
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Running Tests
+Run all tests
+```bash
+pytest
+# Run with coverage report
+pytest --cov=shatranj --cov-report=term-missing
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+# Generate HTML coverage report
+pytest --cov-report=html
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+# Code Quality
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+# Check code style (detects PEP 8 violations)
+flake8 shatranj/
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+# Auto-format code (fixes formatting automatically)
+black shatranj/
 
-## License
-For open source projects, say how it is licensed.
+# Authors and Acknowledgment
+Development Team:
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+EL GHALI Ayman
+MARCHOUD Souhail
+MEKLAT Sarah
+DRIES Amina
+BENACHOUR Souhila
+
+# Academic Context:
+Master Informatique - Université de Bordeaux
+Academic Year: 2025-2026
+
+# References:
+Browne, C. (2014). Bitboard methods for games. ICGA Journal, 37(2), 67-84
+Chess Programming Wiki
+Shatranj Rules (Wikipedia)
+
+# License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+# Project Status
+\uD83D\uDD35 Early Development
+This project is currently in the initial development phase. We are implementing the core game engine using bitboards and establishing the foundational architecture.
+Current Focus: Bitboard representation and basic game rules implementation.
+
