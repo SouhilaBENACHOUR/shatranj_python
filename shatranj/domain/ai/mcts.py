@@ -83,7 +83,7 @@ class MCTS:
     def __init__(
         self,
         engine: RulesEngine,
-        simulations: int = 500,
+        simulations: int = 100,
     ) -> None:
         self._engine = engine
         self._simulations = simulations  # nombre de simulations par coup
