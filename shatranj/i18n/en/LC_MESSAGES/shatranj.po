@@ -1,0 +1,32 @@
+# Shatranj - English translations
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid "Welcome to Shatranj! Type 'help' to see available commands."
+msgstr "Welcome to Shatranj! Type 'help' to see available commands."
+
+msgid "Start a new game with 'new'."
+msgstr "Start a new game with 'new'."
+
+msgid "Goodbye!"
+msgstr "Goodbye!"
+
+msgid "New game started! White plays first."
+msgstr "New game started! White plays first."
+
+msgid "It's now {color}'s turn."
+msgstr "It's now {color}'s turn."
+
+msgid "Checkmate! {color} wins!"
+msgstr "Checkmate! {color} wins!"
+
+msgid "Stalemate! {color} wins!"
+msgstr "Stalemate! {color} wins!"
+
+msgid "Bare King! {color} wins!"
+msgstr "Bare King! {color} wins!"
+
+msgid "AI is thinking..."
+msgstr "AI is thinking..."

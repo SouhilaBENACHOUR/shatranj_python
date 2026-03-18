@@ -15,6 +15,7 @@ General structure:
   - _parse_move()  : converts "e2-e4" into a Move object
 """
 
+import builtins
 import readline  # Enables line editing, history, and Tab completion
 import re  # For parsing algebraic notation with a regex
 import sys  # For sys.exit() and sys.stderr
@@ -29,6 +30,10 @@ from shatranj.domain.core.board import Board
 # We use relative imports because we are in the same package
 from .display import print_board
 from .game_state import GameState
+
+# i18n: use _() installed by gettext, fallback to identity if not set
+_ = builtins.__dict__.get("_", lambda x: x)
+
 
 # ---------------------------------------------------------------------
 # Constants
@@ -112,8 +117,8 @@ class CLI:
         until the user types "quit".
         """
         self._running = True
-        print("Welcome to Shatranj! Type 'help' to see available commands.")
-        print("Start a new game with 'new'.")
+        print(_("Welcome to Shatranj! Type 'help' to see available commands."))
+        print(_("Start a new game with 'new'."))
         print()
 
         # launch AI game if configured from command line (-a flag)
@@ -321,11 +326,11 @@ class CLI:
         self._state.apply_move(move)
         self._saved = False
 
-        print(f"You played: {self._format_move_with_piece(move)}")
+        print(_("You played: {self._format_move_with_piece(move)}"))
 
         # Display the updated board
         print_board(self._state.board)
-        print(f"\nIt's now {self._state.current_color}'s turn.")
+        print(_("It's now {self._state.current_color}'s turn."))
 
         # Check if the game is over after the player's move
         if self._check_game_over():
@@ -346,35 +351,37 @@ class CLI:
           - Bare King  -> current player has only their Shah left
         """
         current = self._state.current_color
-        opponent = BLACK if current == WHITE else WHITE
 
         # Checkmate -> current player loses
         if self._engine.is_checkmate(self._state.board, current):
-            print(f"\nCheckmate! {opponent} wins!")
+            opponent = BLACK if current == WHITE else WHITE
+            print(_("Checkmate! {color} wins!").format(color=opponent))
             self._state = None
             return True
 
         # Stalemate -> victory for the one who caused it (Shatranj rule)
         if self._engine.is_stalemate(self._state.board, current):
-            print(f"\nStalemate! {opponent} wins!")
+            opponent = BLACK if current == WHITE else WHITE
+            print(_("Stalemate! {color} wins!").format(color=opponent))
             self._state = None
             return True
 
         # Bare King -> current player has only their Shah left
         if self._engine.is_bare_king(self._state.board, current):
-            print(f"\nBare King! {opponent} wins!")
+            opponent = BLACK if current == WHITE else WHITE
+            print(_("Bare King! {color} wins!").format(color=opponent))
             self._state = None
             return True
 
         # Draw by threefold repetition (as in modern chess)
         if self._is_draw_by_threefold_repetition():
-            print("\nDraw by threefold repetition.")
+            print(_("Draw by threefold repetition."))
             self._state = None
             return True
 
         # Fifty-move rule: no pawn moved and no capture
         if self._is_draw_by_fifty_move_rule():
-            print("\nDraw by fifty-move rule.")
+            print(_("Draw by fifty-move rule."))
             self._state = None
             return True
 
@@ -451,7 +458,7 @@ class CLI:
             return
 
         # display which algorithm and depth the AI uses
-        print(f"AI is thinking...{self._format_ai_details(ai_player)}")
+        print(_("AI is thinking...{self._format_ai_details(ai_player)}"))
 
         move = ai_player.choose_move(self._state.board)
 
@@ -461,7 +468,7 @@ class CLI:
             return
 
         # display the move played by the AI in algebraic notation
-        print(f"AI plays: {self._format_move_with_piece(move)}")
+        print(_("AI plays: {self._format_move_with_piece(move)}"))
 
         # apply the move on the board
         self._state.apply_move(move)
@@ -632,7 +639,7 @@ class CLI:
                 else:
                     print("No path given, quitting without saving.")
 
-        print("Goodbye!")
+        print(_("Goodbye!"))
         self._running = False
 
     def _do_help(self, args: list[str]) -> None:
@@ -715,10 +722,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
         history = self._state.get_history()
         if not history:
-            print("No moves played yet.")
+            print(_("No moves played yet."))
             return
 
-        print("\nMove history:")
+        print(_("Move history:"))
         # Group moves in pairs (white, black)
         i = 0
         turn = 1

@@ -24,6 +24,9 @@ Options handled (F1):
 import argparse
 import sys
 
+from shatranj.config import ShatranjConfig
+
+
 VERSION = "0.1.0"
 
 
@@ -119,7 +122,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     # --ai-mode : AI algorithm
     parser.add_argument(
         "--ai-mode",
-        default="minimax",
+        default=None,
         metavar="MODE",
         help="AI algorithm: minimax, alphabeta, mcts",
     )
@@ -137,7 +140,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     # --ai-minimax-scoring : evaluation function
     parser.add_argument(
         "--ai-scoring",
-        default="advanced",
+        default=None,
         metavar="SCORING",
         help="Evaluation function: material, positional, advanced (default)",
     )
@@ -169,8 +172,30 @@ def main() -> int:
 
     Returns 0 on success, 1 on error (F1).
     """
+    # F3 — Internationalisation (doit être fait EN PREMIER)
+    from shatranj.i18n import setup as i18n_setup
+    i18n_setup()
+    # ------------------------------------------------------------------
+    # F2 — Load (or create) the configuration file
+    # ------------------------------------------------------------------
+    cfg = ShatranjConfig()
     parser = build_argument_parser()
     args = parser.parse_args()
+
+    # Apply CLI overrides on top of the config values
+    cfg.apply_args(args)
+
+    # ------------------------------------------------------------------
+    # Resolve final values (config merged with CLI)
+    # ------------------------------------------------------------------
+
+    verbose = cfg.get_bool("verbose")
+    debug = cfg.get_bool("debug")
+    ai_mode = args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
+    ai_depth = args.ai_depth if args.ai_depth is not None else cfg.get_int("ai-depth")
+    ai_scoring = (
+        args.ai_scoring if args.ai_scoring is not None else cfg.get_str("ai-scoring")
+    )
 
     # -t without -b: warning
     time_given_explicitly = "--time" in sys.argv or "-t" in sys.argv
@@ -197,7 +222,7 @@ def main() -> int:
 
     from shatranj.presentation.cli.cli import CLI
 
-    cli = CLI(verbose=args.verbose, debug=args.debug)
+    cli = CLI(verbose=verbose, debug=debug)
 
     # configure AI if -a is given
     if args.ai:
@@ -206,7 +231,7 @@ def main() -> int:
             print(f"Error: invalid color '{args.ai}'. Use W or B.", file=sys.stderr)
             return 1
 
-        algo = args.ai_mode.lower()
+        algo = ai_mode.lower()
         if algo not in ("minimax", "alphabeta", "mcts"):
             print(
                 f"Error: unknown algorithm '{algo}'. Use minimax, alphabeta or mcts.",
@@ -214,20 +239,12 @@ def main() -> int:
             )
             return 1
 
-        scoring = args.ai_scoring.lower()
+        scoring = ai_scoring.lower()
         if scoring not in ("material", "positional", "advanced"):
             print(f"Error: unknown scoring '{scoring}'.", file=sys.stderr)
             return 1
 
-        # default depth depending on algorithm
-        if args.ai_depth is not None:
-            depth = args.ai_depth
-        elif algo == "alphabeta":
-            depth = 4
-        elif algo == "mcts":
-            depth = 100
-        else:
-            depth = 3
+        depth = ai_depth
 
         color_str = "white" if ai_color == "W" else "black"
 
