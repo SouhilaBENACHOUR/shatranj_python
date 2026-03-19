@@ -1,16 +1,16 @@
 """
-config.py - Gestion du fichier de configuration .shatranjrc
+config.py - Management of the .shatranjrc configuration file
 
-Role: lit, crée et valide le fichier de configuration INI
-      situé dans le répertoire HOME de l'utilisateur.
+Role: reads, creates and validates the INI configuration file
+      located in the user's HOME directory.
 
-Comportement (F2 du cahier des charges) :
-  - Lu au démarrage s'il est présent.
-  - Créé automatiquement (minimal) s'il est absent.
-  - Si présent mais invalide → avertissement sur stderr, pas d'écrasement.
-  - Les options CLI supplantent toujours les valeurs du fichier.
+Behaviour (F2 of the specification):
+  - Read at startup if present.
+  - Automatically created (minimal) if absent.
+  - If present but invalid → warning on stderr, no overwrite.
+  - CLI options always override the file values.
 
-Format du fichier :
+File format:
   [defaults]
   verbose = false
   debug = false
@@ -21,18 +21,17 @@ Format du fichier :
   ai-scoring = advanced
   language = en
 """
-
 import configparser
 import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Constantes
+# Constants
 # ---------------------------------------------------------------------------
 
 CONFIG_FILENAME = ".shatranjrc"
 
-# Valeurs par défaut utilisées si la clé est absente du fichier
+# Default values used if a key is missing from the file
 DEFAULTS: dict[str, str] = {
     "verbose": "false",
     "debug": "false",
@@ -44,14 +43,14 @@ DEFAULTS: dict[str, str] = {
     "language": "en",
 }
 
-# Valeurs autorisées pour les clés à choix restreint
+# Allowed values for restricted-choice keys
 VALID_VALUES: dict[str, set[str]] = {
     "ai-mode": {"minimax", "alphabeta", "mcts"},
     "ai-scoring": {"material", "positional", "advanced"},
     "language": {"en", "fr"},
 }
 
-# Contenu du fichier de configuration minimal créé automatiquement
+# Content of the minimal config file created automatically
 MINIMAL_CONFIG = """\
 # Shatranj configuration file
 # Lines starting with '#' are comments.
@@ -69,9 +68,8 @@ language = en
 
 
 # ---------------------------------------------------------------------------
-# Classe principale
+# Main class
 # ---------------------------------------------------------------------------
-
 
 class ShatranjConfig:
     """

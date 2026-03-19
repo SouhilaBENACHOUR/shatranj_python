@@ -1,16 +1,16 @@
 """
 i18n.py - Internationalisation (F3)
 
-Role: initialise gettext, détecte la langue depuis LANG/LC_ALL,
-      expose la fonction _() pour toutes les traductions.
+Role: initialises gettext, detects the language from LANG/LC_ALL,
+      exposes the _() function for all translations.
 
-Comportement (F3 du cahier des charges) :
-  - Langue par défaut : anglais (en)
-  - Français supporté  : fr
-  - Si LANG ou LC_ALL est défini → utiliser cette langue
-  - Si la langue n'est pas supportée → warning sur stderr + anglais
+Behaviour (F3 of the specification):
+  - Default language: English (en)
+  - French supported: fr
+  - If LANG or LC_ALL is set → use that language
+  - If the language is not supported → warning on stderr + English
 
-Usage dans les autres modules :
+Usage in other modules:
     from shatranj.i18n import _
     print(_("Welcome to Shatranj!"))
 """
@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Constantes
+# Constants
 # ---------------------------------------------------------------------------
 
 DOMAIN = "shatranj"
@@ -30,10 +30,10 @@ LOCALES_DIR = Path(__file__).parent / "i18n"
 SUPPORTED_LANGUAGES = {"en", "fr"}
 DEFAULT_LANGUAGE = "en"
 
+# ---------------------------------------------------------------------------
+# Language detection
+# ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Détection de la langue
-# ---------------------------------------------------------------------------
 
 def _detect_language() -> str:
     """
@@ -64,6 +64,7 @@ def _detect_language() -> str:
 # ---------------------------------------------------------------------------
 # Initialisation
 # ---------------------------------------------------------------------------
+
 
 def setup(language: str | None = None) -> gettext.GNUTranslations:
     """
@@ -103,7 +104,6 @@ def setup(language: str | None = None) -> gettext.GNUTranslations:
 
     # Install _() as a builtin so all modules can use it without importing
     translation.install()
-
     return translation
 
 
