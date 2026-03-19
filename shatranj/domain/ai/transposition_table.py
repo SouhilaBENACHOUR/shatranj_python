@@ -87,6 +87,7 @@ class ZobristHasher:
         to_square: int,
         captured_piece: str | None,
         captured_color: str | None,
+        result_piece: str | None = None,
     ) -> int:
         """
         Update the Zobrist key after a move in O(1).
@@ -95,7 +96,7 @@ class ZobristHasher:
         key ^= self._table[(piece, color, from_square)]
 
         # place piece on destination square
-        key ^= self._table[(piece, color, to_square)]
+        key ^= self._table[(result_piece or piece, color, to_square)]
 
         # remove captured piece if any
         if captured_piece is not None and captured_color is not None:

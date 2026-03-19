@@ -12,7 +12,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk, Gio  # noqa: E402
+from gi.repository import Gtk, Gio, GLib  # noqa: E402
 
 from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
 
@@ -25,6 +25,7 @@ from shatranj.presentation.gui.board_widget import BoardWidget  # noqa: E402
 from shatranj.utils.constants import WHITE, BLACK  # noqa: E402
 
 import threading  # noqa: E402
+import time  # noqa: E402
 
 
 class NewGameDialog(Gtk.Dialog):
@@ -238,6 +239,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         # AI players dict: color → AIPlayer (empty = human vs human)
 
         self._ai_players: dict[str, AIPlayer] = {}
+
+        self._timer_source_id: int | None = None
+        self._timer_started_at: float | None = None
 
         # Build the interface in order
 
@@ -457,6 +461,44 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     # ------------------------------------------------------------------
 
+    # Timer
+
+    # ------------------------------------------------------------------
+
+    def _start_timer(self) -> None:
+        """Start the elapsed game timer from zero."""
+
+        self._stop_timer(reset=True)
+        self._timer_started_at = time.monotonic()
+        self._timer_source_id = GLib.timeout_add_seconds(1, self._on_timer_tick)
+        self._on_timer_tick()
+
+    def _stop_timer(self, reset: bool = False) -> None:
+        """Stop the timer and optionally reset the label."""
+
+        if self._timer_source_id is not None:
+            GLib.source_remove(self._timer_source_id)
+            self._timer_source_id = None
+
+        self._timer_started_at = None
+
+        if reset:
+            self._timer_label.set_label("00:00")
+
+    def _on_timer_tick(self) -> bool:
+        """Refresh the elapsed time label while a game is running."""
+
+        if self._state is None or self._timer_started_at is None:
+            self._timer_source_id = None
+            return False
+
+        elapsed = int(time.monotonic() - self._timer_started_at)
+        minutes, seconds = divmod(elapsed, 60)
+        self._timer_label.set_label(f"{minutes:02d}:{seconds:02d}")
+        return True
+
+    # ------------------------------------------------------------------
+
     # Menu bar (F27)
 
     # ------------------------------------------------------------------
@@ -619,6 +661,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._update_history()
 
+        self._start_timer()
+
         # Switch to game screen
 
         self._stack.set_visible_child_name("game")
@@ -737,6 +781,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
     def _on_back_to_menu(self, *_) -> None:
         """Go back to the welcome screen."""
 
+        self._stop_timer(reset=True)
+
         self._state = None
 
         self._ai_players = {}
@@ -780,6 +826,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
                 )
 
                 self._update_history()
+
+                self._start_timer()
 
                 # Switch to game screen after loading
 
@@ -988,6 +1036,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.set_detail(message)
 
         dialog.show(self)
+
+        self._stop_timer()
 
         # Keep the board visible — don't clear it
 

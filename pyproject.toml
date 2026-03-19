@@ -25,12 +25,11 @@ dependencies = [
     "flake8>=6.1.0",
     "isort>=5.12.0",
     "sphinx>=7.1.0",
+    "PyGObject>=3.42.0; sys_platform == 'linux'",
 ]
 
 [project.optional-dependencies]
-gui = [
-    "PyGObject>=3.42.0; sys_platform == 'linux'",
-]
+gui = []
 dev = []
 
 [project.scripts]

@@ -1,0 +1,2 @@
+[console_scripts]
+shatranj = shatranj.main:main

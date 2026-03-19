@@ -21,7 +21,7 @@ from shatranj.domain.core.move import Move
 from io import StringIO
 from shatranj.presentation.cli.cli import CLI
 from shatranj.presentation.cli.game_state import GameState
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN
+from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN, FERZ
 
 
 class TestGameState:
@@ -95,6 +95,20 @@ class TestGameState:
 
         # Le redo stack doit être vide
         assert not self.state.can_redo()
+
+    def test_apply_move_promotes_pawn_to_ferz(self):
+        """Un pion sur la derniere rangee devient un ferz."""
+
+        from shatranj.domain.core.board import Board
+
+        self.state.board = Board(setup=False)
+        self.state.board.place_piece(PAWN, WHITE, 48)  # a7
+        move = Move(from_square=48, to_square=56, piece_type=PAWN, color=WHITE)
+
+        self.state.apply_move(move)
+
+        assert self.state.board.get_piece_at(56) == (FERZ, WHITE)
+        assert self.state.current_color == BLACK
 
 
 class TestDisplay:

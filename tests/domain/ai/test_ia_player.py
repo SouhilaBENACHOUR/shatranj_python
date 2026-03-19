@@ -1,3 +1,5 @@
+import pytest
+
 from shatranj.domain.core.board import Board
 from shatranj.domain.ai.ai_player import AIPlayer
 from shatranj.domain.ai.evaluator import Evaluator
@@ -96,3 +98,27 @@ def test_ai_captures_winning_piece():
     # l'IA doit capturer le pion en a4
     assert move is not None
     assert move.to_square == 24
+
+
+@pytest.mark.parametrize(
+    ("algorithm", "depth"),
+    [
+        ("alphabeta", 2),
+        ("minimax", 2),
+        ("mcts", 10),
+    ],
+)
+def test_ai_does_not_mutate_source_board(algorithm, depth):
+    """choose_move() must not mutate the caller board."""
+    board = Board(setup=False)
+    board.place_piece(SHAH, WHITE, 0)
+    board.place_piece(ROOK, WHITE, 1)
+    board.place_piece(SHAH, BLACK, 63)
+
+    snapshot = dict(board._boards)
+
+    ai = AIPlayer(color=WHITE, depth=depth, algorithm=algorithm)
+    move = ai.choose_move(board)
+
+    assert move is not None
+    assert board._boards == snapshot

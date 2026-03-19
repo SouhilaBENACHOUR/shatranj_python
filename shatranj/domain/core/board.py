@@ -1,8 +1,8 @@
 from shatranj.data.bitboards.bitboard import (
     clear_bit_at,
     get_bit_at,
-    set_bit_at,
     get_lsb,
+    set_bit_at,
 )
 from shatranj.domain.core.move import Move
 from shatranj.utils.constants import (
@@ -30,6 +30,17 @@ class Board:
         self._boards = {(piece, color): 0 for piece in PIECES for color in COLORS}
         if setup:
             self.setup_starting_position()
+
+    def copy(self) -> "Board":
+        """
+        Return an isolated copy of the board.
+
+        Bitboards are integers, so copying the internal dictionary is enough
+        to detach search code from the displayed game state.
+        """
+        new_board = Board(setup=False)
+        new_board._boards = dict(self._boards)
+        return new_board
 
     def clear(self) -> None:
         for key in self._boards:
@@ -76,6 +87,16 @@ class Board:
         piece, color = found
         self.clear_piece(from_square)
         self.set_piece(piece, color, to_square)
+
+    def _is_promotion_move(self, move: Move) -> bool:
+        """Return True when a pawn reaches the last rank."""
+        if move.piece_type != PAWN:
+            return False
+
+        target_rank = move.to_square // BOARD_SIZE
+        if move.color == WHITE:
+            return target_rank == BOARD_SIZE - 1
+        return target_rank == 0
 
     @property
     def white_pieces(self) -> int:
@@ -129,20 +150,17 @@ class Board:
         return get_lsb(bitboard)
 
     def apply_move(self, move: Move) -> tuple[str, str] | None:
-        """
-        Joue le coup sur le board.
-        Retourne la pièce capturée ou None.
-        """
-        captured = self.get_piece_at(move.to_square)  # sauvegarde la pièce capturée
-        self.move_piece(move.from_square, move.to_square)  # déplace la pièce
-        return captured  # nécessaire pour undo_move
+        """Play a move and promote pawns reaching the last rank to ferz."""
+        captured = self.get_piece_at(move.to_square)
+        self.move_piece(move.from_square, move.to_square)
+        if self._is_promotion_move(move):
+            self.set_piece(FERZ, move.color, move.to_square)
+        return captured
 
     def undo_move(self, move: Move, captured: tuple[str, str] | None) -> None:
-        """
-        Annule le coup joué par apply_move.
-        Remet la pièce à l'origine et restore la pièce capturée.
-        """
-        self.move_piece(move.to_square, move.from_square)  # remet la pièce à l'origine
+        """Undo a move, including promotion moves explored by the AI."""
+        self.clear_piece(move.to_square)
+        self.set_piece(move.piece_type, move.color, move.from_square)
         if captured is not None:
             piece, color = captured
-            self.set_piece(piece, color, move.to_square)  # restore la pièce capturée
+            self.set_piece(piece, color, move.to_square)

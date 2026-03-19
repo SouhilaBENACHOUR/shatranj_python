@@ -61,6 +61,7 @@ class Minimax:
 
         for move in legal_moves:
             captured = board.apply_move(move)
+            result_piece = board.get_piece_at(move.to_square)[0]
 
             # update Zobrist key after the move
             captured_piece = captured[0] if captured else None
@@ -73,6 +74,7 @@ class Minimax:
                 to_square=move.to_square,
                 captured_piece=captured_piece,
                 captured_color=captured_color,
+                result_piece=result_piece,
             )
 
             score = self._minimax(
@@ -184,6 +186,7 @@ class Minimax:
             best = float("-inf")
             for move in legal_moves:
                 captured = board.apply_move(move)
+                result_piece = board.get_piece_at(move.to_square)[0]
                 captured_color = opponent if captured else None
                 new_key = self._hasher.update_key(
                     key=key,
@@ -193,6 +196,7 @@ class Minimax:
                     to_square=move.to_square,
                     captured_piece=captured,
                     captured_color=captured_color,
+                    result_piece=result_piece,
                 )
 
                 score = self._minimax(
@@ -215,6 +219,7 @@ class Minimax:
             best = float("+inf")
             for move in legal_moves:
                 captured = board.apply_move(move)
+                result_piece = board.get_piece_at(move.to_square)[0]
                 captured_color = current_color if captured else None
                 new_key = self._hasher.update_key(
                     key=key,
@@ -224,6 +229,7 @@ class Minimax:
                     to_square=move.to_square,
                     captured_piece=captured,
                     captured_color=captured_color,
+                    result_piece=result_piece,
                 )
 
                 score = self._minimax(

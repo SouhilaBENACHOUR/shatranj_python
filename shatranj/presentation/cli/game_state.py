@@ -59,7 +59,7 @@ class GameState:
         snapshot = self._take_snapshot()
 
         # Apply the move on the board
-        self.board.move_piece(move.from_square, move.to_square)
+        self.board.apply_move(move)
 
         # Add to history
         self._history.append((move, snapshot))
@@ -111,7 +111,7 @@ class GameState:
 
         # Re-apply the move (like apply_move but without clearing redo stack)
         snapshot = self._take_snapshot()
-        self.board.move_piece(move.from_square, move.to_square)
+        self.board.apply_move(move)
         self._history.append((move, snapshot))
         self._switch_turn()
 

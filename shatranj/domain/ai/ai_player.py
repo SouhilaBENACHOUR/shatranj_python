@@ -50,4 +50,5 @@ class AIPlayer:
             )
 
     def choose_move(self, board: Board) -> Move | None:
-        return self._search.best_move(board, self.color)
+        search_board = board.copy()
+        return self._search.best_move(search_board, self.color)

@@ -1,18 +1,5 @@
-# Python cache
+.venv/
+.venv-linux/
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-
-# Virtual environments
-.venv/
-venv/
-
-# Build / doc / coverage
-htmlcov/
-.coverage
 docs/build/
-
-# Editor / backups
-*.save
-*.egg-info/
