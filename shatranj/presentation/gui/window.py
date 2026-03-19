@@ -7,7 +7,7 @@ Role: builds the main window with a welcome screen, menu bar, board widget,
       and right panel. Handles all game logic callbacks.
 
 """
-
+import builtins
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -26,21 +26,16 @@ from shatranj.utils.constants import WHITE, BLACK  # noqa: E402
 
 import threading  # noqa: E402
 import time  # noqa: E402
+_ = builtins.__dict__.get("_", lambda x: x)
 
 
 class NewGameDialog(Gtk.Dialog):
     """
-
     Dialog for configuring a new game.
-
     Allows the user to choose:
-
       - Game mode: Human vs Human, Human vs AI, AI vs AI
-
       - If AI involved: which algorithm (Minimax, Alpha-Beta, MCTS)
-
       - If AI involved: which color the AI plays
-
     """
 
     def __init__(self, parent) -> None:
@@ -289,65 +284,67 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._stack.set_visible_child_name("welcome")
 
     def _build_welcome_screen(self) -> Gtk.Box:
-        """
+        """Builds the welcome screen shown at startup."""
 
-        Builds the welcome screen shown at startup.
-
-        Contains the game title and a "New Game" button.
-
-        """
-
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
-
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         box.set_halign(Gtk.Align.CENTER)
-
         box.set_valign(Gtk.Align.CENTER)
-
         box.set_hexpand(True)
-
         box.set_vexpand(True)
 
         # Game title
-
         title = Gtk.Label(label="Shatranj")
-
-        title.add_css_class("title-1")  # GTK4 large title style
-
+        title.add_css_class("title-1")
         box.append(title)
 
         # Subtitle
-
         subtitle = Gtk.Label(label="Indian Chess")
-
         subtitle.add_css_class("dim-label")
-
         box.append(subtitle)
 
         # Spacing
-
         box.append(Gtk.Box())
 
-        # "New Game" button — opens the config dialog
-
-        new_btn = Gtk.Button(label="New Game")
-
-        new_btn.add_css_class("suggested-action")  # blue button in GTK4
-
+        # --- Group 1: play ---
+        new_btn = Gtk.Button(label=_("New Game"))
+        new_btn.add_css_class("suggested-action")
         new_btn.set_size_request(200, 48)
-
         new_btn.connect("clicked", self._on_new_game)
-
         box.append(new_btn)
 
-        # "Load Game" button
-
-        load_btn = Gtk.Button(label="Load Game")
-
+        load_btn = Gtk.Button(label=_("Load Game"))
         load_btn.set_size_request(200, 48)
-
         load_btn.connect("clicked", self._on_load_game)
-
         box.append(load_btn)
+
+        # Separator
+        box.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
+        # --- Group 2: settings ---
+        config_btn = Gtk.Button(label=_("Configuration"))
+        config_btn.set_size_request(200, 48)
+        config_btn.connect("clicked", self._on_configuration)
+        box.append(config_btn)
+
+        info_btn = Gtk.Button(label=_("Info"))
+        info_btn.set_size_request(200, 48)
+        info_btn.connect("clicked", self._on_info)
+        box.append(info_btn)
+
+        # Separator
+        box.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
+        # --- Group 3: quit ---
+        quit_btn = Gtk.Button(label=_("Quit"))
+        quit_btn.add_css_class("destructive-action")
+        quit_btn.set_size_request(200, 48)
+        quit_btn.connect("clicked", self._on_quit)
+        box.append(quit_btn)
+
+        # Version label
+        version_label = Gtk.Label(label="v0.1.0")
+        version_label.add_css_class("dim-label")
+        box.append(version_label)
 
         return box
 
@@ -565,7 +562,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self.get_application().set_menubar(menu)
 
-        self.set_show_menubar(True)
+        self.set_show_menubar(False)
 
     # ------------------------------------------------------------------
 
@@ -663,12 +660,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._start_timer()
 
-        # Switch to game screen
+        # Show menubar now that a game is in progress
+        self.set_show_menubar(True)
 
+        # Switch to game screen
         self._stack.set_visible_child_name("game")
 
         # If white is AI, let it play immediately
-
         self._auto_play_ai_turns()
 
     def _auto_play_ai_turns(self) -> None:
@@ -780,7 +778,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_back_to_menu(self, *_) -> None:
         """Go back to the welcome screen."""
-
+        self.set_show_menubar(False)  # hide menubar on welcome screen
         self._stop_timer(reset=True)
 
         self._state = None
@@ -788,6 +786,10 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._ai_players = {}
 
         self._stack.set_visible_child_name("welcome")
+
+    def _on_quit(self, *_) -> None:
+        """Quit the application from the welcome screen."""
+        self.get_application().quit()
 
     def _on_load_game(self, *_) -> None:
 

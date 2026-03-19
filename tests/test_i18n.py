@@ -12,17 +12,14 @@ Tests cover:
 
 import builtins
 import gettext
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from shatranj.i18n import _detect_language, setup, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
-
 
 # ---------------------------------------------------------------------------
 # _detect_language()
 # ---------------------------------------------------------------------------
+
 
 class TestDetectLanguage:
     def test_detects_lang_from_LC_ALL(self, monkeypatch):
@@ -86,6 +83,7 @@ class TestDetectLanguage:
 # setup()
 # ---------------------------------------------------------------------------
 
+
 class TestSetup:
     def test_setup_returns_translations_object(self):
         result = setup("en")
@@ -136,12 +134,14 @@ class TestSetup:
     def test_setup_missing_mo_does_not_crash(self, tmp_path, monkeypatch):
         """If .mo file is missing, NullTranslations is used — no crash."""
         import shatranj.i18n as i18n_module
+
         monkeypatch.setattr(i18n_module, "LOCALES_DIR", tmp_path)
         result = setup("fr")
         assert isinstance(result, gettext.NullTranslations)
 
     def test_null_translations_returns_string_unchanged(self, tmp_path, monkeypatch):
         import shatranj.i18n as i18n_module
+
         monkeypatch.setattr(i18n_module, "LOCALES_DIR", tmp_path)
         setup("fr")
         _ = builtins.__dict__["_"]
@@ -152,13 +152,16 @@ class TestSetup:
 # Module-level _()
 # ---------------------------------------------------------------------------
 
+
 class TestModuleLevelUnderscore:
     def test_module_underscore_is_callable(self):
         from shatranj.i18n import _ as module_underscore
+
         assert callable(module_underscore)
 
     def test_module_underscore_returns_string(self):
         from shatranj.i18n import _ as module_underscore
+
         result = module_underscore("Hello")
         assert isinstance(result, str)
 
@@ -166,6 +169,7 @@ class TestModuleLevelUnderscore:
 # ---------------------------------------------------------------------------
 # Supported languages
 # ---------------------------------------------------------------------------
+
 
 class TestSupportedLanguages:
     def test_english_is_supported(self):

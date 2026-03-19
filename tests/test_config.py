@@ -14,14 +14,13 @@ import sys
 import argparse
 from pathlib import Path
 
-import pytest
 
-from shatranj.config import ShatranjConfig, DEFAULTS, MINIMAL_CONFIG
-
+from shatranj.config import ShatranjConfig, DEFAULTS
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_config(tmp_path: Path, content: str) -> ShatranjConfig:
     """Create a ShatranjConfig from a string content written to a temp file."""
@@ -48,6 +47,7 @@ def make_args(**kwargs):
 # ---------------------------------------------------------------------------
 # File creation
 # ---------------------------------------------------------------------------
+
 
 class TestFileCreation:
     def test_creates_file_if_missing(self, tmp_path):
@@ -80,6 +80,7 @@ class TestFileCreation:
 # ---------------------------------------------------------------------------
 # Reading valid values
 # ---------------------------------------------------------------------------
+
 
 class TestReadValidValues:
     def test_reads_verbose_true(self, tmp_path):
@@ -123,6 +124,7 @@ class TestReadValidValues:
 # ---------------------------------------------------------------------------
 # Invalid values replaced by defaults
 # ---------------------------------------------------------------------------
+
 
 class TestInvalidValues:
     def test_invalid_ai_mode_uses_default(self, tmp_path, capsys):
@@ -169,9 +171,10 @@ class TestInvalidValues:
 # Missing section
 # ---------------------------------------------------------------------------
 
+
 class TestMissingSection:
     def test_no_defaults_section_warns(self, tmp_path, capsys):
-        cfg = make_config(tmp_path, "[other]\nfoo = bar\n")
+        make_config(tmp_path, "[other]\nfoo = bar\n")
         captured = capsys.readouterr()
         assert "Warning" in captured.err
 
@@ -184,9 +187,10 @@ class TestMissingSection:
 # Unparseable file
 # ---------------------------------------------------------------------------
 
+
 class TestUnparseableFile:
     def test_invalid_file_warns(self, tmp_path, capsys):
-        cfg = make_config(tmp_path, "this is not ini !!!")
+        make_config(tmp_path, "this is not ini !!!")
         captured = capsys.readouterr()
         assert "Warning" in captured.err
 
@@ -199,6 +203,7 @@ class TestUnparseableFile:
 # ---------------------------------------------------------------------------
 # apply_args: CLI overrides
 # ---------------------------------------------------------------------------
+
 
 class TestApplyArgs:
     def test_verbose_flag_overrides_config(self, tmp_path):
@@ -264,6 +269,7 @@ class TestApplyArgs:
 # ---------------------------------------------------------------------------
 # get_* methods
 # ---------------------------------------------------------------------------
+
 
 class TestGetMethods:
     def test_get_str_unknown_key_returns_empty(self, tmp_path):
