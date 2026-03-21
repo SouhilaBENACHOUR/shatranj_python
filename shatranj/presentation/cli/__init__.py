@@ -242,7 +242,8 @@ Proposer sauvegarde avant quit  :
 # from shatranj.presentation.cli.completer import Completer
 # from shatranj.presentation.cli.error_handler import ErrorHandler
 # from shatranj.presentation.cli.input_validator import InputValidator
-# from shatranj.presentation.cli.history_manager_command import HistoryManagerCommand
+# from shatranj.presentation.cli.history_manager_command import
+# HistoryManagerCommand
 # from shatranj.presentation.cli.network_handler import NetworkHandler
 
 __all__ = [

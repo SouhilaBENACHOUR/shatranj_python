@@ -232,7 +232,9 @@ class TestApplyArgs:
         assert cfg.get_int("ai-depth") == 6
 
     def test_ai_scoring_overrides_config(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(sys, "argv", ["shatranj", "--ai-scoring", "material"])
+        monkeypatch.setattr(
+            sys, "argv", ["shatranj", "--ai-scoring", "material"]
+        )
         cfg = make_config(tmp_path, "[defaults]\nai-scoring = advanced\n")
         args = make_args(ai_scoring="material")
         cfg.apply_args(args)

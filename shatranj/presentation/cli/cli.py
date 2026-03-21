@@ -22,7 +22,8 @@ import sys  # For sys.exit() and sys.stderr
 
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN
+from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK
+from shatranj.utils.constants import ALFIL, KNIGHT, PAWN
 from shatranj.domain.ai.ai_player import AIPlayer
 from shatranj.domain.core.board import Board
 
@@ -206,7 +207,9 @@ class CLI:
             return
 
         # Unknown command
-        self._error(f"Unknown command: '{raw}'. Type 'help' for the list of commands.")
+        self._error(
+            f"Unknown command: '{raw}'. Type 'help' for the list of commands."
+        )
 
     # ------------------------------------------------------------------
     # Check if a string looks like a move (algebraic notation)
@@ -251,7 +254,9 @@ class CLI:
 
         # Accept "-" or "x" as separator
         if len(text) != 5 or text[2] not in ("-", "x"):
-            self._error(f"Invalid move format: '{text}'. Expected format: e2-e4")
+            self._error(
+                f"Invalid move format: '{text}'. Expected format: e2-e4"
+            )
             return None
 
         from_str = text[0:2]  # "e2"
@@ -290,7 +295,8 @@ class CLI:
 
     def _do_play_move(self, text: str) -> None:
         """
-        Play a move entered by the user, then let the AI play if it is its turn.
+        Play a move entered by the user, then let the AI play if it is
+        its turn.
 
         Steps:
           1. Check that a game is in progress
@@ -311,7 +317,9 @@ class CLI:
 
         # Check that the right player is moving
         if move.color != self._state.current_color:
-            self._error(f"It's {self._state.current_color}'s turn, not {move.color}'s.")
+            self._error(
+                f"It's {self._state.current_color}'s turn, not {move.color}'s."
+            )
             return
 
         # Full legality check: geometry + Shah safety (no self-check)
@@ -481,7 +489,9 @@ class CLI:
         # check if the game is over after the AI's move
         self._check_game_over()
 
-    def _auto_play_ai_turns(self, max_plies: int = AUTO_PLAY_MAX_PLIES) -> None:
+    def _auto_play_ai_turns(
+        self, max_plies: int = AUTO_PLAY_MAX_PLIES
+    ) -> None:
         """
         Chain AI turns as long as the current player is controlled by an AI.
 
@@ -490,7 +500,10 @@ class CLI:
           - AI vs AI: automatically run through the entire game
         """
         plies = 0
-        while self._state is not None and self._state.current_color in self._ai_players:
+        while (
+            self._state is not None
+            and self._state.current_color in self._ai_players
+        ):
             if plies >= max_plies:
                 print(f"\nDraw by move limit ({max_plies} plies).")
                 self._state = None
@@ -516,7 +529,9 @@ class CLI:
           _do_new(["ai", "black", "minimax", "6", "material"])
         """
         if self._state is not None and not self._saved:
-            answer = input("Current game is not saved. Start a new game anyway? [y/N] ")
+            answer = input(
+                "Current game is not saved. Start a new game anyway? [y/N] "
+            )
             if answer.strip().lower() not in ("y", "yes"):
                 print("New game cancelled.")
                 return
@@ -538,7 +553,8 @@ class CLI:
 
             if algo not in ("minimax", "alphabeta", "mcts"):
                 self._error(
-                    f"Unknown algorithm: '{algo}'. Use minimax, alphabeta or mcts."
+                    f"Unknown algorithm: '{algo}'. Use minimax, "
+                    "alphabeta or mcts."
                 )
                 return
 
@@ -551,7 +567,8 @@ class CLI:
                         return
                 except ValueError:
                     self._error(
-                        f"Invalid depth: '{args[3]}'. Expected a positive integer."
+                        f"Invalid depth: '{args[3]}'. "
+                        "Expected a positive integer."
                     )
                     return
             else:
@@ -594,10 +611,13 @@ class CLI:
                 )
                 print(
                     f"New game started! AI plays WHITE "
-                    f"({algo}, depth={depth}, scoring={scoring}), you play BLACK."
+                    f"({algo}, depth={depth}, scoring={scoring}),"
+                    " you play BLACK."
                 )
             else:
-                self._error(f"Unknown color: '{args[1]}'. Use 'black' or 'white'.")
+                self._error(
+                    f"Unknown color: '{args[1]}'. Use 'black' or 'white'."
+                )
                 return
 
         else:
@@ -683,15 +703,19 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 "new [ARGS]  -  Start a new game. "
                 "Args: 'ai white', 'ai black', 'ai-vs-ai'."
             ),
-            "quit": "quit  -  Quit the program. You'll be asked to save if needed.",
-            "help": "help [CMD]  -  Show help. With CMD: show help for that command.",
-            "load": "load FILE  -  Load a saved game from FILE (.shatranj format).",
+            "quit": "quit  -  Quit the program. You'll be asked to save if "
+            "needed.",
+            "help": "help [CMD]  -  Show help. With CMD: show help for that "
+            "command.",
+            "load": "load FILE  -  Load a saved game from FILE "
+            "(.shatranj format).",
             "save": "save FILE  -  Save the current game to FILE.",
             "hint": "hint  -  Get a move suggestion from the engine.",
             "undo": "undo [N]  -  Undo the last N moves (default 1).",
             "redo": "redo [N]  -  Redo the last N undone moves (default 1).",
             "pause": "pause  -  Pause/resume the blitz timer.",
-            "set": "set PARAM=VALUE  -  Change a setting. E.g.: set debug=true",
+            "set": "set PARAM=VALUE  -  Change a setting. E.g.: set "
+            "debug=true",
         }
         if cmd in help_texts:
             print(help_texts[cmd])
@@ -756,7 +780,9 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _do_show_time(self) -> None:
         """Display remaining time (blitz mode only)."""
         # Blitz mode not yet implemented: informational message
-        print("Time display is only available in blitz mode (use -b at startup).")
+        print(
+            "Time display is only available in blitz mode (use -b at startup)."
+        )
 
     def _do_show_configuration(self) -> None:
         """Display the current configuration."""
@@ -928,7 +954,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             idx_history = lines.index("[history]")
 
             # --- Read [settings] ---
-            for line in lines[idx_settings + 1 : idx_game]:
+            for line in lines[idx_settings + 1: idx_game]:
                 if "=" in line:
                     key, _, val = line.partition("=")
                     key = key.strip().lower()
@@ -939,7 +965,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                         self._debug = val in ("true", "1", "yes")
 
             # --- Read [game] ---
-            game_lines = lines[idx_game + 1 : idx_history]
+            game_lines = lines[idx_game + 1: idx_history]
 
             # First line = current player color
             color_letter = game_lines[0].strip().upper()
@@ -978,15 +1004,15 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 rank = 7 - rank_idx
                 symbols = board_line.split()
                 if len(symbols) != 8:
-                    self._error(f"Invalid board row {rank_idx + 1}: '{board_line}'")
+                    self._error(f"Invalid board row {rank_idx + 1}: '{
+                        board_line}'")
                     return
                 for file_idx, symbol in enumerate(symbols):
                     if symbol == "_":
                         continue  # empty square
                     if symbol not in SYMBOL_MAP:
-                        self._error(
-                            f"Unknown piece symbol: '{symbol}' at row {rank_idx + 1}"
-                        )
+                        self._error(f"Unknown piece symbol: '{symbol}' at row {
+                                rank_idx + 1}")
                         return
                     piece, color = SYMBOL_MAP[symbol]
                     square = rank * 8 + file_idx
@@ -994,7 +1020,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
             # --- Read [history] ---
             history_moves = []
-            for line in lines[idx_history + 1 :]:
+            for line in lines[idx_history + 1:]:
                 # Format: "W e2-e3 B e7-e6"
                 tokens = line.split()
                 i = 0
@@ -1148,18 +1174,20 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     move = history[i]
                     color_letter = "W" if move.color == WHITE else "B"
                     from_alg = Board.square_to_algebraic(move.from_square)
-                    to_alg = Board.square_to_algebraic(move.to_square)
                     sep = "x" if move.captured_piece else "-"
-                    line_parts.append(f"{color_letter} {from_alg}{sep}{to_alg}")
+                    line_parts.append(
+                        f"{color_letter} {from_alg}{sep}" "{to_alg}"
+                    )
                     i += 1
 
                     if i < len(history):
                         move = history[i]
                         color_letter = "W" if move.color == WHITE else "B"
                         from_alg = Board.square_to_algebraic(move.from_square)
-                        to_alg = Board.square_to_algebraic(move.to_square)
                         sep = "x" if move.captured_piece else "-"
-                        line_parts.append(f"{color_letter} {from_alg}{sep}{to_alg}")
+                        line_parts.append(
+                            f"{color_letter} {from_alg}{sep}" "{to_alg}"
+                        )
                         i += 1
 
                     f.write(" ".join(line_parts) + "\n")

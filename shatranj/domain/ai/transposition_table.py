@@ -15,7 +15,16 @@ Transposition Table:
 """
 
 import random
-from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
+from shatranj.utils.constants import (
+    WHITE,
+    BLACK,
+    PAWN,
+    ROOK,
+    KNIGHT,
+    FERZ,
+    SHAH,
+    ALFIL,
+)
 
 # --- Flags for transposition table entries ---
 EXACT = 0  # exact score (all children explored)
@@ -100,7 +109,8 @@ class ZobristHasher:
 
         # remove captured piece if any
         if captured_piece is not None and captured_color is not None:
-            # captured_piece may be a tuple (piece_type, color) or just a string
+            # captured_piece may be a tuple (piece_type, color) or just a
+            # string
             if isinstance(captured_piece, tuple):
                 actual_piece = captured_piece[0]
                 actual_color = captured_piece[1]

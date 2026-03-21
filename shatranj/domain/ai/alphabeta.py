@@ -2,7 +2,6 @@
 alphabeta.py - Minimax with Alpha-Beta pruning + Transposition Table
 """
 
-
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine

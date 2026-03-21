@@ -3,7 +3,8 @@ from types import SimpleNamespace
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN, FERZ, KNIGHT
+from shatranj.utils.constants import WHITE, BLACK, SHAH
+from shatranj.utils.constants import ROOK, PAWN, FERZ, KNIGHT
 
 
 def make_validator(allowed_moves: set[tuple[int, int]]):
@@ -65,7 +66,8 @@ def test_generate_pseudo_legal_moves_aggregates_all_generators():
     moves = engine.generate_pseudo_legal_moves(board, WHITE)
     assert len(moves) == 6
     assert all(m == move for m in moves)
-    assert called_methods == ["pawn", "rook", "knight", "alfil", "ferz", "shah"]
+    assert called_methods == ["pawn", "rook", "knight",
+                              "alfil", "ferz", "shah"]
 
 
 def test_generate_legal_moves_filters_with_validator():

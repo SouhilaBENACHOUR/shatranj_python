@@ -9,7 +9,16 @@ Three evaluation functions:
 
 from shatranj.domain.core.board import Board
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
+from shatranj.utils.constants import (
+    WHITE,
+    BLACK,
+    PAWN,
+    ROOK,
+    KNIGHT,
+    FERZ,
+    SHAH,
+    ALFIL,
+)
 
 # Material values
 PIECE_VALUES = {
@@ -547,7 +556,8 @@ class Evaluator:
         score = self._eval_positional(board, color)
 
         # --- Mobility ---
-        # count pieces that have moves available (approximation without full legal gen)
+        # count pieces that have moves available (approximation without full
+        # legal gen)
         own_mobility = self._count_mobility(board, color)
         opp_mobility = self._count_mobility(board, opponent)
         score += (own_mobility - opp_mobility) * 0.05

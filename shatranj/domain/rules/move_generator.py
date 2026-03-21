@@ -1,6 +1,14 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
+from shatranj.utils.constants import (
+    WHITE,
+    PAWN,
+    ROOK,
+    KNIGHT,
+    FERZ,
+    SHAH,
+    ALFIL,
+)
 from shatranj.utils.constants import BOARD_SIZE, NUM_SQUARES
 
 
@@ -32,7 +40,9 @@ class MoveGenerator:
                     continue
                 target = board.get_piece_at(diag)
                 if target is not None and target[1] != color:
-                    moves.append(Move(sq, diag, PAWN, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, diag, PAWN, color, captured_piece=target[0])
+                    )
 
         return moves
 
@@ -52,7 +62,8 @@ class MoveGenerator:
                 cur = sq + step
                 while 0 <= cur < NUM_SQUARES:
                     # stop horizontally if file wraps
-                    if step in (1, -1) and (cur // BOARD_SIZE) != (sq // BOARD_SIZE):
+                    same_rank = (cur // BOARD_SIZE) == (sq // BOARD_SIZE)
+                    if step in (1, -1) and not same_rank:
                         break
 
                     target = board.get_piece_at(cur)
@@ -61,7 +72,13 @@ class MoveGenerator:
                     else:
                         if target[1] != color:
                             moves.append(
-                                Move(sq, cur, ROOK, color, captured_piece=target[0])
+                                Move(
+                                    sq,
+                                    cur,
+                                    ROOK,
+                                    color,
+                                    captured_piece=target[0],
+                                )
                             )
                         break  # blocked
 
@@ -105,7 +122,8 @@ class MoveGenerator:
                 # Check 2 : anti-wrapping
                 # A knight jump cannot "cross" the left/right edge of the board
                 # Example : knight on h4 (sq=31), delta=+10 → to_sq=41
-                #           rank=3→rank=5, file=7→file=1 : file diff = |7-1|=6 → INVALID
+                #           rank=3→rank=5, file=7→file=1 : file diff = |7-1|=6
+                # → INVALID
                 to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
                 # The file difference MUST be 1 or 2 (never 6 or 7)
@@ -123,7 +141,9 @@ class MoveGenerator:
                     # Square occupied by an enemy → capture
                     # target[1] = color of the target piece
                     moves.append(
-                        Move(sq, to_sq, KNIGHT, color, captured_piece=target[0])
+                        Move(
+                            sq, to_sq, KNIGHT, color, captured_piece=target[0]
+                        )
                     )
                 # If target[1] == color → friendly piece, skip
 
@@ -165,9 +185,11 @@ class MoveGenerator:
                     continue
 
                 # Check 2 : anti-wrapping
-                # exactly like the knight, a diagonal step cannot cross the board edge
+                # exactly like the knight, a diagonal step cannot cross the
+                # board edge
                 # Example : ferz on h4 (sq=31), delta=+9 → to_sq=40
-                #           rank=3→rank=5, file=7→file=0 : file diff = |7-0|=7 → INVALID
+                #           rank=3→rank=5, file=7→file=0 : file diff = |7-0|=7
+                # → INVALID
                 # a valid diagonal step always changes file by exactly 1
                 to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
@@ -184,7 +206,9 @@ class MoveGenerator:
                     moves.append(Move(sq, to_sq, FERZ, color))
                 elif target[1] != color:
                     # Square occupied by an enemy → capture
-                    moves.append(Move(sq, to_sq, FERZ, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, to_sq, FERZ, color, captured_piece=target[0])
+                    )
                 # If target[1] == color → friendly piece, skip
 
         return moves
@@ -229,10 +253,12 @@ class MoveGenerator:
                 # Check 2 : anti-wrapping
                 # one step can never change the file by more than 1
                 # Example : shah on h4 (sq=31), delta=+1 → to_sq=32
-                #           rank=3→rank=4, file=7→file=0 : file diff = |7-0|=7 → INVALID
+                # rank=3→rank=4, file=7→file=0 : file diff =|7-0|=7
+                # → INVALID
                 to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
-                # The file difference MUST be 0 (vertical) or 1 (diagonal/horizontal)
+                # The file difference MUST be 0 (vertical) or 1
+                # (diagonal/horizontal)
                 # If it's 7 → board wrap → reject
                 if abs(to_file - frm_file) > 1:
                     continue
@@ -245,7 +271,9 @@ class MoveGenerator:
                     moves.append(Move(sq, to_sq, SHAH, color))
                 elif target[1] != color:
                     # Square occupied by an enemy → capture
-                    moves.append(Move(sq, to_sq, SHAH, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, to_sq, SHAH, color, captured_piece=target[0])
+                    )
                 # If target[1] == color → friendly piece, skip
 
         return moves
@@ -288,9 +316,11 @@ class MoveGenerator:
                 # Check 2 : anti-wrapping
                 # a diagonal jump of 2 must always change the file by exactly 2
                 # Example : alfil on g4 (sq=30), delta=+18 → to_sq=48
-                #           rank=3→rank=6, file=6→file=0 : file diff = |6-0|=6 → INVALID
+                #           rank=3→rank=6, file=6→file=0 : file diff = |6-0|=6
+                # → INVALID
                 # Example : alfil on h4 (sq=31), delta=+14 → to_sq=45
-                #           rank=3→rank=5, file=7→file=5 : file diff = |7-5|=2 → VALID
+                #           rank=3→rank=5, file=7→file=5 : file diff = |7-5|=2
+                # → VALID
                 to_rank, to_file = divmod(to_sq, BOARD_SIZE)
 
                 # The file difference MUST be exactly 2

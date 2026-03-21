@@ -26,7 +26,6 @@ import sys
 
 from shatranj.config import ShatranjConfig
 
-
 VERSION = "0.1.0"
 
 
@@ -41,16 +40,23 @@ def build_argument_parser() -> argparse.ArgumentParser:
         prog="shatranj",
         description="Shatranj - Indian Chess game",
         epilog="Examples:\n"
-        "  shatranj                                       Start a new game (CLI)\n"
-        "  shatranj -a B                                  AI plays BLACK (alphabeta)\n"
-        "  shatranj -a W --ai-mode minimax                AI plays WHITE with minimax\n"
-        "  shatranj -a B --ai-mode mcts                   AI plays BLACK with MCTS\n"
+        "  shatranj                                       Start a new game"
+        "(CLI)\n"
+        "  shatranj -a B                                  AI plays BLACK "
+        "(alphabeta)\n"
+        "  shatranj -a W --ai-mode minimax                AI plays WHITE with"
+        "minimax\n"
+        "  shatranj -a B --ai-mode mcts                   AI plays BLACK with"
+        "MCTS\n"
         "  shatranj -a W --ai-mode minimax --ai-depth 6   Minimax depth 6\n"
         "  shatranj -a W --ai-mode alphabeta --ai-scoring positional"
         "  shatranj -a W --ai-minimax-scoring material    Simple evaluation\n"
-        "  shatranj -a W --ai-minimax-scoring positional  Positional evaluation\n"
-        "  shatranj -a W --ai-minimax-scoring advanced    Advanced evaluation\n"
-        "  shatranj -b -t 15                              Blitz game (15 min)\n",
+        "  shatranj -a W --ai-minimax-scoring positional  Positional "
+        "evaluation\n"
+        "  shatranj -a W --ai-minimax-scoring advanced    Advanced evaluation"
+        "\n"
+        "  shatranj -b -t 15                              Blitz game (15 min)"
+        "\n",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -151,7 +157,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--contest",
         action="store_true",
         default=False,
-        help="Contest mode: read a position from a file and output the best move",
+        help="Contest mode: read a position from a file and output the best "
+        "move",
     )
 
     # positional: save file
@@ -174,6 +181,7 @@ def main() -> int:
     """
     # F3 — Internationalisation (doit être fait EN PREMIER)
     from shatranj.i18n import setup as i18n_setup
+
     i18n_setup()
     # ------------------------------------------------------------------
     # F2 — Load (or create) the configuration file
@@ -191,10 +199,16 @@ def main() -> int:
 
     verbose = cfg.get_bool("verbose")
     debug = cfg.get_bool("debug")
-    ai_mode = args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
-    ai_depth = args.ai_depth if args.ai_depth is not None else cfg.get_int("ai-depth")
+    ai_mode = (
+        args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
+    )
+    ai_depth = (
+        args.ai_depth if args.ai_depth is not None else cfg.get_int("ai-depth")
+    )
     ai_scoring = (
-        args.ai_scoring if args.ai_scoring is not None else cfg.get_str("ai-scoring")
+        args.ai_scoring
+        if args.ai_scoring is not None
+        else cfg.get_str("ai-scoring")
     )
 
     # -t without -b: warning
@@ -228,13 +242,17 @@ def main() -> int:
     if args.ai:
         ai_color = args.ai.upper()
         if ai_color not in ("W", "B"):
-            print(f"Error: invalid color '{args.ai}'. Use W or B.", file=sys.stderr)
+            print(
+                f"Error: invalid color '{args.ai}'. Use W or B.",
+                file=sys.stderr,
+            )
             return 1
 
         algo = ai_mode.lower()
         if algo not in ("minimax", "alphabeta", "mcts"):
             print(
-                f"Error: unknown algorithm '{algo}'. Use minimax, alphabeta or mcts.",
+                f"Error: unknown algorithm '{algo}'. Use minimax, "
+                "alphabeta or mcts.",
                 file=sys.stderr,
             )
             return 1

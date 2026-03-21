@@ -27,7 +27,9 @@ START_BACK_RANK = (ROOK, KNIGHT, ALFIL, FERZ, SHAH, ALFIL, KNIGHT, ROOK)
 
 class Board:
     def __init__(self, setup: bool = True) -> None:
-        self._boards = {(piece, color): 0 for piece in PIECES for color in COLORS}
+        self._boards = {
+            (piece, color): 0 for piece in PIECES for color in COLORS
+        }
         if setup:
             self.setup_starting_position()
 
@@ -53,7 +55,9 @@ class Board:
             self.set_piece(piece, WHITE, file_idx)
             self.set_piece(PAWN, WHITE, file_idx + BOARD_SIZE)
             self.set_piece(piece, BLACK, file_idx + (NUM_SQUARES - BOARD_SIZE))
-            self.set_piece(PAWN, BLACK, file_idx + (NUM_SQUARES - 2 * BOARD_SIZE))
+            self.set_piece(
+                PAWN, BLACK, file_idx + (NUM_SQUARES - 2 * BOARD_SIZE)
+            )
 
     def set_piece(self, piece: str, color: str, square: int) -> None:
         self.clear_piece(square)

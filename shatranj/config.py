@@ -21,6 +21,7 @@ File format:
   ai-scoring = advanced
   language = en
 """
+
 import configparser
 import sys
 from pathlib import Path
@@ -70,6 +71,7 @@ language = en
 # ---------------------------------------------------------------------------
 # Main class
 # ---------------------------------------------------------------------------
+
 
 class ShatranjConfig:
     """

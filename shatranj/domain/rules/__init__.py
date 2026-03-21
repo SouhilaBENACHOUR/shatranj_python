@@ -20,7 +20,8 @@ Classe MoveGenerator  :
             Génère tous les coups pseudo-légaux (respecte mouvements pièces)
 
         - generate_legal_moves(board, color) -> List[Move]
-            Génère uniquement les coups légaux (filtre ceux qui exposent le Shah)
+            Génère uniquement les coups légaux (filtre ceux qui exposent
+            le Shah)
 
         - generate_pawn_moves(board, color) -> List[Move]
             Pions : 1 case avant + captures diagonales + promotions
@@ -55,7 +56,8 @@ Classe MoveValidator:
             (mais ne teste PAS si le Shah est en échec après)
 
         - is_legal_move(board, move) -> bool
-            Vérifie is_valid_move() ET que le coup ne laisse pas le Shah en échec
+            Vérifie is_valid_move() ET que le coup ne laisse pas le Shah
+            en échec
 
         - would_be_in_check(board, move, color) -> bool
             Simule le coup et teste si le Shah de 'color' serait en échec

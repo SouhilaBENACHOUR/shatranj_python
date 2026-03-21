@@ -7,6 +7,7 @@ Role: builds the main window with a welcome screen, menu bar, board widget,
       and right panel. Handles all game logic callbacks.
 
 """
+
 import builtins
 import gi
 
@@ -26,6 +27,7 @@ from shatranj.utils.constants import WHITE, BLACK  # noqa: E402
 
 import threading  # noqa: E402
 import time  # noqa: E402
+
 _ = builtins.__dict__.get("_", lambda x: x)
 
 
@@ -84,7 +86,9 @@ class NewGameDialog(Gtk.Dialog):
 
         # --- AI color (only for Human vs AI) ---
 
-        self._color_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self._color_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=8
+        )
 
         color_label = Gtk.Label(label="AI plays")
 
@@ -102,7 +106,9 @@ class NewGameDialog(Gtk.Dialog):
 
         # --- AI algorithm ---
 
-        self._algo_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self._algo_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=8
+        )
 
         algo_label = Gtk.Label(label="AI Algorithm")
 
@@ -467,7 +473,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._stop_timer(reset=True)
         self._timer_started_at = time.monotonic()
-        self._timer_source_id = GLib.timeout_add_seconds(1, self._on_timer_tick)
+        self._timer_source_id = GLib.timeout_add_seconds(
+            1, self._on_timer_tick
+        )
         self._on_timer_tick()
 
     def _stop_timer(self, reset: bool = False) -> None:
@@ -654,7 +662,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         # Update board display and clear history
 
-        self._board_widget.set_board(self._state.board, self._state.current_color)
+        self._board_widget.set_board(
+            self._state.board, self._state.current_color
+        )
 
         self._update_history()
 
@@ -738,13 +748,15 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._state.apply_move(move)
 
-        self._board_widget.set_board(self._state.board, self._state.current_color)
+        self._board_widget.set_board(
+            self._state.board, self._state.current_color
+        )
 
         self._update_history()
 
         self._check_game_over()
-
-        return False  # GLib.idle_add requires returning False to stop repeating
+        # GLib.idle_add requires returning False to stop repeating
+        return False
 
     # ------------------------------------------------------------------
 
@@ -891,7 +903,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._state.undo()
 
-        self._board_widget.set_board(self._state.board, self._state.current_color)
+        self._board_widget.set_board(
+            self._state.board, self._state.current_color
+        )
 
         self._update_history()
 
@@ -946,7 +960,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._state.apply_move(move)
 
-        self._board_widget.set_board(self._state.board, self._state.current_color)
+        self._board_widget.set_board(
+            self._state.board, self._state.current_color
+        )
 
         self._update_history()
 

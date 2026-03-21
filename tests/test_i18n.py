@@ -14,7 +14,8 @@ import builtins
 import gettext
 from unittest.mock import patch
 
-from shatranj.i18n import _detect_language, setup, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
+from shatranj.i18n import _detect_language, setup
+from shatranj.i18n import SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
 
 # ---------------------------------------------------------------------------
 # _detect_language()
@@ -87,7 +88,9 @@ class TestDetectLanguage:
 class TestSetup:
     def test_setup_returns_translations_object(self):
         result = setup("en")
-        assert isinstance(result, (gettext.GNUTranslations, gettext.NullTranslations))
+        assert isinstance(
+            result, (gettext.GNUTranslations, gettext.NullTranslations)
+        )
 
     def test_setup_installs_builtin(self):
         setup("en")
@@ -106,7 +109,9 @@ class TestSetup:
     def test_setup_french_translates_welcome(self):
         setup("fr")
         _ = builtins.__dict__["_"]
-        result = _("Welcome to Shatranj! Type 'help' to see available commands.")
+        result = _(
+            "Welcome to Shatranj! Type 'help' to see available commands."
+        )
         assert "Bienvenue" in result
 
     def test_setup_unsupported_language_warns(self, capsys):
@@ -122,7 +127,9 @@ class TestSetup:
 
     def test_setup_forced_language(self):
         result = setup(language="fr")
-        assert isinstance(result, (gettext.GNUTranslations, gettext.NullTranslations))
+        assert isinstance(
+            result, (gettext.GNUTranslations, gettext.NullTranslations)
+        )
 
     def test_setup_none_autodetects(self, monkeypatch):
         monkeypatch.setenv("LANG", "fr_FR.UTF-8")
@@ -139,7 +146,8 @@ class TestSetup:
         result = setup("fr")
         assert isinstance(result, gettext.NullTranslations)
 
-    def test_null_translations_returns_string_unchanged(self, tmp_path, monkeypatch):
+    def test_null_translations_returns_string_unchanged(
+            self, tmp_path, monkeypatch):
         import shatranj.i18n as i18n_module
 
         monkeypatch.setattr(i18n_module, "LOCALES_DIR", tmp_path)

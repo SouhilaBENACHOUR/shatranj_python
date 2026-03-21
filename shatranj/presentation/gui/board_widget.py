@@ -39,7 +39,8 @@ class BoardWidget(Gtk.DrawingArea):
     Widget that draws the Shatranj board and handles user interaction.
 
     Interaction flow (click-to-move):
-      1. User clicks a square with a piece → piece selected, valid moves highlighted
+      1. User clicks a square with a piece → piece selected, valid moves
+        highlighted
       2. User clicks a highlighted square  → move played
       3. User clicks elsewhere             → selection cleared
 
@@ -229,7 +230,8 @@ class BoardWidget(Gtk.DrawingArea):
             if piece is not None:
                 handle = self._pieces.get(piece)
                 if handle is not None:
-                    has_size, svg_w, svg_h = handle.get_intrinsic_size_in_pixels()
+                    intrinsic = handle.get_intrinsic_size_in_pixels()
+                    has_size, svg_w, svg_h = intrinsic
                     if not has_size or svg_w == 0 or svg_h == 0:
                         svg_w, svg_h = 45.0, 45.0
                     scale = sq / max(svg_w, svg_h)
@@ -328,7 +330,9 @@ class BoardWidget(Gtk.DrawingArea):
 
         self._valid_moves = [
             m
-            for m in self._engine.generate_legal_moves(self._board, self._current_color)
+            for m in self._engine.generate_legal_moves(
+                self._board, self._current_color
+            )
             if m.from_square == square
         ]
         self.queue_draw()

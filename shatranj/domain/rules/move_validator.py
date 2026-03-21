@@ -1,6 +1,7 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH, NUM_SQUARES
+from shatranj.utils.constants import PAWN, ROOK, KNIGHT, ALFIL
+from shatranj.utils.constants import FERZ, SHAH, NUM_SQUARES
 from shatranj.domain.rules.piece_validator import (
     PieceValidator,
     PawnValidator,

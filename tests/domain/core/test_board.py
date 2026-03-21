@@ -8,8 +8,8 @@ def test_get_and_place_piece():
     board = Board()
     # make sure square 0 is empty by removing whatever is there
     board.remove_piece(0)
-    assert board.get_piece_at(0) is None  # should return None for an empy square
-
+    # should return None for an empy square
+    assert board.get_piece_at(0) is None
     # white rook on square 0
     board.place_piece(ROOK, WHITE, 0)
     assert board.get_piece_at(0) == (ROOK, WHITE)

@@ -141,7 +141,13 @@ class Minimax:
         distance = abs(to_rank - from_rank) + abs(to_file - from_file)
         is_capture = 1 if move.captured_piece is not None else 0
 
-        return (is_capture, mobility_after, distance, move.to_square, -move.from_square)
+        return (
+            is_capture,
+            mobility_after,
+            distance,
+            move.to_square,
+            -move.from_square,
+        )
 
     def _minimax(
         self,
@@ -162,7 +168,9 @@ class Minimax:
         key            -> current Zobrist hash key
         """
         # --- Transposition Table lookup ---
-        tt_score, should_use = self._tt.get(key, depth, float("-inf"), float("+inf"))
+        tt_score, should_use = self._tt.get(
+            key, depth, float("-inf"), float("+inf")
+        )
         if should_use:
             return tt_score
 

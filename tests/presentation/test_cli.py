@@ -84,13 +84,17 @@ class TestGameState:
     def test_apply_clears_redo_stack(self):
         """Jouer un nouveau coup après undo efface le redo stack."""
 
-        move1 = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
+        move1 = Move(
+            from_square=12, to_square=20, piece_type=PAWN, color=WHITE
+        )
         self.state.apply_move(move1)
         self.state.undo()
         assert self.state.can_redo()
 
         # On joue un coup différent
-        move2 = Move(from_square=11, to_square=19, piece_type=PAWN, color=WHITE)
+        move2 = Move(
+            from_square=11, to_square=19, piece_type=PAWN, color=WHITE
+        )
         self.state.apply_move(move2)
 
         # Le redo stack doit être vide
@@ -115,7 +119,7 @@ class TestDisplay:
     """Tests pour l'affichage ASCII du plateau."""
 
     def test_board_to_string_has_8_rows(self):
-        """Le plateau affiché a bien 8 lignes de pièces + 1 ligne de colonnes."""
+        """The displayed board has 8 piece rows and 1 column label row."""
         from shatranj.domain.core.board import Board
         from shatranj.presentation.cli.display import board_to_string
 
@@ -225,7 +229,8 @@ class TestMoveValidatorIntegration:
         assert self.validator.is_valid_move(self.board, move)
 
     def test_pawn_e2_e4_is_invalid(self):
-        """Un pion ne peut pas avancer de 2 cases au Shatranj (pas de double pas)."""
+        """Un pion ne peut pas avancer de 2 cases au Shatranj (pas de double
+        pas)."""
 
         move = Move(from_square=12, to_square=28, piece_type=PAWN, color=WHITE)
         assert not self.validator.is_valid_move(self.board, move)

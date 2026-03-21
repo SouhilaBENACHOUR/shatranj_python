@@ -131,7 +131,8 @@ Classe GameHistoryManager :
 
     Règles spéciales  :
         - Seuls les joueurs humains peuvent undo
-        - Si undo : annule coup humain + tous coups IA jusqu'au coup humain précédent
+        - Si undo : annule coup humain + tous coups IA jusqu'au coup humain
+        précédent
         - Si coup différent après undo : efface l'historique futur
 
 Relations entre classes :

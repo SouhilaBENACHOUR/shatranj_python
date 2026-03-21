@@ -106,7 +106,8 @@ Validation robuste :
 # from shatranj.data.persistence.game_repository import GameRepository
 # from shatranj.data.persistence.config_repository import ConfigRepository
 # from shatranj.data.persistence.save_parser import SaveParser
-# from shatranj.data.persistence.scoreboard_repository import ScoreboardRepository
+# from shatranj.data.persistence.scoreboard_repository import
+# ScoreboardRepository
 
 __all__ = [
     # Repositories
