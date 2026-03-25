@@ -629,6 +629,45 @@ class CLI:
         # If the current player is controlled by an AI, it plays immediately
         self._auto_play_ai_turns()
 
+
+    def _do_contest(
+            self,
+            path: str,
+            algo: str = "alphabeta",
+            depth: int = 4,
+            scoring: str = "advanced",
+        ) -> int:
+            # Redirects stdout to /dev/null during loading
+            import os
+            devnull = open(os.devnull, "w")
+            old_stdout = sys.stdout
+            sys.stdout = devnull
+
+            self._do_load([path])
+
+            sys.stdout = old_stdout
+            devnull.close()
+
+            if self._state is None:
+                return 1
+
+            ai = AIPlayer(
+                color=self._state.current_color,
+                depth=depth,
+                algorithm=algo,
+                scoring=scoring,
+            )
+            move = ai.choose_move(self._state.board)
+            if move is None:
+                print("no_move")
+                return 0
+
+            frm = Board.square_to_algebraic(move.from_square)
+            to = Board.square_to_algebraic(move.to_square)
+            sep = "x" if move.captured_piece else "-"
+            print(f"{frm}{sep}{to}")
+            return 0    
+
     def _do_quit(self, args: list[str]) -> None:
         """
         Quit the program.

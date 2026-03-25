@@ -219,6 +219,23 @@ def main() -> int:
             file=sys.stderr,
         )
 
+    # --- Contest mode (F6) ---
+    if args.contest:
+        if not args.savefile:
+            print(
+                "Error: contest mode requires a position file.",
+                file=sys.stderr,
+            )
+            return 1
+        from shatranj.presentation.cli.cli import CLI
+        cli = CLI(verbose=False, debug=False)
+        return cli._do_contest(
+            path=args.savefile,
+            algo=ai_mode.lower(),
+            depth=ai_depth,
+            scoring=ai_scoring.lower(),
+        )
+
     # --- Launch interface ---
 
     if args.gui:
