@@ -1007,7 +1007,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
             sep = "x" if move.captured_piece else "-"
 
-            label = Gtk.Label(label=f"{i+1}. {color} {frm}{sep}{to}")
+            label = Gtk.Label(label=f"{i + 1}. {color} {frm}{sep}{to}")
 
             label.set_halign(Gtk.Align.START)
 

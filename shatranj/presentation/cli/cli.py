@@ -939,13 +939,13 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
         try:
             with open(path, "r", encoding="ascii") as f:
-                lines = [line.strip() for line in f.readlines()]
+                raw = f.read()
         except OSError as err:
             self._error(f"Could not open '{path}': {err}")
             return
 
         # Remove comments and empty lines
-        lines = [line for line in lines if line and not line.startswith("#")]
+        lines = self._strip_comments(raw)
 
         try:
             # --- Find sections ---
@@ -1011,8 +1011,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     if symbol == "_":
                         continue  # empty square
                     if symbol not in SYMBOL_MAP:
-                        self._error(f"Unknown piece symbol: '{symbol}' at row {
-                                rank_idx + 1}")
+                        self._error(
+                            f"Unknown piece symbol: '{symbol}'"
+                            f" at row {rank_idx + 1}"
+                        )
                         return
                     piece, color = SYMBOL_MAP[symbol]
                     square = rank * 8 + file_idx
@@ -1255,6 +1257,59 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         if state < len(options):
             return options[state]
         return None
+
+    # ------------------------------------------------------------------
+    # Comment stripping (F21)
+    # ------------------------------------------------------------------
+
+    def _strip_comments(self, text: str) -> list[str]:
+        """
+        Remove comments from a save file and return clean non-empty lines.
+
+        Two comment types (F21):
+          - Inline  : from '#' to end of line
+          - Block   : from '{' to '}' (may span multiple lines)
+        """
+        result = []
+        i = 0
+        current_line: list[str] = []
+
+        while i < len(text):
+            ch = text[i]
+
+            # Block comment: skip everything until matching '}'
+            if ch == "{":
+                i += 1
+                while i < len(text) and text[i] != "}":
+                    i += 1
+                # skip the closing '}'
+                i += 1
+                continue
+
+            # Inline comment: skip rest of line
+            if ch == "#":
+                while i < len(text) and text[i] != "\n":
+                    i += 1
+                continue
+
+            # End of line: flush the current line buffer
+            if ch == "\n":
+                line = "".join(current_line).strip()
+                if line:
+                    result.append(line)
+                current_line = []
+                i += 1
+                continue
+
+            current_line.append(ch)
+            i += 1
+
+        # Flush last line if file doesn't end with '\n'
+        line = "".join(current_line).strip()
+        if line:
+            result.append(line)
+
+        return result
 
     # ------------------------------------------------------------------
     # Error display (F10 of the specification)

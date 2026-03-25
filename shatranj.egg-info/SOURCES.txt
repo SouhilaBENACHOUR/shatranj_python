@@ -42,4 +42,6 @@ shatranj/presentation/gui/board_widget.py
 shatranj/presentation/gui/window.py
 shatranj/utils/__init__.py
 shatranj/utils/constants.py
+tests/test_config.py
+tests/test_i18n.py
 tests/test_smokeit.py
