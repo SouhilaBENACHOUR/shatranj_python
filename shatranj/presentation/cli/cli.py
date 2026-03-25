@@ -208,7 +208,8 @@ class CLI:
 
         # Unknown command
         self._error(
-            f"Unknown command: '{raw}'. Type 'help' for the list of commands."
+            f"Unknown command: '{raw}'."
+            "Type 'help' for the list of commands."
         )
 
     # ------------------------------------------------------------------
@@ -255,7 +256,8 @@ class CLI:
         # Accept "-" or "x" as separator
         if len(text) != 5 or text[2] not in ("-", "x"):
             self._error(
-                f"Invalid move format: '{text}'. Expected format: e2-e4"
+                f"Invalid move format: '{text}'."
+                "Expected format: e2-e4"
             )
             return None
 
@@ -318,7 +320,8 @@ class CLI:
         # Check that the right player is moving
         if move.color != self._state.current_color:
             self._error(
-                f"It's {self._state.current_color}'s turn, not {move.color}'s."
+                f"It's {self._state.current_color}'s turn,"
+                " not {move.color}'s."
             )
             return
 
@@ -530,7 +533,8 @@ class CLI:
         """
         if self._state is not None and not self._saved:
             answer = input(
-                "Current game is not saved. Start a new game anyway? [y/N] "
+                "Current game is not saved."
+                "Start a new game anyway? [y/N] "
             )
             if answer.strip().lower() not in ("y", "yes"):
                 print("New game cancelled.")
@@ -553,8 +557,8 @@ class CLI:
 
             if algo not in ("minimax", "alphabeta", "mcts"):
                 self._error(
-                    f"Unknown algorithm: '{algo}'. Use minimax, "
-                    "alphabeta or mcts."
+                    f"Unknown algorithm: '{algo}'."
+                    "Use minimax, " "alphabeta or mcts."
                 )
                 return
 
@@ -616,7 +620,8 @@ class CLI:
                 )
             else:
                 self._error(
-                    f"Unknown color: '{args[1]}'. Use 'black' or 'white'."
+                    f"Unknown color: '{args[1]}'."
+                    "Use 'black' or 'white'."
                 )
                 return
 
@@ -629,44 +634,44 @@ class CLI:
         # If the current player is controlled by an AI, it plays immediately
         self._auto_play_ai_turns()
 
-
     def _do_contest(
-            self,
-            path: str,
-            algo: str = "alphabeta",
-            depth: int = 4,
-            scoring: str = "advanced",
-        ) -> int:
-            # Redirects stdout to /dev/null during loading
-            import os
-            devnull = open(os.devnull, "w")
-            old_stdout = sys.stdout
-            sys.stdout = devnull
+        self,
+        path: str,
+        algo: str = "alphabeta",
+        depth: int = 4,
+        scoring: str = "advanced",
+    ) -> int:
+        # Redirects stdout to /dev/null during loading
+        import os
 
-            self._do_load([path])
+        devnull = open(os.devnull, "w")
+        old_stdout = sys.stdout
+        sys.stdout = devnull
 
-            sys.stdout = old_stdout
-            devnull.close()
+        self._do_load([path])
 
-            if self._state is None:
-                return 1
+        sys.stdout = old_stdout
+        devnull.close()
 
-            ai = AIPlayer(
-                color=self._state.current_color,
-                depth=depth,
-                algorithm=algo,
-                scoring=scoring,
-            )
-            move = ai.choose_move(self._state.board)
-            if move is None:
-                print("no_move")
-                return 0
+        if self._state is None:
+            return 1
 
-            frm = Board.square_to_algebraic(move.from_square)
-            to = Board.square_to_algebraic(move.to_square)
-            sep = "x" if move.captured_piece else "-"
-            print(f"{frm}{sep}{to}")
-            return 0    
+        ai = AIPlayer(
+            color=self._state.current_color,
+            depth=depth,
+            algorithm=algo,
+            scoring=scoring,
+        )
+        move = ai.choose_move(self._state.board)
+        if move is None:
+            print("no_move")
+            return 0
+
+        frm = Board.square_to_algebraic(move.from_square)
+        to = Board.square_to_algebraic(move.to_square)
+        sep = "x" if move.captured_piece else "-"
+        print(f"{frm}{sep}{to}")
+        return 0
 
     def _do_quit(self, args: list[str]) -> None:
         """
@@ -742,19 +747,22 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 "new [ARGS]  -  Start a new game. "
                 "Args: 'ai white', 'ai black', 'ai-vs-ai'."
             ),
-            "quit": "quit  -  Quit the program. You'll be asked to save if "
-            "needed.",
+            "quit": (
+                "quit  -  Quit the program. You'll be asked to save if needed."
+            ),
             "help": "help [CMD]  -  Show help. With CMD: show help for that "
             "command.",
-            "load": "load FILE  -  Load a saved game from FILE "
-            "(.shatranj format).",
+            "load": (
+                "load FILE  -  Load a saved game from FILE (.shatranj format)."
+            ),
             "save": "save FILE  -  Save the current game to FILE.",
             "hint": "hint  -  Get a move suggestion from the engine.",
             "undo": "undo [N]  -  Undo the last N moves (default 1).",
             "redo": "redo [N]  -  Redo the last N undone moves (default 1).",
             "pause": "pause  -  Pause/resume the blitz timer.",
-            "set": "set PARAM=VALUE  -  Change a setting. E.g.: set "
-            "debug=true",
+            "set": (
+                "set PARAM=VALUE  -  Change a setting. E.g.: set debug=true"
+            )
         }
         if cmd in help_texts:
             print(help_texts[cmd])
@@ -820,7 +828,8 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         """Display remaining time (blitz mode only)."""
         # Blitz mode not yet implemented: informational message
         print(
-            "Time display is only available in blitz mode (use -b at startup)."
+            "Time display is only available in blitz mode "
+            "(use -b at startup)."
         )
 
     def _do_show_configuration(self) -> None:
