@@ -43,7 +43,7 @@ class NetworkGame:
         if turn_hint:
             self.current_turn = turn_hint
 
-        if msg.command == Response.AUTH_OK:
+        if msg.command == Response.CONN_OK:
             # Extraire la couleur du joueur
             for arg in msg.args:
                 if arg.startswith("color="):

@@ -1,3 +1,4 @@
+
 from types import SimpleNamespace
 
 from shatranj.domain.core.board import Board

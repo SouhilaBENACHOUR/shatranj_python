@@ -35,7 +35,7 @@ def demo_client(name, moves):
         nonlocal my_color, game_started
         print(f"[{name}] 📨 {msg.command}: {msg.args}")
 
-        if msg.command == "AUTH_OK":
+        if msg.command == "CONN_OK":
             for arg in msg.args:
                 if arg.startswith("color="):
                     my_color = arg.split("=")[1]
