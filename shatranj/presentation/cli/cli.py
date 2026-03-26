@@ -175,7 +175,7 @@ class CLI:
             return False
 
         winner = BLACK if current == WHITE else WHITE
-        print(_("Time out! {winner} wins!").format(winner=winner))
+        print(f"Time out! {winner} wins!")
         self._state = None
         self._stop_turn_timer()
         return True
@@ -394,7 +394,7 @@ class CLI:
           7. Let the AI play if it is its turn
         """
         if self._state is None:
-            self._error(_("No game in progress. Type 'new' to start a game."))
+            self._error("No game in progress. Type 'new' to start a game.")
             return
 
         move = self._parse_move(text)
@@ -447,7 +447,7 @@ class CLI:
     def _check_game_over(self) -> bool:
         """
         Check if the game is over after a move.
-quit
+
         Returns True if the game is finished, False otherwise.
 
         Possible outcomes in Shatranj:
@@ -596,9 +596,7 @@ quit
 
         # display the updated board
         print_board(self._state.board)
-        print(_("\nIt's now {color}'s turn.").format(
-            color=self._state.current_color
-        ))
+        print(f"\nIt's now {self._state.current_color}'s turn.")
 
         # check if the game is over after the AI's move
         if self._check_game_over():
@@ -622,11 +620,7 @@ quit
             and self._state.current_color in self._ai_players
         ):
             if plies >= max_plies:
-                print(
-                    _("\nDraw by move limit ({max_plies} plies).").format(
-                        max_plies=max_plies
-                    )
-                )
+                print(f"\nDraw by move limit ({max_plies} plies).")
                 self._state = None
                 self._stop_turn_timer()
                 return
@@ -667,7 +661,7 @@ quit
         if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
             self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=2)
             self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=2)
-            print(_("New game started! AI plays WHITE and BLACK."))
+            print("New game started! AI plays WHITE and BLACK.")
 
         elif len(args) >= 2 and args[0].lower() == "ai":
             ai_color = args[1].upper()
@@ -675,10 +669,10 @@ quit
             # optional algorithm as 3rd argument (default: alphabeta)
             algo = args[2].lower() if len(args) >= 3 else "alphabeta"
 
-            if algo not in ("minimax", "alphabeta", "mcts", "iterative"):
+            if algo not in ("minimax", "alphabeta", "mcts"):
                 self._error(
                     f"Unknown algorithm: '{algo}'."
-                    "Use minimax, " "alphabeta or mcts or iterative"
+                    "Use minimax, " "alphabeta or mcts."
                 )
                 return
 
@@ -722,10 +716,8 @@ quit
                     scoring=scoring,
                 )
                 print(
-                    _("New game started! You play WHITE, AI plays BLACK "
-                        "({algo}, depth={depth}, scoring={scoring}).").format(
-                        algo=algo, depth=depth, scoring=scoring
-                    )
+                    f"New game started! You play WHITE, AI plays BLACK "
+                    f"({algo}, depth={depth}, scoring={scoring})."
                 )
 
             elif ai_color == "WHITE":
@@ -748,7 +740,7 @@ quit
                 return
 
         else:
-            print(_("New game started! White plays first."))
+            print("New game started! White plays first.")
 
         if self._blitz_enabled:
             print(
@@ -849,26 +841,25 @@ quit
 
     def _print_general_help(self) -> None:
         """Display the list of all available commands."""
-        print(_("""
-        Available commands:
-        new [ARGS]          Start a new game
-                            (e.g. ai white, ai black, ai-vs-ai)
-        help [CMD]          Show this help or help for CMD
-        quit                Quit the program
-        load FILE           Load a game from a file
-        save FILE           Save the current game to a file
-        pause               Pause the blitz timer
-        hint                Show a move suggestion
-        undo [N]            Undo the last N moves (default: 1)
-        redo [N]            Redo the last N undone moves (default: 1)
-        show board          Display the current board
-        show history        Display the move history
-        show time           Display remaining time (blitz mode)
-        show configuration  Display current configuration
-        set PARAM=VALUE     Change a configuration parameter
+        print("""
+Available commands:
+  new [ARGS]          Start a new game (e.g. ai white, ai black, ai-vs-ai)
+  help [CMD]          Show this help or help for CMD
+  quit                Quit the program
+  load FILE           Load a game from a file
+  save FILE           Save the current game to a file
+  pause               Pause the blitz timer
+  hint                Show a move suggestion
+  undo [N]            Undo the last N moves (default: 1)
+  redo [N]            Redo the last N undone moves (default: 1)
+  show board          Display the current board
+  show history        Display the move history
+  show time           Display remaining time (blitz mode)
+  show configuration  Display current configuration
+  set PARAM=VALUE     Change a configuration parameter
 
-        To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
-        """))
+To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
+""")
 
     def _print_command_help(self, cmd: str) -> None:
         """Display detailed help for a specific command."""
@@ -1014,13 +1005,13 @@ quit
             move = self._state.undo()
             if move is None:
                 actual = undone // 2 if human_vs_ai else undone
-                msg = _("Nothing more to undo (undid {actual} move(s)).")
-                print(msg.format(actual=actual))
+                print(f"Nothing more to undo (undid {actual} move(s)).")
                 break
             undone += 1
 
         if undone > 0:
             actual = undone // 2 if human_vs_ai else undone
+            print(f"Undid {actual} move(s).")
             print_board(self._state.board)
             print(f"\nIt's now {self._state.current_color}'s turn.")
             self._saved = False
@@ -1386,7 +1377,7 @@ quit
 
                     f.write(" ".join(line_parts) + "\n")
 
-            print(_("Game saved to '{path}'.").format(path=path))
+            print(f"Game saved to '{path}'.")
             return True
 
         except OSError as err:
