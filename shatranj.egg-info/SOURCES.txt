@@ -19,6 +19,7 @@ shatranj/domain/ai/__init__.py
 shatranj/domain/ai/ai_player.py
 shatranj/domain/ai/alphabeta.py
 shatranj/domain/ai/evaluator.py
+shatranj/domain/ai/iterative_deepening.py
 shatranj/domain/ai/mcts.py
 shatranj/domain/ai/minmax.py
 shatranj/domain/ai/transposition_table.py

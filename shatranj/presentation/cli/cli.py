@@ -675,10 +675,10 @@ quit
             # optional algorithm as 3rd argument (default: alphabeta)
             algo = args[2].lower() if len(args) >= 3 else "alphabeta"
 
-            if algo not in ("minimax", "alphabeta", "mcts"):
+            if algo not in ("minimax", "alphabeta", "mcts", "iterative"):
                 self._error(
                     f"Unknown algorithm: '{algo}'."
-                    "Use minimax, " "alphabeta or mcts."
+                    "Use minimax, " "alphabeta or mcts or iterative"
                 )
                 return
 

@@ -6,55 +6,43 @@ from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN
 
 
 def test_mcts_returns_a_move():
-    """MCTS retourne un coup quand des coups sont disponibles."""
+    """MCTS returns a move when moves are available."""
     board = Board(setup=False)
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, WHITE, 1)
     board.place_piece(SHAH, BLACK, 63)
-    engine = RulesEngine()
-    mcts = MCTS(engine=engine, simulations=2)
-    move = mcts.best_move(board, WHITE)
-    assert move is not None
+    mcts = MCTS(engine=RulesEngine(), simulations=2)
+    assert mcts.best_move(board, WHITE) is not None
 
 
 def test_mcts_returns_none_when_no_moves():
-    """MCTS retourne None si aucun coup disponible (mat)."""
+    """MCTS returns None if no moves available (checkmate)."""
     board = Board(setup=False)
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, BLACK, 8)
     board.place_piece(ROOK, BLACK, 1)
     board.place_piece(SHAH, BLACK, 9)
-    engine = RulesEngine()
-    mcts = MCTS(engine=engine, simulations=1)
-    move = mcts.best_move(board, WHITE)
-    assert move is None
+    mcts = MCTS(engine=RulesEngine(), simulations=1)
+    assert mcts.best_move(board, WHITE) is None
 
 
-def test_mcts_via_ai_player():
-    """AIPlayer avec algorithme mcts fonctionne correctement."""
+def test_mcts_returns_legal_move():
+    """MCTS returns a legal move."""
     board = Board(setup=False)
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, WHITE, 1)
     board.place_piece(SHAH, BLACK, 63)
-    ai = AIPlayer(color=WHITE, algorithm="mcts")
-    move = ai.choose_move(board)
-    assert move is not None
-
-
-def test_mcts_handles_branching_position():
-    """
-    MCTS returns a legal move even on a position with many choices.
-
-    This test stays lightweight on purpose: it validates integration
-    without turning the suite into a performance benchmark.
-    """
-    board = Board(setup=False)
-    board.place_piece(SHAH, WHITE, 0)  # a1
-    board.place_piece(ROOK, WHITE, 16)  # a3
-    board.place_piece(SHAH, BLACK, 63)  # h8
-    board.place_piece(PAWN, BLACK, 24)  # a4 — capturable
     engine = RulesEngine()
-    mcts = MCTS(engine=engine, simulations=1)
-    move = mcts.best_move(board, WHITE)
-    assert move is not None
+    mcts   = MCTS(engine=engine, simulations=2)
+    move   = mcts.best_move(board, WHITE)
     assert move in engine.generate_legal_moves(board, WHITE)
+
+
+def test_mcts_via_ai_player():
+    """AIPlayer with mcts algorithm works correctly."""
+    board = Board(setup=False)
+    board.place_piece(SHAH, WHITE, 0)
+    board.place_piece(ROOK, WHITE, 1)
+    board.place_piece(SHAH, BLACK, 63)
+    ai = AIPlayer(color=WHITE, algorithm="mcts", depth=2)
+    assert ai.choose_move(board) is not None
