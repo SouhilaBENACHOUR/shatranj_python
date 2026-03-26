@@ -24,3 +24,14 @@ docs/build/
 
 # Runtime data / save files
 *.shatranj
+
+# LaTeX build artifacts (keep report.pdf)
+pdp/**/*.aux
+pdp/**/*.log
+pdp/**/*.out
+pdp/**/*.toc
+pdp/02-final/_minted-*/
+pdp/02-final/packages.pngD
+
+# Compiled translations
+*.mo
