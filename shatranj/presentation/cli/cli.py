@@ -596,7 +596,9 @@ quit
 
         # display the updated board
         print_board(self._state.board)
-        print(_("\nIt's now {color}'s turn.").format(color=self._state.current_color))
+        print(_("\nIt's now {color}'s turn.").format(
+            color=self._state.current_color
+        ))
 
         # check if the game is over after the AI's move
         if self._check_game_over():
@@ -620,7 +622,11 @@ quit
             and self._state.current_color in self._ai_players
         ):
             if plies >= max_plies:
-                print(_("\nDraw by move limit ({max_plies} plies).").format(max_plies=max_plies))
+                print(
+                    _("\nDraw by move limit ({max_plies} plies).").format(
+                        max_plies=max_plies
+                    )
+                )
                 self._state = None
                 self._stop_turn_timer()
                 return
@@ -717,7 +723,7 @@ quit
                 )
                 print(
                     _("New game started! You play WHITE, AI plays BLACK "
-                    "({algo}, depth={depth}, scoring={scoring}).").format(
+                        "({algo}, depth={depth}, scoring={scoring}).").format(
                         algo=algo, depth=depth, scoring=scoring
                     )
                 )
@@ -845,7 +851,8 @@ quit
         """Display the list of all available commands."""
         print(_("""
         Available commands:
-        new [ARGS]          Start a new game (e.g. ai white, ai black, ai-vs-ai)
+        new [ARGS]          Start a new game
+                            (e.g. ai white, ai black, ai-vs-ai)
         help [CMD]          Show this help or help for CMD
         quit                Quit the program
         load FILE           Load a game from a file
@@ -1007,13 +1014,13 @@ quit
             move = self._state.undo()
             if move is None:
                 actual = undone // 2 if human_vs_ai else undone
-                print(_("Nothing more to undo (undid {actual} move(s)).").format(actual=actual))
+                msg = _("Nothing more to undo (undid {actual} move(s)).")
+                print(msg.format(actual=actual))
                 break
             undone += 1
 
         if undone > 0:
             actual = undone // 2 if human_vs_ai else undone
-            
             print_board(self._state.board)
             print(f"\nIt's now {self._state.current_color}'s turn.")
             self._saved = False
