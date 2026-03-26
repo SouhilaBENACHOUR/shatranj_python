@@ -1,6 +1,28 @@
+# Virtual environments
 .venv/
 .venv-linux/
+venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+
+# Build / packaging
+shatranj.egg-info/
+dist/
+build/
+
+# Coverage
+.coverage
+htmlcov/
 docs/build/
-venv/
+
+# Generated files
+classes.dot
+classes.png
+
+# Runtime data / save files
+*.shatranj
+save_game
+file
