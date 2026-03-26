@@ -19,8 +19,8 @@ htmlcov/
 docs/build/
 
 # Generated files
-classes.dot
-classes.png
+*.dot
+*.png
 
 # Runtime data / save files
 *.shatranj
