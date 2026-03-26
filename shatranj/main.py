@@ -26,7 +26,7 @@ import sys
 
 from shatranj.config import ShatranjConfig
 
-VERSION = "0.1.0"
+VERSION = "0.4.0"
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -199,6 +199,8 @@ def main() -> int:
 
     verbose = cfg.get_bool("verbose")
     debug = cfg.get_bool("debug")
+    blitz = cfg.get_bool("blitz")
+    timeout_minutes = cfg.get_int("timeout")
     ai_mode = (
         args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
     )
@@ -254,6 +256,8 @@ def main() -> int:
     from shatranj.presentation.cli.cli import CLI
 
     cli = CLI(verbose=verbose, debug=debug)
+    if blitz:
+        cli.enable_blitz(timeout_minutes)
 
     # configure AI if -a is given
     if args.ai:
@@ -285,6 +289,8 @@ def main() -> int:
 
         # store AI config to launch inside run() — avoids double board display
         cli._pending_new = ["ai", color_str, algo, str(depth), scoring]
+    elif args.blitz:
+        cli._pending_new = []
 
     if args.savefile:
         cli._do_load([args.savefile])

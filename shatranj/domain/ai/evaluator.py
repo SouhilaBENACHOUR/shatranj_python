@@ -616,7 +616,7 @@ class Evaluator:
         if not shah_bb:
             return 0
 
-        sq = get_lsb(shah_bb).bit_length() - 1
+        sq = get_lsb(shah_bb)
         rank = sq // 8
 
         # back rank (rank 0 for WHITE, rank 7 for BLACK) = safest

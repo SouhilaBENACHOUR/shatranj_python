@@ -19,6 +19,7 @@ import builtins
 import readline  # Enables line editing, history, and Tab completion
 import re  # For parsing algebraic notation with a regex
 import sys  # For sys.exit() and sys.stderr
+import time
 
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
@@ -98,6 +99,14 @@ class CLI:
         self._verbose = verbose
         self._ai_players: dict[str, AIPlayer] = {}
         self._debug = debug
+        self._blitz_enabled = False
+        self._blitz_minutes = 30
+        self._clock_seconds = {
+            WHITE: 0.0,
+            BLACK: 0.0,
+        }
+        self._turn_started_at: float | None = None
+        self._timer_paused = False
 
         # Configure readline for Tab completion (F18)
         readline.set_completer(self._completer)
@@ -105,6 +114,78 @@ class CLI:
 
         # Configure readline for history (F17)
         # Ctrl+R is handled automatically by readline
+
+    def enable_blitz(self, minutes: int) -> None:
+        """Enable blitz mode for subsequent CLI games."""
+
+        self._blitz_enabled = True
+        self._blitz_minutes = max(1, minutes)
+        self._reset_blitz_clock()
+
+    def _reset_blitz_clock(self) -> None:
+        """Reset both clocks to the configured blitz duration."""
+
+        if self._blitz_enabled:
+            base_seconds = float(self._blitz_minutes * 60)
+            self._clock_seconds = {
+                WHITE: base_seconds,
+                BLACK: base_seconds,
+            }
+        else:
+            self._clock_seconds = {
+                WHITE: 0.0,
+                BLACK: 0.0,
+            }
+        self._turn_started_at = None
+        self._timer_paused = False
+
+    def _start_turn_timer(self) -> None:
+        """Start timing the current turn when blitz is active."""
+
+        if self._blitz_enabled and self._state is not None:
+            self._turn_started_at = time.monotonic()
+        else:
+            self._turn_started_at = None
+
+    def _stop_turn_timer(self) -> None:
+        """Stop the active turn timer."""
+
+        self._turn_started_at = None
+        self._timer_paused = False
+
+    def _consume_turn_time(self) -> bool:
+        """Deduct elapsed time from the active player and detect timeout."""
+
+        if (
+            not self._blitz_enabled
+            or self._state is None
+            or self._timer_paused
+            or self._turn_started_at is None
+        ):
+            return False
+
+        now = time.monotonic()
+        elapsed = max(0.0, now - self._turn_started_at)
+        current = self._state.current_color
+        remaining = self._clock_seconds[current] - elapsed
+        self._clock_seconds[current] = max(0.0, remaining)
+        self._turn_started_at = now
+
+        if remaining > 0:
+            return False
+
+        winner = BLACK if current == WHITE else WHITE
+        print(f"Time out! {winner} wins!")
+        self._state = None
+        self._stop_turn_timer()
+        return True
+
+    def _format_clock(self, seconds: float) -> str:
+        """Format remaining blitz time as MM:SS."""
+
+        rounded = max(0, int(seconds + 0.999))
+        minutes, seconds = divmod(rounded, 60)
+        return f"{minutes:02d}:{seconds:02d}"
 
     # ------------------------------------------------------------------
     # Main loop
@@ -159,6 +240,9 @@ class CLI:
           - "show board" and "show history" are two-word commands
           - A move like "e2-e4" is not a keyword
         """
+        if self._consume_turn_time():
+            return
+
         parts = raw.split()
         if not parts:
             return
@@ -321,7 +405,7 @@ class CLI:
         if move.color != self._state.current_color:
             self._error(
                 f"It's {self._state.current_color}'s turn,"
-                " not {move.color}'s."
+                f" not {move.color}'s."
             )
             return
 
@@ -337,15 +421,25 @@ class CLI:
         self._state.apply_move(move)
         self._saved = False
 
-        print(_("You played: {self._format_move_with_piece(move)}"))
+        print(
+            _("You played: {move}").format(
+                move=self._format_move_with_piece(move)
+            )
+        )
 
         # Display the updated board
         print_board(self._state.board)
-        print(_("It's now {self._state.current_color}'s turn."))
+        print(
+            _("It's now {color}'s turn.").format(
+                color=self._state.current_color
+            )
+        )
 
         # Check if the game is over after the player's move
         if self._check_game_over():
             return
+
+        self._start_turn_timer()
 
         # If the next turn is controlled by an AI, chain it automatically
         self._auto_play_ai_turns()
@@ -368,6 +462,7 @@ class CLI:
             opponent = BLACK if current == WHITE else WHITE
             print(_("Checkmate! {color} wins!").format(color=opponent))
             self._state = None
+            self._stop_turn_timer()
             return True
 
         # Stalemate -> victory for the one who caused it (Shatranj rule)
@@ -375,6 +470,7 @@ class CLI:
             opponent = BLACK if current == WHITE else WHITE
             print(_("Stalemate! {color} wins!").format(color=opponent))
             self._state = None
+            self._stop_turn_timer()
             return True
 
         # Bare King -> current player has only their Shah left
@@ -382,18 +478,21 @@ class CLI:
             opponent = BLACK if current == WHITE else WHITE
             print(_("Bare King! {color} wins!").format(color=opponent))
             self._state = None
+            self._stop_turn_timer()
             return True
 
         # Draw by threefold repetition (as in modern chess)
         if self._is_draw_by_threefold_repetition():
             print(_("Draw by threefold repetition."))
             self._state = None
+            self._stop_turn_timer()
             return True
 
         # Fifty-move rule: no pawn moved and no capture
         if self._is_draw_by_fifty_move_rule():
             print(_("Draw by fifty-move rule."))
             self._state = None
+            self._stop_turn_timer()
             return True
 
         return False  # Game continues
@@ -469,9 +568,15 @@ class CLI:
             return
 
         # display which algorithm and depth the AI uses
-        print(_("AI is thinking...{self._format_ai_details(ai_player)}"))
+        print(
+            _("AI is thinking...{details}").format(
+                details=self._format_ai_details(ai_player)
+            )
+        )
 
         move = ai_player.choose_move(self._state.board)
+        if self._consume_turn_time():
+            return
 
         # no move available -> end of game
         if move is None:
@@ -479,7 +584,11 @@ class CLI:
             return
 
         # display the move played by the AI in algebraic notation
-        print(_("AI plays: {self._format_move_with_piece(move)}"))
+        print(
+            _("AI plays: {move}").format(
+                move=self._format_move_with_piece(move)
+            )
+        )
 
         # apply the move on the board
         self._state.apply_move(move)
@@ -490,7 +599,10 @@ class CLI:
         print(f"\nIt's now {self._state.current_color}'s turn.")
 
         # check if the game is over after the AI's move
-        self._check_game_over()
+        if self._check_game_over():
+            return
+
+        self._start_turn_timer()
 
     def _auto_play_ai_turns(
         self, max_plies: int = AUTO_PLAY_MAX_PLIES
@@ -510,6 +622,7 @@ class CLI:
             if plies >= max_plies:
                 print(f"\nDraw by move limit ({max_plies} plies).")
                 self._state = None
+                self._stop_turn_timer()
                 return
             self._do_ai_move()
             plies += 1
@@ -543,6 +656,7 @@ class CLI:
         self._state = GameState()
         self._saved = True
         self._ai_players = {}  # Reset AI players
+        self._reset_blitz_clock()
 
         if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
             self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=2)
@@ -628,9 +742,16 @@ class CLI:
         else:
             print("New game started! White plays first.")
 
+        if self._blitz_enabled:
+            print(
+                f"Blitz mode enabled: {self._blitz_minutes} minute(s) "
+                "per player."
+            )
+
         print()
         print_board(self._state.board)
         print()
+        self._start_turn_timer()
         # If the current player is controlled by an AI, it plays immediately
         self._auto_play_ai_turns()
 
@@ -826,11 +947,23 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_show_time(self) -> None:
         """Display remaining time (blitz mode only)."""
-        # Blitz mode not yet implemented: informational message
-        print(
-            "Time display is only available in blitz mode "
-            "(use -b at startup)."
+        if not self._blitz_enabled:
+            print(
+                "Time display is only available in blitz mode "
+                "(use -b at startup)."
+            )
+            return
+
+        if self._state is None:
+            self._error("No game in progress.")
+            return
+
+        status = "paused" if self._timer_paused else (
+            f"running ({self._state.current_color} to move)"
         )
+        print(f"White: {self._format_clock(self._clock_seconds[WHITE])}")
+        print(f"Black: {self._format_clock(self._clock_seconds[BLACK])}")
+        print(f"Status: {status}")
 
     def _do_show_configuration(self) -> None:
         """Display the current configuration."""
@@ -1224,9 +1357,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     move = history[i]
                     color_letter = "W" if move.color == WHITE else "B"
                     from_alg = Board.square_to_algebraic(move.from_square)
+                    to_alg = Board.square_to_algebraic(move.to_square)
                     sep = "x" if move.captured_piece else "-"
                     line_parts.append(
-                        f"{color_letter} {from_alg}{sep}" "{to_alg}"
+                        f"{color_letter} {from_alg}{sep}{to_alg}"
                     )
                     i += 1
 
@@ -1234,9 +1368,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                         move = history[i]
                         color_letter = "W" if move.color == WHITE else "B"
                         from_alg = Board.square_to_algebraic(move.from_square)
+                        to_alg = Board.square_to_algebraic(move.to_square)
                         sep = "x" if move.captured_piece else "-"
                         line_parts.append(
-                            f"{color_letter} {from_alg}{sep}" "{to_alg}"
+                            f"{color_letter} {from_alg}{sep}{to_alg}"
                         )
                         i += 1
 
@@ -1252,7 +1387,23 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_pause(self, args: list[str]) -> None:
         """Pause the timer (blitz mode only)."""
-        print("Pause is only available in blitz mode.")
+        if not self._blitz_enabled:
+            print("Pause is only available in blitz mode.")
+            return
+
+        if self._state is None:
+            self._error("No game in progress.")
+            return
+
+        if self._timer_paused:
+            self._timer_paused = False
+            self._start_turn_timer()
+            print("Blitz timer resumed.")
+            return
+
+        self._timer_paused = True
+        self._turn_started_at = None
+        print("Blitz timer paused.")
 
     def _do_set(self, args: list[str]) -> None:
         """

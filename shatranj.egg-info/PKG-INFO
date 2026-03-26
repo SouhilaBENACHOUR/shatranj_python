@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: shatranj
-Version: 0.1.0
+Version: 0.4.0
 Summary: Shatranj (Indian Chess) game implementation in Python with AI, GUI, and network support
 Author: EL GHALI Ayman, MARCHOUD Souhail, MEKLAT Sarah, DRIES Amina, BENACHOUR Souhila
 Project-URL: Repository, https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python
@@ -220,4 +220,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 \uD83D\uDD35 Early Development
 This project is currently in the initial development phase. We are implementing the core game engine using bitboards and establishing the foundational architecture.
 Current Focus: Bitboard representation and basic game rules implementation.
-

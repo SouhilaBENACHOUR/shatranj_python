@@ -153,6 +153,17 @@ class TestDisplay:
 
         assert "\033[" in result
 
+    def test_board_to_string_with_color_keeps_layout_simple(self):
+        """Le mode colorÃ© ajoute un fond de case pour la lisibilitÃ©."""
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.display import board_to_string
+
+        board = Board(setup=True)
+        result = board_to_string(board, use_color=True)
+
+        assert "\033[47m" not in result
+        assert "\033[100m" not in result
+
 
 class TestMoveParser:
     """Tests pour la notation algébrique."""
@@ -708,3 +719,71 @@ class TestCliDrawRules:
             cli._state._history.append((Move(4, 12, SHAH, color), {}))
 
         assert cli._is_draw_by_fifty_move_rule()
+
+
+class TestCliBlitzMode:
+    """Tests for blitz mode timing in the CLI."""
+
+    def test_enable_blitz_initializes_timers_on_new_game(self):
+        cli = CLI()
+        cli.enable_blitz(5)
+
+        with (
+            patch("shatranj.presentation.cli.cli.print_board"),
+            patch.object(CLI, "_auto_play_ai_turns"),
+        ):
+            cli._do_new([])
+
+        assert cli._clock_seconds[WHITE] == 300.0
+        assert cli._clock_seconds[BLACK] == 300.0
+        assert cli._turn_started_at is not None
+
+    def test_show_time_displays_remaining_time_in_blitz(self, capsys):
+        cli = CLI()
+        cli.enable_blitz(3)
+        cli._state = GameState()
+        cli._clock_seconds[WHITE] = 179.1
+        cli._clock_seconds[BLACK] = 95.1
+
+        cli._do_show_time()
+
+        out = capsys.readouterr().out
+        assert "White: 03:00" in out
+        assert "Black: 01:36" in out
+        assert "Status: running (WHITE to move)" in out
+
+    def test_pause_toggles_blitz_timer(self, capsys):
+        cli = CLI()
+        cli.enable_blitz(3)
+        cli._state = GameState()
+        cli._start_turn_timer()
+
+        cli._do_pause([])
+        paused = capsys.readouterr().out
+        assert "Blitz timer paused." in paused
+        assert cli._timer_paused is True
+        assert cli._turn_started_at is None
+
+        cli._do_pause([])
+        resumed = capsys.readouterr().out
+        assert "Blitz timer resumed." in resumed
+        assert cli._timer_paused is False
+        assert cli._turn_started_at is not None
+
+    def test_timeout_ends_the_game(self, capsys):
+        cli = CLI()
+        cli.enable_blitz(1)
+        cli._state = GameState()
+        cli._clock_seconds[WHITE] = 0.05
+
+        with patch(
+            "shatranj.presentation.cli.cli.time.monotonic",
+            side_effect=[10.0, 10.2],
+        ):
+            cli._start_turn_timer()
+            timed_out = cli._consume_turn_time()
+
+        out = capsys.readouterr().out
+        assert timed_out is True
+        assert "Time out! BLACK wins!" in out
+        assert cli._state is None

@@ -43,11 +43,12 @@ PIECE_SYMBOLS = {
 }
 
 # ANSI color codes:
-# - white pieces: bright white
-# - black pieces: bright cyan (more readable than black on dark background)
+# Keep the display simple:
+# - white pieces use the terminal default foreground (plus bold)
+# - black pieces use blue for contrast on light backgrounds
 ANSI_RESET = "\033[0m"
-ANSI_WHITE_PIECE = "\033[97m"
-ANSI_BLACK_PIECE = "\033[96m"
+ANSI_WHITE_PIECE = "\033[1m"
+ANSI_BLACK_PIECE = "\033[94m"
 
 
 def _supports_ansi_color() -> bool:
@@ -59,12 +60,20 @@ def _supports_ansi_color() -> bool:
     return sys.stdout.isatty()
 
 
-def _colorize_piece(symbol: str, color: str, use_color: bool) -> str:
-    """Apply an ANSI color to a piece symbol if requested."""
+def _colorize_piece(
+    symbol: str,
+    piece_color: str | None,
+    use_color: bool,
+) -> str:
+    """Render one piece symbol with a small amount of ANSI color."""
     if not use_color:
         return symbol
-    code = ANSI_WHITE_PIECE if color == WHITE else ANSI_BLACK_PIECE
-    return f"{code}{symbol}{ANSI_RESET}"
+
+    if piece_color == WHITE:
+        return f"{ANSI_WHITE_PIECE}{symbol}{ANSI_RESET}"
+    if piece_color == BLACK:
+        return f"{ANSI_BLACK_PIECE}{symbol}{ANSI_RESET}"
+    return symbol
 
 
 def board_to_string(board: Board, use_color: bool = False) -> str:
@@ -98,7 +107,7 @@ def board_to_string(board: Board, use_color: bool = False) -> str:
             piece = board.get_piece_at(square)
 
             if piece is None:
-                row_squares.append(".")  # empty square
+                row_squares.append(".")
             else:
                 symbol = PIECE_SYMBOLS[piece]
                 row_squares.append(

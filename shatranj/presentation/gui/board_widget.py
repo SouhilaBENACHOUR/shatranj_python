@@ -56,6 +56,7 @@ class BoardWidget(Gtk.DrawingArea):
         self._engine = engine
         self._board: Board | None = None
         self._current_color: str = WHITE
+        self._interaction_enabled: bool = True
 
         # Click-to-move state
         self._selected_square: int | None = None
@@ -108,13 +109,27 @@ class BoardWidget(Gtk.DrawingArea):
         self._valid_moves = []
         self.queue_draw()
 
+    def set_interaction_enabled(self, enabled: bool) -> None:
+        """Enable or disable human interaction with the board."""
+
+        self._interaction_enabled = enabled
+        if not enabled:
+            self._selected_square = None
+            self._valid_moves = []
+            self._dragging = False
+            self._drag_square = None
+        self.queue_draw()
+
     # ------------------------------------------------------------------
     # SVG loading
     # ------------------------------------------------------------------
 
     def _load_pieces(self) -> dict:
-        """Load SVG piece images from the pieces/ directory."""
-        pieces_dir = os.path.join(os.path.dirname(__file__), "pieces")
+        """Load SVG piece images from the active theme directory."""
+        base_dir = os.path.dirname(__file__)
+        pieces_dir = os.path.join(base_dir, "pieces_royal")
+        if not os.path.isdir(pieces_dir):
+            pieces_dir = os.path.join(base_dir, "pieces")
         file_map = {
             (SHAH, WHITE): "wK.svg",
             (FERZ, WHITE): "wF.svg",
@@ -259,7 +274,7 @@ class BoardWidget(Gtk.DrawingArea):
 
     def _on_click(self, gesture, n_press, x, y) -> None:
         """Handle a click on the board."""
-        if self._board is None:
+        if self._board is None or not self._interaction_enabled:
             return
 
         sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE
@@ -306,7 +321,7 @@ class BoardWidget(Gtk.DrawingArea):
 
     def _on_drag_begin(self, gesture, x, y) -> None:
         """User starts dragging — select the piece."""
-        if self._board is None:
+        if self._board is None or not self._interaction_enabled:
             return
 
         sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE

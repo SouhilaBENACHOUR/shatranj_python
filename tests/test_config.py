@@ -256,7 +256,7 @@ class TestApplyArgs:
     def test_time_override_requires_argv(self, tmp_path, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["shatranj", "-t", "10"])
         cfg = make_config(tmp_path, "[defaults]\ntimeout = 30\n")
-        args = make_args(time=10)
+        args = make_args(time=10, blitz=True)
         cfg.apply_args(args)
         assert cfg.get_int("timeout") == 10
 
@@ -264,6 +264,13 @@ class TestApplyArgs:
         monkeypatch.setattr(sys, "argv", ["shatranj"])
         cfg = make_config(tmp_path, "[defaults]\ntimeout = 30\n")
         args = make_args(time=30)
+        cfg.apply_args(args)
+        assert cfg.get_int("timeout") == 30
+
+    def test_time_without_blitz_does_not_override(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["shatranj", "-t", "10"])
+        cfg = make_config(tmp_path, "[defaults]\ntimeout = 30\n")
+        args = make_args(time=10, blitz=False)
         cfg.apply_args(args)
         assert cfg.get_int("timeout") == 30
 
