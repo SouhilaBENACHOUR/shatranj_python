@@ -5,6 +5,12 @@ from shatranj.data.bitboards.bitboard import (
     set_bit_at,
 )
 from shatranj.domain.core.move import Move
+from shatranj.utils.exceptions import (
+    InvalidMoveError,
+    InvalidSquareError,
+    MissingShahError,
+    NoPieceError,
+)
 from shatranj.utils.constants import (
     ALFIL,
     BLACK,
@@ -82,11 +88,15 @@ class Board:
 
     def move_piece(self, from_square: int, to_square: int) -> None:
         if from_square == to_square:
-            raise ValueError("can't move to the same square")
+            raise InvalidMoveError(
+                f"Cannot move to the same square ({from_square})"
+            )
 
         found = self.get_piece_at(from_square)
         if found is None:
-            raise ValueError("no piece on from_square")
+            raise NoPieceError(
+                f"No piece on square {from_square}"
+            )
 
         piece, color = found
         self.clear_piece(from_square)
@@ -135,22 +145,30 @@ class Board:
     @staticmethod
     def square_to_algebraic(square: int) -> str:
         if not 0 <= square < NUM_SQUARES:
-            raise ValueError("must be in [0, 63]")
+            raise InvalidSquareError(
+                f"Square {square} must be in [0, {NUM_SQUARES - 1}]"
+            )
         return FILES[square % BOARD_SIZE] + RANKS[square // BOARD_SIZE]
 
     @staticmethod
     def algebraic_to_square(pos: str) -> int:
         if len(pos) != 2 or pos[0] not in FILES or pos[1] not in RANKS:
-            raise ValueError("pos must be like 'e4'")
+            raise InvalidSquareError(
+                f"Invalid algebraic notation '{pos}':"
+                f"expected format like 'e4'"
+            )
         return FILES.index(pos[0]) + BOARD_SIZE * RANKS.index(pos[1])
 
-    def find_shah(self, color: str) -> int | None:
+    def find_shah(self, color: str) -> int:
         """
-        Retourne la case du Shah de la couleur donnée.
+        Return the square of the Shah for the given color.
+        Raises MissingShahError if no Shah is found on the board.
         """
         bitboard = self._boards[(SHAH, color)]
         if bitboard == 0:
-            return None
+            raise MissingShahError(
+                f"No Shah found for {color} on the board"
+            )
         return get_lsb(bitboard)
 
     def apply_move(self, move: Move) -> tuple[str, str] | None:

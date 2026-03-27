@@ -5,11 +5,14 @@ A bitboard is a 64-bit integer where each bit represents a square (0..63).
 """
 
 from shatranj.utils.constants import NUM_SQUARES
+from shatranj.utils.exceptions import InvalidSquareError
 
 
 def check_square(square: int) -> bool:
     if square < 0 or square >= NUM_SQUARES:
-        raise ValueError("must be in [0-63]")
+        raise InvalidSquareError(
+            f"Square {square} must be in [0, {NUM_SQUARES - 1}]"
+        )
     return True
 
 

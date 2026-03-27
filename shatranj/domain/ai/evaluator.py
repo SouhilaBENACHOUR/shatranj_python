@@ -9,6 +9,7 @@ Three evaluation functions:
 
 from shatranj.domain.core.board import Board
 from shatranj.domain.rules.rules_engine import RulesEngine
+from shatranj.utils.exceptions import EvaluatorError
 from shatranj.utils.constants import (
     WHITE,
     BLACK,
@@ -461,9 +462,9 @@ class Evaluator:
 
     def __init__(self, mode: str = "advanced") -> None:
         if mode not in ("material", "positional", "advanced"):
-            raise ValueError(
-                f"Unknown evaluation mode: '{mode}'.Use material, "
-                "positional or advanced."
+            raise EvaluatorError(
+                f"Unknown evaluation mode: '{mode}'. "
+                "Use material, positional or advanced."
             )
         self._mode = mode
 
