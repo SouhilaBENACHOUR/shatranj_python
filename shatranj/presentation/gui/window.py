@@ -1,5 +1,4 @@
 """
-
 window.py - Main application window
 
 Role: builds the main window with a welcome screen, menu bar, board widget,
@@ -7,8 +6,9 @@ Role: builds the main window with a welcome screen, menu bar, board widget,
       and right panel. Handles all game logic callbacks.
 
 """
-
 import builtins
+import threading
+import time
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -34,8 +34,6 @@ from shatranj.utils.constants import (  # noqa: E402
     PAWN,
 )
 
-import threading  # noqa: E402
-import time  # noqa: E402
 
 _ = builtins.__dict__.get("_", lambda x: x)
 
@@ -311,7 +309,6 @@ CLOCK_CSS = """
 
 def _format_clock(seconds: float, show_tenths: bool = False) -> str:
     """Format a number of seconds as MM:SS."""
-
     remaining = max(0.0, seconds)
     if show_tenths and remaining < 20:
         whole_seconds = int(remaining)
@@ -326,7 +323,6 @@ def _format_clock(seconds: float, show_tenths: bool = False) -> str:
 
 def _display_color(color: str | None) -> str:
     """Return a user-facing color label."""
-
     if color == WHITE:
         return "White"
     if color == BLACK:
@@ -336,7 +332,6 @@ def _display_color(color: str | None) -> str:
 
 class NewGameDialog(Gtk.Dialog):
     """Dialog for choosing the player mode and time control."""
-
     def __init__(self, parent) -> None:
 
         super().__init__(title="New Game", transient_for=parent, modal=True)
@@ -465,7 +460,6 @@ class NewGameDialog(Gtk.Dialog):
         self, button: Gtk.CheckButton, mode: str
     ) -> None:
         """Update the selected player mode."""
-
         if not button.get_active():
             return
 
@@ -475,20 +469,17 @@ class NewGameDialog(Gtk.Dialog):
 
     def _on_algorithm_changed(self, *_args) -> None:
         """Store the selected AI algorithm."""
-
         algo_idx = self._algorithm_combo.get_selected()
         self._selected_algorithm = ALGORITHM_OPTIONS[algo_idx][1]
 
     def _update_ai_options_visibility(self) -> None:
         """Show algorithm options only when at least one AI is playing."""
-
         self._algorithm_section.set_visible(self._selected_mode != "hvh")
 
     def _on_speed_changed(
         self, button: Gtk.CheckButton, speed_key: str
     ) -> None:
         """Refresh the available presets for the selected time mode."""
-
         if not button.get_active():
             return
 
@@ -505,7 +496,6 @@ class NewGameDialog(Gtk.Dialog):
 
     def _clear_time_controls(self) -> None:
         """Remove all current time-control widgets."""
-
         child = self._preset_box.get_first_child()
         while child is not None:
             next_child = child.get_next_sibling()
@@ -514,7 +504,6 @@ class NewGameDialog(Gtk.Dialog):
 
     def _build_preset_buttons(self, speed_key: str) -> None:
         """Render the preset buttons for the selected time mode."""
-
         self._clear_time_controls()
         self._custom_minutes_spin = None
         self._custom_increment_spin = None
@@ -538,7 +527,6 @@ class NewGameDialog(Gtk.Dialog):
 
     def _build_custom_controls(self) -> None:
         """Render inputs for a custom time control."""
-
         self._clear_time_controls()
 
         custom_box = Gtk.Box(
@@ -623,7 +611,6 @@ class NewGameDialog(Gtk.Dialog):
         self, button: Gtk.CheckButton, preset: dict
     ) -> None:
         """Store the selected time control preset."""
-
         if not button.get_active():
             return
 
@@ -636,7 +623,6 @@ class NewGameDialog(Gtk.Dialog):
 
     def _build_custom_preset(self) -> dict:
         """Return the current custom time selection."""
-
         minutes = int(self._custom_minutes_spin.get_value())
         increment = int(self._custom_increment_spin.get_value())
         label = (
@@ -652,7 +638,6 @@ class NewGameDialog(Gtk.Dialog):
 
     def _on_custom_time_changed(self, *_args) -> None:
         """Store the current custom time selection."""
-
         if self._selected_speed != "custom":
             return
 
@@ -664,7 +649,6 @@ class NewGameDialog(Gtk.Dialog):
 
     def get_config(self) -> dict:
         """Return the selected configuration as a dictionary."""
-
         if self._selected_speed is None or self._selected_preset is None:
             raise ValueError("A time control must be selected.")
 
@@ -685,7 +669,6 @@ class NewGameDialog(Gtk.Dialog):
 
 class ShatranjWindow(Gtk.ApplicationWindow):
     """
-
     Main application window.
 
     Two states:
@@ -705,7 +688,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
       - A right panel (timer, move history, undo/hint buttons)
 
     """
-
     def __init__(self, **kwargs) -> None:
 
         # Initialize the parent Gtk.ApplicationWindow
@@ -754,7 +736,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _install_css(self) -> None:
         """Install local CSS used by the custom clock widgets."""
-
         display = Gdk.Display.get_default()
         if display is None:
             return
@@ -776,7 +757,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _build_ui(self) -> None:
         """Builds the main layout with a stack (welcome ↔ game)."""
-
         # Vertical box — main container of the window
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -807,7 +787,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _build_welcome_screen(self) -> Gtk.Box:
         """Builds the welcome screen shown at startup."""
-
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         root.add_css_class("welcome-root")
         root.set_hexpand(True)
@@ -932,11 +911,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _build_game_screen(self) -> Gtk.Box:
         """
-
         Builds the game screen with the board and right panel.
 
         """
-
         hbox = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=10,
@@ -976,7 +953,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _build_right_panel(self) -> Gtk.Box:
         """Right panel: timer + move history + buttons."""
-
         panel = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
             spacing=8,
@@ -1071,7 +1047,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self, side_label: str, tone_class: str
     ) -> tuple[Gtk.Box, Gtk.Label, Gtk.Label, Gtk.Label]:
         """Build one styled clock card."""
-
         card = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
             spacing=2,
@@ -1107,7 +1082,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _start_timer(self) -> None:
         """Start the game clock."""
-
         self._stop_timer(reset=False)
 
         if self._state is None or self._clock_mode == "idle":
@@ -1124,7 +1098,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _stop_timer(self, reset: bool = False) -> None:
         """Stop the timer and optionally reset the label."""
-
         if self._timer_source_id is not None:
             GLib.source_remove(self._timer_source_id)
             self._timer_source_id = None
@@ -1139,7 +1112,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_timer_tick(self) -> bool:
         """Refresh the active clock while a game is running."""
-
         if self._state is None:
             self._timer_source_id = None
             return False
@@ -1153,7 +1125,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _reset_clock(self) -> None:
         """Reset the clock state shown in the right panel."""
-
         self._clock_mode = "idle"
         self._time_control_name = "No active game"
         self._increment_seconds = 0
@@ -1165,7 +1136,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _configure_new_game_clock(self, config: dict) -> None:
         """Prepare a timed clock for a fresh game."""
-
         self._clock_mode = "timed"
         self._time_control_name = (
             f"{config['speed_label']} {config['time_control_label']}"
@@ -1183,7 +1153,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _configure_loaded_game_clock(self) -> None:
         """Prepare the untimed clock used for loaded games."""
-
         self._clock_mode = "elapsed"
         self._time_control_name = "Loaded Game"
         self._increment_seconds = 0
@@ -1202,7 +1171,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         critical: bool = False,
     ) -> None:
         """Apply active and critical styling to one clock card."""
-
         if active:
             card.add_css_class("clock-card-active")
         else:
@@ -1219,7 +1187,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self, color: str, current_color: str | None
     ) -> str:
         """Return the status line shown under one timed clock."""
-
         if self._game_paused:
             status = "Paused"
         elif color == current_color:
@@ -1239,7 +1206,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _update_clock_labels(self) -> None:
         """Refresh the clock labels according to the active mode."""
-
         if self._clock_mode == "timed":
             now = time.monotonic()
             current_color = None
@@ -1323,7 +1289,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self, color: str, now: float | None = None
     ) -> float:
         """Return the time currently shown for one player."""
-
         remaining = self._remaining_time.get(color, 0.0)
         if (
             self._clock_mode == "timed"
@@ -1339,7 +1304,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _finish_active_turn(self, moving_color: str) -> bool:
         """Commit the elapsed time for the player who just moved."""
-
         if self._clock_mode != "timed" or self._turn_started_at is None:
             return True
 
@@ -1363,7 +1327,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _start_next_turn(self) -> None:
         """Start the clock for the player whose turn just began."""
-
         if self._clock_mode != "timed" or self._state is None:
             return
 
@@ -1375,7 +1338,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _is_active_player_flagged(self) -> bool:
         """Handle a timeout detected from the running clock."""
-
         if (
             self._clock_mode != "timed"
             or self._state is None
@@ -1398,7 +1360,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _sync_board_interaction(self) -> None:
         """Allow moves only when the current turn belongs to a human."""
-
         if not hasattr(self, "_board_widget"):
             return
 
@@ -1411,7 +1372,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _toggle_pause(self) -> None:
         """Pause or resume a timed game."""
-
         if self._state is None or self._clock_mode != "timed":
             return
 
@@ -1440,7 +1400,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _build_menu(self) -> None:
         """Builds the menu bar."""
-
         menu = Gio.Menu()
 
         file_menu = Gio.Menu()
@@ -1507,7 +1466,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _build_shortcuts(self) -> None:
         """Configures keyboard shortcuts."""
-
         app = self.get_application()
 
         shortcuts = {
@@ -1534,7 +1492,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _start_game(self, config: dict) -> None:
         """Start a new game with the given configuration."""
-
         # Create a fresh game state
 
         self._state = GameState()
@@ -1597,7 +1554,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _auto_play_ai_turns(self) -> None:
         """Let AI play in a background thread to avoid freezing the UI."""
-
         if self._state is None:
 
             return
@@ -1707,7 +1663,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_new_game(self, *_) -> None:
         """Open the new game configuration dialog."""
-
         dialog = NewGameDialog(self)
 
         dialog.connect("response", self._on_new_game_response)
@@ -1716,7 +1671,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_new_game_response(self, dialog, response) -> None:
         """Called when the user closes the new game dialog."""
-
         if response == Gtk.ResponseType.OK:
 
             try:
@@ -1900,7 +1854,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_move_played(self, move) -> None:
         """Called by BoardWidget when the user plays a move."""
-
         if self._state is None:
 
             return
@@ -1938,7 +1891,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _update_history(self) -> None:
         """Refresh the move history list in the right panel."""
-
         from shatranj.domain.core.board import Board as B
 
         # Clear existing rows
@@ -1983,12 +1935,10 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _scroll_history_to_latest(self) -> None:
         """Keep the move history focused on the most recent move."""
-
         self._scroll_history_to_position(None)
 
     def _scroll_history_to_position(self, value: float | None) -> None:
         """Scroll the move history after GTK has updated the layout."""
-
         if not hasattr(self, "_history_scroll"):
             return
 
@@ -2012,7 +1962,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _check_game_over(self) -> bool:
         """Check if the game is over after a move."""
-
         if self._state is None:
 
             return False
@@ -2043,7 +1992,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _show_game_over_dialog(self, message: str) -> None:
         """Show a dialog when the game is over, then return to menu."""
-
         dialog = Gtk.AlertDialog()
 
         dialog.set_message("Game Over")
