@@ -43,9 +43,4 @@ where = ["."]
 include = ["shatranj*"]
 
 [tool.pytest.ini_options]
-addopts = [
-  "--cov=shatranj",
-  "--cov-report=html",
-  "--cov-report=term",
-  "--cov-branch",
-]
+addopts = "--cov=shatranj --cov-report=term-missing"
