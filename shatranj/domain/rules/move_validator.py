@@ -32,9 +32,9 @@ class MoveValidator:
 
     def is_valid_move(self, board: Board, move: Move) -> bool:
         # Bounds check
-        if not (0 <= move.from_square < NUM_SQUARES):
+        if not 0 <= move.from_square < NUM_SQUARES:
             return False
-        if not (0 <= move.to_square < NUM_SQUARES):
+        if not 0 <= move.to_square < NUM_SQUARES:
             return False
 
         # Cannot stay on the same square

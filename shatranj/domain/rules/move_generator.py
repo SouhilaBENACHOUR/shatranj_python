@@ -34,7 +34,7 @@ class MoveGenerator:
             # capture diagonals
             from_file = sq % BOARD_SIZE
             for diag in (sq + 7 * direction, sq + 9 * direction):
-                if not (0 <= diag < NUM_SQUARES):
+                if not 0 <= diag < NUM_SQUARES:
                     continue
                 if abs((diag % BOARD_SIZE) - from_file) != 1:
                     continue
@@ -116,7 +116,7 @@ class MoveGenerator:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < NUM_SQUARES):
+                if not 0 <= to_sq < NUM_SQUARES:
                     continue
 
                 # Check 2 : anti-wrapping
@@ -137,7 +137,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, KNIGHT, color))
-                elif target[1] != color:
+                if target[1] != color:
                     # Square occupied by an enemy → capture
                     # target[1] = color of the target piece
                     moves.append(
@@ -181,7 +181,7 @@ class MoveGenerator:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < NUM_SQUARES):
+                if not 0 <= to_sq < NUM_SQUARES:
                     continue
 
                 # Check 2 : anti-wrapping
@@ -204,7 +204,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, FERZ, color))
-                elif target[1] != color:
+                if target[1] != color:
                     # Square occupied by an enemy → capture
                     moves.append(
                         Move(sq, to_sq, FERZ, color, captured_piece=target[0])
@@ -247,7 +247,7 @@ class MoveGenerator:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < NUM_SQUARES):
+                if not 0 <= to_sq < NUM_SQUARES:
                     continue
 
                 # Check 2 : anti-wrapping
@@ -269,7 +269,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, SHAH, color))
-                elif target[1] != color:
+                if target[1] != color:
                     # Square occupied by an enemy → capture
                     moves.append(
                         Move(sq, to_sq, SHAH, color, captured_piece=target[0])
@@ -310,7 +310,7 @@ class MoveGenerator:
                 to_sq = sq + delta
 
                 # Check 1 : destination square must exist (0..63)
-                if not (0 <= to_sq < NUM_SQUARES):
+                if not 0 <= to_sq < NUM_SQUARES:
                     continue
 
                 # Check 2 : anti-wrapping
@@ -335,7 +335,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, ALFIL, color))
-                elif target[1] != color:
+                if target[1] != color:
                     # Square occupied by an enemy → capture
                     moves.append(
                         Move(sq, to_sq, ALFIL, color, captured_piece=target[0])

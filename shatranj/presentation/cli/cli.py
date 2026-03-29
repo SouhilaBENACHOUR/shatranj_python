@@ -255,11 +255,11 @@ class CLI:
             sub = args[0].lower() if args else ""
             if sub == "board":
                 self._do_show_board()
-            elif sub == "history":
+            if sub == "history":
                 self._do_show_history()
-            elif sub == "time":
+            if sub == "time":
                 self._do_show_time()
-            elif sub == "configuration":
+            if sub == "configuration":
                 self._do_show_configuration()
             else:
                 self._error(f"Unknown subcommand: show {sub}")
@@ -339,10 +339,8 @@ class CLI:
 
         # Accept "-" or "x" as separator
         if len(text) != 5 or text[2] not in ("-", "x"):
-            self._error(
-                f"Invalid move format: '{text}'."
-                "Expected format: e2-e4"
-            )
+            self._error(f"Invalid move format: '{text}'."
+                        "Expected format: e2-e4")
             return None
 
         from_str = text[0:2]  # "e2"
@@ -421,19 +419,13 @@ class CLI:
         self._state.apply_move(move)
         self._saved = False
 
-        print(
-            _("You played: {move}").format(
-                move=self._format_move_with_piece(move)
-            )
-        )
+        print(_("You played: {move}").format(
+            move=self._format_move_with_piece(move)))
 
         # Display the updated board
         print_board(self._state.board)
-        print(
-            _("It's now {color}'s turn.").format(
-                color=self._state.current_color
-            )
-        )
+        print(_("It's now {color}'s turn.").format(
+            color=self._state.current_color))
 
         # Check if the game is over after the player's move
         if self._check_game_over():
@@ -584,11 +576,8 @@ class CLI:
             return
 
         # display the move played by the AI in algebraic notation
-        print(
-            _("AI plays: {move}").format(
-                move=self._format_move_with_piece(move)
-            )
-        )
+        print(_("AI plays: {move}").format(
+            move=self._format_move_with_piece(move)))
 
         # apply the move on the board
         self._state.apply_move(move)
@@ -605,8 +594,7 @@ class CLI:
         self._start_turn_timer()
 
     def _auto_play_ai_turns(
-        self, max_plies: int = AUTO_PLAY_MAX_PLIES
-    ) -> None:
+            self, max_plies: int = AUTO_PLAY_MAX_PLIES) -> None:
         """
         Chain AI turns as long as the current player is controlled by an AI.
 
@@ -646,8 +634,7 @@ class CLI:
         """
         if self._state is not None and not self._saved:
             answer = input(
-                "Current game is not saved."
-                "Start a new game anyway? [y/N] "
+                "Current game is not saved.Start a new game anyway? [y/N] "
             )
             if answer.strip().lower() not in ("y", "yes"):
                 print("New game cancelled.")
@@ -663,7 +650,7 @@ class CLI:
             self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=2)
             print("New game started! AI plays WHITE and BLACK.")
 
-        elif len(args) >= 2 and args[0].lower() == "ai":
+        if len(args) >= 2 and args[0].lower() == "ai":
             ai_color = args[1].upper()
 
             # optional algorithm as 3rd argument (default: alphabeta)
@@ -671,8 +658,8 @@ class CLI:
 
             if algo not in ("minimax", "alphabeta", "mcts"):
                 self._error(
-                    f"Unknown algorithm: '{algo}'."
-                    "Use minimax, " "alphabeta or mcts."
+                    f"Unknown algorithm: '{algo}'." "Use minimax, "
+                    "alphabeta or mcts."
                 )
                 return
 
@@ -693,7 +680,7 @@ class CLI:
                 # default depth depending on algorithm
                 if algo == "alphabeta":
                     depth = 3
-                elif algo == "mcts":
+                if algo == "mcts":
                     depth = 100
                 else:
                     depth = 3
@@ -720,7 +707,7 @@ class CLI:
                     f"({algo}, depth={depth}, scoring={scoring})."
                 )
 
-            elif ai_color == "WHITE":
+            if ai_color == "WHITE":
                 self._ai_players[WHITE] = AIPlayer(
                     color=WHITE,
                     depth=depth,
@@ -733,20 +720,16 @@ class CLI:
                     " you play BLACK."
                 )
             else:
-                self._error(
-                    f"Unknown color: '{args[1]}'."
-                    "Use 'black' or 'white'."
-                )
+                self._error(f"Unknown color: '{args[1]}'."
+                            "Use 'black' or 'white'.")
                 return
 
         else:
             print("New game started! White plays first.")
 
         if self._blitz_enabled:
-            print(
-                f"Blitz mode enabled: {self._blitz_minutes} minute(s) "
-                "per player."
-            )
+            print(f"Blitz mode enabled: {self._blitz_minutes} minute(s) "
+                  "per player.")
 
         print()
         print_board(self._state.board)
@@ -765,14 +748,11 @@ class CLI:
         # Redirects stdout to /dev/null during loading
         import os
 
-        devnull = open(os.devnull, "w")
-        old_stdout = sys.stdout
-        sys.stdout = devnull
-
-        self._do_load([path])
-
-        sys.stdout = old_stdout
-        devnull.close()
+        with open(os.devnull, "w", encoding="utf-8") as devnull:
+            old_stdout = sys.stdout
+            sys.stdout = devnull
+            self._do_load([path])
+            sys.stdout = old_stdout
 
         if self._state is None:
             return 1
@@ -841,7 +821,8 @@ class CLI:
 
     def _print_general_help(self) -> None:
         """Display the list of all available commands."""
-        print("""
+        print(
+            """
 Available commands:
   new [ARGS]          Start a new game (e.g. ai white, ai black, ai-vs-ai)
   help [CMD]          Show this help or help for CMD
@@ -859,7 +840,8 @@ Available commands:
   set PARAM=VALUE     Change a configuration parameter
 
 To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
-""")
+"""
+        )
 
     def _print_command_help(self, cmd: str) -> None:
         """Display detailed help for a specific command."""
@@ -868,22 +850,19 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 "new [ARGS]  -  Start a new game. "
                 "Args: 'ai white', 'ai black', 'ai-vs-ai'."
             ),
-            "quit": (
-                "quit  -  Quit the program. You'll be asked to save if needed."
-            ),
+            "quit": ("quit  -  Quit the program. You'll be asked to "
+                     "save if needed."),
             "help": "help [CMD]  -  Show help. With CMD: show help for that "
             "command.",
-            "load": (
-                "load FILE  -  Load a saved game from FILE (.shatranj format)."
-            ),
+            "load": ("load FILE  -  Load a saved game from FILE "
+                     "(.shatranj format)."),
             "save": "save FILE  -  Save the current game to FILE.",
             "hint": "hint  -  Get a move suggestion from the engine.",
             "undo": "undo [N]  -  Undo the last N moves (default 1).",
             "redo": "redo [N]  -  Redo the last N undone moves (default 1).",
             "pause": "pause  -  Pause/resume the blitz timer.",
-            "set": (
-                "set PARAM=VALUE  -  Change a setting. E.g.: set debug=true"
-            )
+            "set": ("set PARAM=VALUE  -  Change a setting. E.g.:"
+                    " set debug=true"),
         }
         if cmd in help_texts:
             print(help_texts[cmd])
@@ -948,18 +927,18 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _do_show_time(self) -> None:
         """Display remaining time (blitz mode only)."""
         if not self._blitz_enabled:
-            print(
-                "Time display is only available in blitz mode "
-                "(use -b at startup)."
-            )
+            print("Time display is only available in blitz mode"
+                  "(use -b at startup).")
             return
 
         if self._state is None:
             self._error("No game in progress.")
             return
 
-        status = "paused" if self._timer_paused else (
-            f"running ({self._state.current_color} to move)"
+        status = (
+            "paused"
+            if self._timer_paused
+            else (f"running ({self._state.current_color} to move)")
         )
         print(f"White: {self._format_clock(self._clock_seconds[WHITE])}")
         print(f"Black: {self._format_clock(self._clock_seconds[BLACK])}")
@@ -1142,7 +1121,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     val = val.strip().lower()
                     if key == "verbose":
                         self._verbose = val in ("true", "1", "yes")
-                    elif key == "debug":
+                    if key == "debug":
                         self._debug = val in ("true", "1", "yes")
 
             # --- Read [game] ---
@@ -1185,8 +1164,9 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 rank = 7 - rank_idx
                 symbols = board_line.split()
                 if len(symbols) != 8:
-                    self._error(f"Invalid board row {rank_idx + 1}: '{
-                        board_line}'")
+                    self._error(
+                        f"Invalid board row {rank_idx + 1}: '{board_line}'"
+                    )
                     return
                 for file_idx, symbol in enumerate(symbols):
                     if symbol == "_":
@@ -1360,8 +1340,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     to_alg = Board.square_to_algebraic(move.to_square)
                     sep = "x" if move.captured_piece else "-"
                     line_parts.append(
-                        f"{color_letter} {from_alg}{sep}{to_alg}"
-                    )
+                        f"{color_letter} {from_alg}{sep}{to_alg}")
                     i += 1
 
                     if i < len(history):
@@ -1428,7 +1407,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         if param == "verbose":
             self._verbose = value in ("true", "1", "yes")
             print(f"verbose = {self._verbose}")
-        elif param == "debug":
+        if param == "debug":
             self._debug = value in ("true", "1", "yes")
             print(f"debug = {self._debug}")
         else:

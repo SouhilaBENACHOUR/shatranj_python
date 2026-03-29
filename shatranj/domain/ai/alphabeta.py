@@ -123,8 +123,7 @@ class AlphaBeta:
         if not legal_moves:
             if self._engine._is_in_check(board, current_color):
                 return 9999.0 if not is_maximizing else -9999.0
-            else:
-                return 0.0
+            return 0.0
 
         opponent = BLACK if current_color == WHITE else WHITE
 
@@ -167,7 +166,7 @@ class AlphaBeta:
             # --- Store in Transposition Table ---
             if best <= original_alpha:
                 flag = UPPER_BOUND
-            elif best >= beta:
+            if best >= beta:
                 flag = LOWER_BOUND
             else:
                 flag = EXACT
@@ -175,48 +174,47 @@ class AlphaBeta:
 
             return best
 
+        best = float("+inf")
+        for move in legal_moves:
+            captured = board.apply_move(move)
+            result_piece = board.get_piece_at(move.to_square)[0]
+            captured_color = current_color if captured else None
+            new_key = self._hasher.update_key(
+                key=key,
+                piece=move.piece_type,
+                color=current_color,
+                from_square=move.from_square,
+                to_square=move.to_square,
+                captured_piece=captured,
+                captured_color=captured_color,
+                result_piece=result_piece,
+            )
+
+            score = self._alphabeta(
+                board=board,
+                depth=depth - 1,
+                alpha=alpha,
+                beta=beta,
+                is_maximizing=True,
+                ai_color=ai_color,
+                current_color=opponent,
+                key=new_key,
+            )
+            board.undo_move(move, captured)
+
+            best = min(best, score)
+            beta = min(beta, best)
+
+            if beta <= alpha:
+                break  # alpha cutoff
+
+        # --- Store in Transposition Table ---
+        if best <= original_alpha:
+            flag = UPPER_BOUND
+        if best >= beta:
+            flag = LOWER_BOUND
         else:
-            best = float("+inf")
-            for move in legal_moves:
-                captured = board.apply_move(move)
-                result_piece = board.get_piece_at(move.to_square)[0]
-                captured_color = current_color if captured else None
-                new_key = self._hasher.update_key(
-                    key=key,
-                    piece=move.piece_type,
-                    color=current_color,
-                    from_square=move.from_square,
-                    to_square=move.to_square,
-                    captured_piece=captured,
-                    captured_color=captured_color,
-                    result_piece=result_piece,
-                )
+            flag = EXACT
+        self._tt.store(key, best, depth, flag)
 
-                score = self._alphabeta(
-                    board=board,
-                    depth=depth - 1,
-                    alpha=alpha,
-                    beta=beta,
-                    is_maximizing=True,
-                    ai_color=ai_color,
-                    current_color=opponent,
-                    key=new_key,
-                )
-                board.undo_move(move, captured)
-
-                best = min(best, score)
-                beta = min(beta, best)
-
-                if beta <= alpha:
-                    break  # alpha cutoff
-
-            # --- Store in Transposition Table ---
-            if best <= original_alpha:
-                flag = UPPER_BOUND
-            elif best >= beta:
-                flag = LOWER_BOUND
-            else:
-                flag = EXACT
-            self._tt.store(key, best, depth, flag)
-
-            return best
+        return best

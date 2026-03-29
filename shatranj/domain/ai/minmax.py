@@ -91,7 +91,7 @@ class Minimax:
             if score > best_score + eps:
                 best_score = score
                 best_moves = [move]
-            elif abs(score - best_score) <= eps:
+            if abs(score - best_score) <= eps:
                 best_moves.append(move)
 
         if not best_moves:
@@ -184,8 +184,7 @@ class Minimax:
         if not legal_moves:
             if self._engine._is_in_check(board, current_color):
                 return 9999.0 if not is_maximizing else -9999.0
-            else:
-                return 0.0
+            return 0.0
 
         opponent = BLACK if current_color == WHITE else WHITE
 
@@ -222,35 +221,34 @@ class Minimax:
             self._tt.store(key, best, depth, EXACT)
             return best
 
-        else:
-            # opponent looks for minimum score
-            best = float("+inf")
-            for move in legal_moves:
-                captured = board.apply_move(move)
-                result_piece = board.get_piece_at(move.to_square)[0]
-                captured_color = current_color if captured else None
-                new_key = self._hasher.update_key(
-                    key=key,
-                    piece=move.piece_type,
-                    color=current_color,
-                    from_square=move.from_square,
-                    to_square=move.to_square,
-                    captured_piece=captured,
-                    captured_color=captured_color,
-                    result_piece=result_piece,
-                )
+        # opponent looks for minimum score
+        best = float("+inf")
+        for move in legal_moves:
+            captured = board.apply_move(move)
+            result_piece = board.get_piece_at(move.to_square)[0]
+            captured_color = current_color if captured else None
+            new_key = self._hasher.update_key(
+                key=key,
+                piece=move.piece_type,
+                color=current_color,
+                from_square=move.from_square,
+                to_square=move.to_square,
+                captured_piece=captured,
+                captured_color=captured_color,
+                result_piece=result_piece,
+            )
 
-                score = self._minimax(
-                    board=board,
-                    depth=depth - 1,
-                    is_maximizing=True,
-                    ai_color=ai_color,
-                    current_color=opponent,
-                    key=new_key,
-                )
-                board.undo_move(move, captured)
-                best = min(best, score)
+            score = self._minimax(
+                board=board,
+                depth=depth - 1,
+                is_maximizing=True,
+                ai_color=ai_color,
+                current_color=opponent,
+                key=new_key,
+            )
+            board.undo_move(move, captured)
+            best = min(best, score)
 
-            # store result in Transposition Table
-            self._tt.store(key, best, depth, EXACT)
-            return best
+        # store result in Transposition Table
+        self._tt.store(key, best, depth, EXACT)
+        return best

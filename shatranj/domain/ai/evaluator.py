@@ -476,10 +476,9 @@ class Evaluator:
         """
         if self._mode == "material":
             return self._eval_material(board, color)
-        elif self._mode == "positional":
+        if self._mode == "positional":
             return self._eval_positional(board, color)
-        else:
-            return self._eval_advanced(board, color)
+        return self._eval_advanced(board, color)
 
     # ------------------------------------------------------------------
     # Function 1: Material evaluation
@@ -599,7 +598,7 @@ class Evaluator:
                 sq = (bb & -bb).bit_length() - 1
                 if sq in CENTER_SQUARES:
                     score += 2
-                elif sq in NEAR_CENTER:
+                if sq in NEAR_CENTER:
                     score += 1
                 bb &= bb - 1
         return score
@@ -623,5 +622,4 @@ class Evaluator:
         # back rank (rank 0 for WHITE, rank 7 for BLACK) = safest
         if color == WHITE:
             return 3 - rank  # rank 0 → +3, rank 7 → -4
-        else:
-            return rank - 4  # rank 7 → +3, rank 0 → -4
+        return rank - 4  # rank 7 → +3, rank 0 → -4
