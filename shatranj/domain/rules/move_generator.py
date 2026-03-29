@@ -137,7 +137,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, KNIGHT, color))
-                if target[1] != color:
+                elif target[1] != color:
                     # Square occupied by an enemy → capture
                     # target[1] = color of the target piece
                     moves.append(
@@ -204,7 +204,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, FERZ, color))
-                if target[1] != color:
+                elif target[1] != color:
                     # Square occupied by an enemy → capture
                     moves.append(
                         Move(sq, to_sq, FERZ, color, captured_piece=target[0])
@@ -269,7 +269,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, SHAH, color))
-                if target[1] != color:
+                elif target[1] != color:
                     # Square occupied by an enemy → capture
                     moves.append(
                         Move(sq, to_sq, SHAH, color, captured_piece=target[0])
@@ -335,7 +335,7 @@ class MoveGenerator:
                 if target is None:
                     # Empty square → simple move
                     moves.append(Move(sq, to_sq, ALFIL, color))
-                if target[1] != color:
+                elif target[1] != color:
                     # Square occupied by an enemy → capture
                     moves.append(
                         Move(sq, to_sq, ALFIL, color, captured_piece=target[0])
