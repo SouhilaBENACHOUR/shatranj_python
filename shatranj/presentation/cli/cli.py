@@ -25,6 +25,11 @@ from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK
 from shatranj.utils.constants import ALFIL, KNIGHT, PAWN
+from shatranj.utils.exceptions import (
+    InvalidSquareError,
+    LoadError,
+    ShatranjError,
+)
 from shatranj.domain.ai.ai_player import AIPlayer
 from shatranj.domain.core.board import Board
 
@@ -255,11 +260,11 @@ class CLI:
             sub = args[0].lower() if args else ""
             if sub == "board":
                 self._do_show_board()
-            if sub == "history":
+            elif sub == "history":
                 self._do_show_history()
-            if sub == "time":
+            elif sub == "time":
                 self._do_show_time()
-            if sub == "configuration":
+            elif sub == "configuration":
                 self._do_show_configuration()
             else:
                 self._error(f"Unknown subcommand: show {sub}")
@@ -349,7 +354,7 @@ class CLI:
         try:
             from_sq = Board.algebraic_to_square(from_str)
             to_sq = Board.algebraic_to_square(to_str)
-        except ValueError as err:
+        except InvalidSquareError as err:
             self._error(str(err))
             return None
 
@@ -650,7 +655,7 @@ class CLI:
             self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=2)
             print("New game started! AI plays WHITE and BLACK.")
 
-        if len(args) >= 2 and args[0].lower() == "ai":
+        elif len(args) >= 2 and args[0].lower() == "ai":
             ai_color = args[1].upper()
 
             # optional algorithm as 3rd argument (default: alphabeta)
@@ -680,7 +685,7 @@ class CLI:
                 # default depth depending on algorithm
                 if algo == "alphabeta":
                     depth = 3
-                if algo == "mcts":
+                elif algo == "mcts":
                     depth = 100
                 else:
                     depth = 3
@@ -707,7 +712,7 @@ class CLI:
                     f"({algo}, depth={depth}, scoring={scoring})."
                 )
 
-            if ai_color == "WHITE":
+            elif ai_color == "WHITE":
                 self._ai_players[WHITE] = AIPlayer(
                     color=WHITE,
                     depth=depth,
@@ -1202,7 +1207,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     try:
                         from_sq = Board.algebraic_to_square(move_tok[0:2])
                         to_sq = Board.algebraic_to_square(move_tok[3:5])
-                    except ValueError as err:
+                    except InvalidSquareError as err:
                         self._error(f"Invalid square in history: {err}")
                         return
 
@@ -1239,8 +1244,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             print_board(self._state.board)
             print(f"\nIt's {self._state.current_color}'s turn.")
 
-        except ValueError as err:
+        except LoadError as err:
             self._error(f"Error parsing file '{path}': {err}")
+        except ShatranjError as err:
+            self._error(f"Unexpected error loading '{path}': {err}")
         except Exception as err:
             self._error(f"Unexpected error loading '{path}': {err}")
 
@@ -1407,7 +1414,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         if param == "verbose":
             self._verbose = value in ("true", "1", "yes")
             print(f"verbose = {self._verbose}")
-        if param == "debug":
+        elif param == "debug":
             self._debug = value in ("true", "1", "yes")
             print(f"debug = {self._debug}")
         else:

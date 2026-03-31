@@ -13,6 +13,8 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 
+from shatranj.utils.exceptions import LoadError, ShatranjError  # noqa: E402
+
 from gi.repository import Gtk, Gio, GLib, Gdk  # noqa: E402
 
 from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
@@ -339,7 +341,7 @@ class NewGameDialog(Gtk.Dialog):
 
     def __init__(self, parent) -> None:
 
-        super().__init__(title="New Game", transient_for=parent, modal=True)
+        super().__init__(title=_("New Game"), transient_for=parent, modal=True)
 
         self.set_default_size(440, 500)
 
@@ -666,7 +668,7 @@ class NewGameDialog(Gtk.Dialog):
         """Return the selected configuration as a dictionary."""
 
         if self._selected_speed is None or self._selected_preset is None:
-            raise ValueError("A time control must be selected.")
+            raise ShatranjError("A time control must be selected.")
 
         speed_label = TIME_CONTROL_GROUPS[self._selected_speed]["label"]
 
@@ -1043,7 +1045,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         # Undo button
 
-        undo_btn = Gtk.Button(label="Undo")
+        undo_btn = Gtk.Button(label=_("Undo"))
 
         undo_btn.connect("clicked", self._on_undo)
 
@@ -1051,7 +1053,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         # Hint button
 
-        hint_btn = Gtk.Button(label="Hint")
+        hint_btn = Gtk.Button(label=_("Hint"))
 
         hint_btn.connect("clicked", self._on_hint)
 
@@ -1059,7 +1061,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         # Back to menu button
 
-        menu_btn = Gtk.Button(label="Back to Menu")
+        menu_btn = Gtk.Button(label=_("Back to Menu"))
 
         menu_btn.connect("clicked", self._on_back_to_menu)
 
@@ -1721,7 +1723,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
             try:
                 config = dialog.get_config()
-            except ValueError:
+            except ShatranjError:
                 return
 
             dialog.destroy()
@@ -1752,7 +1754,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         dialog = Gtk.FileDialog()
 
-        dialog.set_title("Load Game")
+        dialog.set_title(_("Load Game"))
 
         dialog.open(self, None, self._on_load_game_finish)
 
@@ -1795,8 +1797,17 @@ class ShatranjWindow(Gtk.ApplicationWindow):
                 self.set_show_menubar(True)
                 self._stack.set_visible_child_name("game")
 
+        except LoadError as err:
+            dialog_err = Gtk.AlertDialog()
+            dialog_err.set_message(_("Load Error"))
+            dialog_err.set_detail(str(err))
+            dialog_err.show(self)
+        except ShatranjError as err:
+            dialog_err = Gtk.AlertDialog()
+            dialog_err.set_message(_("Error"))
+            dialog_err.set_detail(str(err))
+            dialog_err.show(self)
         except Exception:
-
             pass
 
     def _on_save_game(self, *_) -> None:
@@ -1807,7 +1818,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         dialog = Gtk.FileDialog()
 
-        dialog.set_title("Save Game")
+        dialog.set_title(_("Save Game"))
 
         dialog.save(self, None, self._on_save_game_finish)
 
@@ -1831,8 +1842,12 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
             cli._save_to_file(path)
 
+        except ShatranjError as err:
+            dialog_err = Gtk.AlertDialog()
+            dialog_err.set_message(_("Save Error"))
+            dialog_err.set_detail(str(err))
+            dialog_err.show(self)
         except Exception:
-
             pass
 
     def _on_info(self, *_) -> None:
@@ -1888,9 +1903,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         dialog = Gtk.AlertDialog()
 
-        dialog.set_message("Hint")
+        dialog.set_message(_("Hint"))
 
-        dialog.set_detail(f"Try: {frm}-{to}")
+        dialog.set_detail(f"{frm}-{to}")
 
         dialog.show(self)
 
@@ -2023,20 +2038,23 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         if self._engine.is_checkmate(self._state.board, current):
 
-            self._show_game_over_dialog(f"Checkmate! {opponent} wins!")
-
+            self._show_game_over_dialog(
+                _("Checkmate! {color} wins!").format(color=opponent)
+            )
             return True
 
         if self._engine.is_stalemate(self._state.board, current):
 
-            self._show_game_over_dialog(f"Stalemate! {opponent} wins!")
-
+            self._show_game_over_dialog(
+                _("Stalemate! {color} wins!").format(color=opponent)
+            )
             return True
 
         if self._engine.is_bare_king(self._state.board, current):
 
-            self._show_game_over_dialog(f"Bare King! {opponent} wins!")
-
+            self._show_game_over_dialog(
+                _("Bare King! {color} wins!").format(color=opponent)
+            )
             return True
 
         return False
@@ -2046,7 +2064,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         dialog = Gtk.AlertDialog()
 
-        dialog.set_message("Game Over")
+        dialog.set_message(_("Game Over"))
 
         dialog.set_detail(message)
 

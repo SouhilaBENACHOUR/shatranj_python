@@ -9,7 +9,8 @@ Hierarchy:
   ├── BoardError
   │   ├── InvalidSquareError
   │   ├── InvalidMoveError
-  │   └── NoPieceError
+  │   ├──NoPieceError
+  │   └── MissingShahError
   ├── RulesError
   │   └── IllegalMoveError
   ├── AIError
@@ -18,8 +19,7 @@ Hierarchy:
   ├── PersistenceError
   │   ├── SaveError
   │   └── LoadError
-  ├── ConfigError
-  └── MissingShahError
+  └── ConfigError
 """
 
 
