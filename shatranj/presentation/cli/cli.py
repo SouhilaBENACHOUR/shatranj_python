@@ -344,8 +344,9 @@ class CLI:
 
         # Accept "-" or "x" as separator
         if len(text) != 5 or text[2] not in ("-", "x"):
-            self._error(f"Invalid move format: '{text}'."
-                        "Expected format: e2-e4")
+            self._error(
+                f"Invalid move format: '{text}'." "Expected format: e2-e4"
+            )
             return None
 
         from_str = text[0:2]  # "e2"
@@ -424,13 +425,19 @@ class CLI:
         self._state.apply_move(move)
         self._saved = False
 
-        print(_("You played: {move}").format(
-            move=self._format_move_with_piece(move)))
+        print(
+            _("You played: {move}").format(
+                move=self._format_move_with_piece(move)
+            )
+        )
 
         # Display the updated board
         print_board(self._state.board)
-        print(_("It's now {color}'s turn.").format(
-            color=self._state.current_color))
+        print(
+            _("It's now {color}'s turn.").format(
+                color=self._state.current_color
+            )
+        )
 
         # Check if the game is over after the player's move
         if self._check_game_over():
@@ -581,8 +588,11 @@ class CLI:
             return
 
         # display the move played by the AI in algebraic notation
-        print(_("AI plays: {move}").format(
-            move=self._format_move_with_piece(move)))
+        print(
+            _("AI plays: {move}").format(
+                move=self._format_move_with_piece(move)
+            )
+        )
 
         # apply the move on the board
         self._state.apply_move(move)
@@ -599,7 +609,8 @@ class CLI:
         self._start_turn_timer()
 
     def _auto_play_ai_turns(
-            self, max_plies: int = AUTO_PLAY_MAX_PLIES) -> None:
+        self, max_plies: int = AUTO_PLAY_MAX_PLIES
+    ) -> None:
         """
         Chain AI turns as long as the current player is controlled by an AI.
 
@@ -663,7 +674,8 @@ class CLI:
 
             if algo not in ("minimax", "alphabeta", "mcts"):
                 self._error(
-                    f"Unknown algorithm: '{algo}'." "Use minimax, "
+                    f"Unknown algorithm: '{algo}'."
+                    "Use minimax, "
                     "alphabeta or mcts."
                 )
                 return
@@ -725,16 +737,19 @@ class CLI:
                     " you play BLACK."
                 )
             else:
-                self._error(f"Unknown color: '{args[1]}'."
-                            "Use 'black' or 'white'.")
+                self._error(
+                    f"Unknown color: '{args[1]}'." "Use 'black' or 'white'."
+                )
                 return
 
         else:
             print("New game started! White plays first.")
 
         if self._blitz_enabled:
-            print(f"Blitz mode enabled: {self._blitz_minutes} minute(s) "
-                  "per player.")
+            print(
+                f"Blitz mode enabled: {self._blitz_minutes} minute(s) "
+                "per player."
+            )
 
         print()
         print_board(self._state.board)
@@ -826,8 +841,7 @@ class CLI:
 
     def _print_general_help(self) -> None:
         """Display the list of all available commands."""
-        print(
-            """
+        print("""
 Available commands:
   new [ARGS]          Start a new game (e.g. ai white, ai black, ai-vs-ai)
   help [CMD]          Show this help or help for CMD
@@ -845,8 +859,7 @@ Available commands:
   set PARAM=VALUE     Change a configuration parameter
 
 To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
-"""
-        )
+""")
 
     def _print_command_help(self, cmd: str) -> None:
         """Display detailed help for a specific command."""
@@ -855,19 +868,24 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 "new [ARGS]  -  Start a new game. "
                 "Args: 'ai white', 'ai black', 'ai-vs-ai'."
             ),
-            "quit": ("quit  -  Quit the program. You'll be asked to "
-                     "save if needed."),
+            "quit": (
+                "quit  -  Quit the program. You'll be asked to "
+                "save if needed."
+            ),
             "help": "help [CMD]  -  Show help. With CMD: show help for that "
             "command.",
-            "load": ("load FILE  -  Load a saved game from FILE "
-                     "(.shatranj format)."),
+            "load": (
+                "load FILE  -  Load a saved game from FILE "
+                "(.shatranj format)."
+            ),
             "save": "save FILE  -  Save the current game to FILE.",
             "hint": "hint  -  Get a move suggestion from the engine.",
             "undo": "undo [N]  -  Undo the last N moves (default 1).",
             "redo": "redo [N]  -  Redo the last N undone moves (default 1).",
             "pause": "pause  -  Pause/resume the blitz timer.",
-            "set": ("set PARAM=VALUE  -  Change a setting. E.g.:"
-                    " set debug=true"),
+            "set": (
+                "set PARAM=VALUE  -  Change a setting. E.g.:" " set debug=true"
+            ),
         }
         if cmd in help_texts:
             print(help_texts[cmd])
@@ -932,8 +950,10 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _do_show_time(self) -> None:
         """Display remaining time (blitz mode only)."""
         if not self._blitz_enabled:
-            print("Time display is only available in blitz mode"
-                  "(use -b at startup).")
+            print(
+                "Time display is only available in blitz mode"
+                "(use -b at startup)."
+            )
             return
 
         if self._state is None:
@@ -1347,7 +1367,8 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                     to_alg = Board.square_to_algebraic(move.to_square)
                     sep = "x" if move.captured_piece else "-"
                     line_parts.append(
-                        f"{color_letter} {from_alg}{sep}{to_alg}")
+                        f"{color_letter} {from_alg}{sep}{to_alg}"
+                    )
                     i += 1
 
                     if i < len(history):

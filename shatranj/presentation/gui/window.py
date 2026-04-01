@@ -731,6 +731,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         # Current game state (None = no game started)
 
         self._state: GameState | None = None
+        self._saved: bool = True  # True = nothing to save
 
         # AI players dict: color → AIPlayer (empty = human vs human)
 
@@ -1455,7 +1456,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         file_menu.append("Info", "win.info")
 
-        file_menu.append("Quit", "app.quit")
+        file_menu.append("Quit", "win.quit")
 
         menu.append_submenu("File", file_menu)
 
@@ -1487,6 +1488,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             "pause": self._on_pause,
             "hint": self._on_hint,
             "help": self._on_help,
+            "quit": self._on_quit,
         }
 
         for name, callback in actions.items():
@@ -1513,7 +1515,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         app = self.get_application()
 
         shortcuts = {
-            "app.quit": ["<Ctrl>q"],
+            "win.quit": ["<Ctrl>q"],
             "win.new-game": ["<Ctrl>n"],
             "win.load-game": ["<Ctrl>l"],
             "win.save-game": ["<Ctrl>s"],
@@ -1682,6 +1684,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
                 return False
 
             self._state.apply_move(move)
+            self._saved = False
 
             self._board_widget.set_board(
                 self._state.board, self._state.current_color
@@ -1736,19 +1739,23 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_back_to_menu(self, *_) -> None:
         """Go back to the welcome screen."""
-        self.set_show_menubar(False)  # hide menubar on welcome screen
-        self._stop_timer(reset=True)
+        def do_back():
+            self.set_show_menubar(False)  # hide menubar on welcome screen
+            self._stop_timer(reset=True)
 
-        self._state = None
+            self._state = None
 
-        self._ai_players = {}
-        self._sync_board_interaction()
+            self._ai_players = {}
+            self._sync_board_interaction()
 
-        self._stack.set_visible_child_name("welcome")
+            self._stack.set_visible_child_name("welcome")
+        self._confirm_abandon(do_back)
 
     def _on_quit(self, *_) -> None:
         """Quit the application from the welcome screen."""
-        self.get_application().quit()
+        def do_quit():
+            self.get_application().quit()
+        self._confirm_abandon(do_quit)
 
     def _on_load_game(self, *_) -> None:
 
@@ -1841,6 +1848,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             cli._state = self._state
 
             cli._save_to_file(path)
+            self._saved = True
 
         except ShatranjError as err:
             dialog_err = Gtk.AlertDialog()
@@ -1933,6 +1941,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             return
 
         self._state.apply_move(move)
+        self._saved = False
 
         self._board_widget.set_board(
             self._state.board, self._state.current_color
@@ -2078,3 +2087,32 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._ai_players = {}
         self._sync_board_interaction()
+
+    def _confirm_abandon(self, on_confirmed) -> None:
+        """Ask the user to save before abandoning an unsaved game."""
+        if self._state is None or self._saved:
+            on_confirmed()
+            return
+
+        dialog = Gtk.MessageDialog(
+            transient_for=self,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Save the game before leaving?",
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("No", Gtk.ResponseType.NO)
+        dialog.add_button("Yes", Gtk.ResponseType.YES)
+
+        def on_response(dlg, response):
+            dlg.destroy()
+            if response == Gtk.ResponseType.YES:
+                self._on_save_game()        # ouvre le dialogue de sauvegarde
+                on_confirmed()              # puis exécute l'action
+            elif response == Gtk.ResponseType.NO:
+                on_confirmed()              # exécute l'action directement
+            # CANCEL : ne rien faire
+
+        dialog.connect("response", on_response)
+        dialog.present()

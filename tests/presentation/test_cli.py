@@ -1323,3 +1323,219 @@ class TestDoContest:
         cli = CLI()
         result = cli._do_contest(path=str(tmp_path / "missing.shj"))
         assert result == 1
+
+
+class TestFormatClockExtended:
+    """Additional tests for _format_clock method."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_format_clock_rounds_correctly(self):
+        assert self.cli._format_clock(9.1) == "00:10"
+        assert self.cli._format_clock(9.0) == "00:09"
+
+    def test_format_clock_large_value(self):
+        assert self.cli._format_clock(3661) == "61:01"
+
+
+class TestUndoRedoHumanVsAI:
+    """Tests for undo/redo in human vs AI mode."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_undo_in_human_vs_ai_undoes_two_moves(self):
+        self.cli._ai_players[BLACK] = MagicMock()
+
+        self.cli._state.apply_move(Move(12, 20, PAWN, WHITE))
+        self.cli._state.apply_move(Move(52, 44, PAWN, BLACK))
+
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            self.cli._do_undo(["1"])
+
+        assert self.cli._state.get_history() == []
+
+    def test_undo_with_n_greater_than_history(self, capsys):
+        self.cli._state.apply_move(Move(12, 20, PAWN, WHITE))
+
+        self.cli._do_undo(["5"])
+        out = capsys.readouterr().out
+        assert "undid 1 move" in out
+
+
+class TestDoNewUnsavedConfirmation:
+    """Tests for new game confirmation when unsaved."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_new_asks_confirmation_when_unsaved(self):
+        self.cli._state = GameState()
+        self.cli._saved = False
+
+        with patch("builtins.input", return_value="y"):
+            with patch("shatranj.presentation.cli.cli.print_board"):
+                with patch.object(self.cli, "_auto_play_ai_turns"):
+                    self.cli._do_new([])
+
+        assert self.cli._state is not None
+
+    def test_new_cancelled_when_user_says_no(self):
+        self.cli._state = GameState()
+        self.cli._saved = False
+
+        with patch("builtins.input", return_value="n"):
+            with patch("builtins.print") as mock_print:
+                self.cli._do_new([])
+                mock_print.assert_any_call("New game cancelled.")
+
+
+class TestDoQuitSaveFlow:
+    """Tests for save flow when quitting."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+        self.cli._saved = False
+        self.cli._running = True
+
+    def test_quit_unsaved_user_saves_success(self):
+        with patch("builtins.input", side_effect=["y", "test.sav"]):
+            with patch.object(self.cli, "_save_to_file", return_value=True):
+                self.cli._do_quit([])
+
+        assert self.cli._running is False
+
+    def test_quit_unsaved_save_fails_then_succeeds(self):
+        with patch(
+            "builtins.input",
+            side_effect=["y", "fail.sav", "y", "ok.sav"]
+        ):
+            with patch.object(
+                self.cli, "_save_to_file",
+                side_effect=[False, True]
+            ):
+                self.cli._do_quit([])
+
+        assert self.cli._running is False
+
+
+class TestDispatchEdgeCases:
+    """Edge cases for command dispatch."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_dispatch_q_quits(self):
+        self.cli._running = True
+        with patch.object(self.cli, "_do_quit") as mock:
+            self.cli._dispatch("q")
+            mock.assert_called_once()
+
+    def test_dispatch_empty_input(self):
+        self.cli._dispatch("")  # should not crash
+
+
+class TestStripCommentsBlock:
+    """Tests for block comment stripping."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_block_comment_multiline(self):
+        content = "[settings]\n{ multi\nline\ncomment }\nverbose=true\n"
+        result = self.cli._strip_comments(content)
+        assert result == ["[settings]", "verbose=true"]
+
+    def test_nested_block_comments_not_supported(self):
+        content = "[settings]\n{ outer { inner } }\nverbose=true\n"
+        result = self.cli._strip_comments(content)
+        assert any("verbose" in line for line in result)
+
+
+class TestCliAITimeout:
+    """Tests for AI timeout during blitz."""
+
+    def test_ai_move_aborts_on_timeout(self):
+        cli = CLI()
+        cli.enable_blitz(1)
+        cli._state = GameState()
+        cli._ai_players[WHITE] = MagicMock()
+        cli._clock_seconds[WHITE] = 0.5
+        cli._turn_started_at = 1000.0
+
+        with patch("time.monotonic", return_value=1001.0):
+            with patch("builtins.print") as mock_print:
+                cli._do_ai_move()
+                assert any(
+                    "Time out" in str(call)
+                    for call in mock_print.call_args_list
+                )
+
+
+class TestDoSaveEdgeCases:
+    """Edge cases for save command."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_save_without_filename(self):
+        cli = CLI()
+        cli._state = GameState()
+
+        with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
+            cli._do_save([])
+
+        assert "Usage" in mock_stderr.getvalue()
+
+
+class TestDoSetExtended:
+    """Extended tests for set command with boolean variants."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    @pytest.mark.parametrize("value", ["true", "yes", "1"])
+    def test_set_verbose_accepts_truthy_values(self, value):
+        self.cli._do_set([f"verbose={value}"])
+        assert self.cli._verbose is True
+
+    @pytest.mark.parametrize("value", ["false", "no", "0", "off"])
+    def test_set_verbose_accepts_falsy_values(self, value):
+        self.cli._verbose = True
+        self.cli._do_set([f"verbose={value}"])
+        assert self.cli._verbose is False
+
+
+class TestDoShowTimeEdgeCases:
+    """Edge cases for show time command."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_show_time_without_blitz(self, capsys):
+        self.cli._blitz_enabled = False
+        self.cli._state = GameState()
+
+        self.cli._do_show_time()
+        out = capsys.readouterr().out
+        assert "only available in blitz mode" in out
+
+
+class TestDoPauseEdgeCases:
+    """Edge cases for pause command."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_pause_without_blitz(self, capsys):
+        self.cli._blitz_enabled = False
+        self.cli._state = GameState()
+
+        self.cli._do_pause([])
+        out = capsys.readouterr().out
+        assert "only available in blitz mode" in out

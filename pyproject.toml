@@ -44,3 +44,8 @@ include = ["shatranj*"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=shatranj --cov-report=term-missing"
+
+[tool.coverage.run]
+omit = [
+    "shatranj/presentation/gui/*",
+]
