@@ -2,6 +2,7 @@ import pytest
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.utils.constants import WHITE, BLACK, ROOK, PAWN, FERZ
+from shatranj.utils.exceptions import InvalidMoveError
 
 
 def test_get_and_place_piece():
@@ -34,7 +35,7 @@ def test_move_piece_invalid():
     board = Board()
 
     # moving to the same square should raise an error
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidMoveError):
         board.move_piece(0, 0)
 
 
