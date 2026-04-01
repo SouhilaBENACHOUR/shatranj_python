@@ -445,27 +445,21 @@ class CLI:
         its turn.
 
         Steps:
-          1. Check that a game is in progress
-          2. Parse the move (algebraic notation -> Move)
-          3. Check that it is the right player's turn
-          4. Check that the move is legal
-          5. Apply the move
-          6. Check if the game is over
-          7. Let the AI play if it is its turn
+        1. Check that a game is in progress
+        2. Parse the move (algebraic notation -> Move)
+        3. Check that it is the right player's turn
+        4. Check that the move is legal
+        5. Apply the move
+        6. Check if the game is over
+        7. Let the AI play if it is its turn
         """
         if self._state is None:
             self._error("No game in progress.")
             return
 
-        # If connected to a server, send the move instead of playing locally
-        if hasattr(self, "_client") and self._client.is_connected():
-            self._client.send_command(f"MOVE {text}") # F39
-            return
-
-        # Check for time expiration in blitz mode
         if self._clock is not None and not self._clock_paused:
             if self._clock.is_flagged(self._state.current_color):
-                opponent = BLACK if self._state.current_color == WHITE else WHITE
+                opponent = "BLACK" if self._state.current_color == "WHITE" else "WHITE"
                 print(f"\n!!! TIME OUT !!! {self._state.current_color} lost on time.")
                 print(f"Checkmate! {opponent} wins!")
                 self._state = None
@@ -475,122 +469,152 @@ class CLI:
         if move is None:
             return
 
-        # Check that the right player is moving
         if move.color != self._state.current_color:
             self._error(
                 f"It's {self._state.current_color}'s turn,"
                 f" not {move.color}'s."
             )
             return
+        # ---> ADD THIS BLOCK TO LOCK THE KEYBOARD <---
+        # Block the player from moving if it is a network game and not their turn!
+        if hasattr(self, "_network_client") and self._network_client and self._network_client.connected:
+            if hasattr(self, "_my_color") and self._my_color:
+                if self._state.current_color != self._my_color:
+                    self._error(f"Patience ! C'est au tour de {self._state.current_color} de jouer.")
+                    return
 
-        # Full legality check: geometry + Shah safety (no self-check)
         legal_moves = self._engine.generate_legal_moves(
             self._state.board, self._state.current_color
         )
-        if move not in legal_moves:
+        
+        # BULLETPROOF MATCHING: Just compare the start and end squares!
+        real_move = None
+        for valid_move in legal_moves:
+            if valid_move.from_square == move.from_square and valid_move.to_square == move.to_square:
+                real_move = valid_move
+                break
+                
+        if real_move is None:
             self._error(f"Illegal move: {text}")
             return
+            
+        move = real_move
 
-        # Stop current player's clock
         if self._clock is not None and not self._clock_paused:
             self._clock.end_turn()
         
-        # Apply the player's move
         self._state.apply_move(move)
         self._saved = False
+
+        if hasattr(self, "_network_client") and self._network_client and self._network_client.connected:
+            self._network_client.play_move(text)
 
         print(_("You played: {move}").format(
             move=self._format_move_with_piece(move)))
 
-        # Display the updated board
         print_board(self._state.board)
         
-        # Start next player's clock
         if self._clock is not None and not self._clock_paused:
             self._clock.start_turn(self._state.current_color)
         
         print(f"\nIt's now {self._state.current_color}'s turn.")
         
-        # Show time in blitz mode
         if self._clock is not None:
-            w_time = self._clock.get_remaining_time(WHITE)
-            b_time = self._clock.get_remaining_time(BLACK)
+            w_time = self._clock.get_remaining_time("WHITE")
+            b_time = self._clock.get_remaining_time("BLACK")
             print(f"Time: White {max(0, w_time):.1f}s | Black {max(0, b_time):.1f}s")
-        print(_("It's now {color}'s turn.").format(
-            color=self._state.current_color))
 
-        # Check if the game is over after the player's move
         if self._check_game_over():
             return
 
         self._start_turn_timer()
-
-        # If the next turn is controlled by an AI, chain it automatically
         self._auto_play_ai_turns()
     def _on_message(self, msg) -> None:
         """Background listener for server data."""
-        # 1. Extract the command and arguments from the Message object
-        # Based on your protocol: Command.PLAYERS, Command.PING, etc.
-        cmd = getattr(msg, 'command', str(msg))
+        cmd = str(getattr(msg, 'command', msg)).upper()
         args = getattr(msg, 'args', [])
         
-        if "GAME_START" in str(cmd):
-            # 1. On crée l'objet Board de board.py (sans setup auto)
-            # On passe setup=False pour ne pas avoir le placement par défaut
+        # --- F39 : DÉBUT DE PARTIE ---
+        if "GAME_START" in cmd:
             new_board = Board(setup=False) 
-
-            # 2. On extrait les pièces du message "board=r,n,a..."
             board_data = ""
+            self._my_color = None # Reset color memory
+            
+            # Read the server args to find out our color!
             for arg in args:
                 if arg.startswith("board="):
                     board_data = arg.split("=", 1)[1]
-                    break
+                elif arg == "white=You":
+                    self._my_color = "WHITE"
+                elif arg == "black=You":
+                    self._my_color = "BLACK"
             
             if board_data:
                 pieces_list = board_data.split(",")
                 for i, char in enumerate(pieces_list):
                     if char != "." and i < 64:
-                        # On utilise ta logique de symboles
                         p_type, p_color = self._symbol_to_piece(char)
-                        # On place la pièce physiquement dans l'objet Board
-                        new_board.place_piece(p_type, p_color, i)
+                        real_square = (7 - (i // 8)) * 8 + (i % 8)
+                        new_board.place_piece(p_type, p_color, real_square)
 
-            # 3. On enregistre ce plateau dans l'état du jeu
             self._state = GameState()
             self._state.board = new_board 
-
-            # 4. On appelle ton display.py (via ta méthode)
-            # C'est ici que la magie de board_to_string et des couleurs opère !
+            
+            print("\n" + "="*30)
+            print(" LE MATCH COMMENCE ! ")
+            
+            # Print a giant banner telling them their role
+            if self._my_color:
+                print(f" >>> VOUS JOUEZ LES {self._my_color}S <<<")
+                if self._my_color == "BLACK":
+                    print(" (Les Blancs commencent. Veuillez patienter...)")
+            print("="*30)
+            
             self._do_show_board()
+            print(f"\n{PROMPT}", end="", flush=True)
+            return 
 
-            print(f"\n--- [NETWORK DATA RECEIVED] ---")
-            print(f"Command: {cmd}")
-            print(f"Arguments: {args}")
-        
-        # F39: Logic for displaying the player list
-        if "PLAYERS" in str(cmd):
-            print("\n--- ONLINE PLAYERS ---")
+        # --- F39 : RÉCEPTION DU COUP DE L'ADVERSAIRE ---
+        if "MOVE" in cmd or "OPPONENT_MOVE" in cmd:
+            if self._state is not None:
+                move_text = args[0]
+                
+                # Convert the text (e.g., "e7-e6") into a Move object
+                move = self._parse_move(move_text)
+                
+                if move is not None:
+                    # Apply it to the board and flip the turn
+                    self._state.apply_move(move)
+                    self._saved = False
+                    
+                    # Print the update to the screen
+                    print(f"\n[+] L'adversaire a joué : {move_text}")
+                    print_board(self._state.board)
+                    print(f"\nIt's now {self._state.current_color}'s turn.")
+                    print(f"\n{PROMPT}", end="", flush=True)
+            return
+
+        # --- F40 : RÉCEPTION D'INVITATION ---
+        if "INVITE_RECV" in cmd or "INVITATION_RECEIVED" in cmd:
+            from_user = args[0] if args else "Inconnu"
+            print(f"\n[!] INVITATION REÇUE de : {from_user}")
+            print("Tapez 'accept' pour jouer ou 'decline' pour refuser.")
+            print(f"\n{PROMPT}", end="", flush=True)
+            return
+
+        if "INVITATION_SENT" in cmd:
+            print("\n[+] Invitation envoyée ! En attente de l'adversaire...")
+            print(f"\n{PROMPT}", end="", flush=True)
+            return
+
+        # --- F39 : LISTE DES JOUEURS ---
+        if "PLAYERS" in cmd:
+            print("\n--- JOUEURS EN LIGNE ---")
             for p in args:
-                # This will now print everyone: Zaza, Yaya, op, etc.
                 print(f" -> {p}")
             print("----------------------")
-        # F40: This is what the OTHER terminal needs to see
-        if "INVITATION_RECEIVED" in str(cmd):
-            # args[0] should be the name or ID of the person inviting you
-            print(f"\n[!] INVITATION RECEIVED from {args[0]}")
-            print("Type 'accept' to start or 'decline' to refuse.")
-            # Important: re-print the prompt so the user sees they can type
             print(f"\n{PROMPT}", end="", flush=True)
-
-        elif "INVITATION_SENT" in str(cmd):
-            print("\n[+] Invitation sent! Waiting for opponent...")
-            print(f"\n{PROMPT}", end="", flush=True)
-        
-        # F40: Logic for invitations
-        elif "INVITATION" in str(cmd):
-            print(f"\nALERT: New invitation from {args[0]}!") [cite: 308, 318]
-
-        print(f"-------------------------------\n{PROMPT}", end="", flush=True)
+            return
 
     def _symbol_to_piece(self, char: str):
         """Méthode utilitaire pour convertir 'r' en (ROOK, BLACK), etc."""
@@ -905,7 +929,7 @@ class CLI:
         
         # 2. NETWORK INVITATION (F40)
         # If we are connected and the first argument looks like a player ID (not 'ai')
-        if self._network_client and self._network_client.connected and args:
+        if hasattr(self, "_network_client") and self._network_client and self._network_client.connected and args:
             if args[0].lower() not in ("ai", "ai-vs-ai"):
                 target_id = args[0]
                 print(f"Sending network invitation to {target_id}...")
@@ -1351,6 +1375,14 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         legal_moves = self._engine.generate_legal_moves(
             self._state.board, self._state.current_color
         )
+        # Full legality check: geometry + Shah safety
+        legal_moves = self._engine.generate_legal_moves(
+            self._state.board, self._state.current_color
+        )
+        
+        # ---> ADD THESE TWO LINES <---
+        print(f"DEBUG - Computer list: {[str(m) for m in legal_moves]}")
+        print(f"DEBUG - What we typed: {str(move)}")
         if not legal_moves:
             print("No legal moves available.")
             return

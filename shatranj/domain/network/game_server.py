@@ -166,83 +166,34 @@ class GameServer:
                 break
 
     def _handle_move(self, connection: PlayerConnection, message: Message):
-        if not message.args: return
-        move_str = message.args[0]
-        
-        # 1. Trouver la partie
-        session = None
-        for sid, ses in self.active_sessions.items():
-            if ses.white == connection or ses.black == connection:
-                session = ses
-                break
-                
-        if not session:
-            connection.send(Message.build(Response.ERROR, "Aucune partie en cours"))
-            return
-
-        # 2. Vérifier le tour
-        player_color = session.get_player_color(connection)
-        if player_color != session.current_color:
-            connection.send(Message.build(Response.INVALID, "Ce n'est pas ton tour !"))
-            return
-
-        # 3. Validation avec TES classes
         try:
-            from shatranj.domain.core.board import Board
-            from shatranj.domain.core.move import Move
-            from shatranj.utils.constants import WHITE, BLACK
-
-            parts = move_str.split("-")
-            if len(parts) != 2:
-                connection.send(Message.build(Response.INVALID, "Format invalide"))
-                return
-
-            from_sq = Board.algebraic_to_square(parts[0])
-            to_sq = Board.algebraic_to_square(parts[1])
-
-            piece = session.board.get_piece_at(from_sq)
-            if not piece:
-                connection.send(Message.build(Response.INVALID, "Pas de pièce ici"))
-                return
-
-            piece_type, piece_color = piece
-            if piece_color != player_color:
-                connection.send(Message.build(Response.INVALID, "Ce n'est pas ta pièce !"))
-                return
+            if not message.args: return
+            move_str = message.args[0]
             
-            captured = session.board.get_piece_at(to_sq)
-            captured_piece = captured[0] if captured else None
-            
-            # Création du Move avec la syntaxe de TA classe Move
-            move = Move(
-                from_square=from_sq, 
-                to_square=to_sq, 
-                piece_type=piece_type, 
-                color=player_color, 
-                captured_piece=captured_piece
-            )
-
-            # Vérifier les règles avec ton moteur
-            if not session.engine.is_valid_move(session.board, move):
-                connection.send(Message.build(Response.INVALID, "Coup illégal !"))
+            # 1. Find the active game session
+            session = None
+            for sid, ses in self.active_sessions.items():
+                if ses.white == connection or ses.black == connection:
+                    session = ses
+                    break
+                    
+            if not session:
+                connection.send(Message.build(Response.ERROR, "Aucune partie en cours"))
                 return
 
-            # 4. Appliquer le coup avec TA fonction
-            session.board.apply_move(move)
+            # 2. Verify it is actually this player's turn
+            player_color = session.get_player_color(connection)
+            if player_color != session.current_color:
+                connection.send(Message.build(Response.INVALID, "Ce n'est pas ton tour !"))
+                return
 
-            # 5. Changer le tour
+            # 3. Flip the turn on the server
             session.current_color = BLACK if player_color == WHITE else WHITE
 
-            # 6. Récupérer le nouveau plateau et l'envoyer
-            nouveau_plateau = session.board.to_fen()
-            
-            # On envoie OK et le nouveau plateau au joueur qui a joué
-            connection.send(Message.build(Response.OK, f"board={nouveau_plateau}"))
-            
-            # On envoie le coup ET le nouveau plateau à l'adversaire
+            # 4. RELAY THE MOVE! 
             opponent = session.get_opponent(connection)
             if opponent:
-                opponent.send(Message.build(Response.OPPONENT_MOVE, move_str, f"board={nouveau_plateau}"))
+                opponent.send(Message.build(Response.OPPONENT_MOVE, move_str))
 
         except Exception as e:
             import logging
