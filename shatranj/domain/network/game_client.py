@@ -8,36 +8,61 @@ from shatranj.domain.network.protocol import Message, Command, Response
 logger = logging.getLogger(__name__)
 
 class GameClient:
-    def __init__(self, server_ip: str, server_port: int, on_message):
-        self.server_ip = server_ip
-        self.server_port = server_port
-        self.on_message = on_message
+    # Fix: Ensure the arguments match what the CLI sends
+    def __init__(self, address: str, callback):
+        """
+        address: format "localhost:12345" or "127.0.0.1"
+        callback: the _on_message function from CLI
+        """
+        # F38: Parse IP and Port
+        if ":" in address:
+            self.server_ip, port_str = address.split(":")
+            self.server_port = int(port_str)
+        else:
+            self.server_ip = address
+            self.server_port = 12345  # Default port (F38)
+
+        self.on_message = callback
         self.socket = None
         self.connected = False
         self.thread = None
 
-    def connect(self, player_name: str) -> bool:
+    def is_connected(self) -> bool:
+        """Check if the TCP connection is alive."""
+        return self.connected
+
+    # Rename connect to match your CLI's usage if necessary, 
+    # but usually, we call this inside the CLI
+    def start_connection(self, player_name: str = "Player") -> bool:
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.server_ip, self.server_port))
             self.connected = True
 
+            # F39: Start a thread to listen for server messages while user types
             self.thread = threading.Thread(target=self._receive_loop, daemon=True)
             self.thread.start()
             
+            # F38: Send initial connection/auth message
             return self.send(Message.build(Command.CONN, player_name))
         except Exception as e:
-            logger.error(f"Erreur de connexion : {e}")
+            logger.error(f"Connection error: {e}")
             return False
 
     def send(self, message: str) -> bool:
+        """F38: Send ASCII message followed by newline."""
         if not self.connected or not self.socket: return False
         try:
+            # Ensure message ends with \n as per specs
+            if not message.endswith("\n"):
+                message += "\n"
             self.socket.sendall(message.encode('utf-8'))
             return True
         except:
             self.connected = False
             return False
+
+    # ... (Keep your other methods like ping(), get_players(), etc.)
 
     # Nouvelles commandes réseau
     def ping(self):

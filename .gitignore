@@ -1,21 +1,37 @@
+# Virtual environments
+.venv/
+.venv-linux/
+venv/
+
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
 
-# Virtual environments
-.venv/
-venv/
+# Build / packaging
+shatranj.egg-info/
+dist/
+build/
 
-# Test / coverage artifacts
+# Coverage
 .coverage
 htmlcov/
-.pytest_cache/
-.hypothesis/
+docs/build/
 
-# Editor / backups
-*.save
-*.egg-info/
-
-# ignore generated files
+# Generated files
 *.dot
 *.png
+
+# Runtime data / save files
+*.shatranj
+
+# LaTeX build artifacts (keep report.pdf)
+pdp/**/*.aux
+pdp/**/*.log
+pdp/**/*.out
+pdp/**/*.toc
+pdp/02-final/_minted-*/
+pdp/02-final/packages.pngD
+
+# Compiled translations
+*.mo

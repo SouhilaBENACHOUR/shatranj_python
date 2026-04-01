@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shatranj"
-version = "0.1.0"
+version = "0.4.0"
 description = "Shatranj (Indian Chess) game implementation in Python with AI, GUI, and network support"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,12 +25,11 @@ dependencies = [
     "flake8>=6.1.0",
     "isort>=5.12.0",
     "sphinx>=7.1.0",
+    "PyGObject>=3.42.0; sys_platform == 'linux'",
 ]
 
 [project.optional-dependencies]
-gui = [
-    "PyGObject>=3.42.0; sys_platform == 'linux'",
-]
+gui = []
 dev = []
 
 [project.scripts]

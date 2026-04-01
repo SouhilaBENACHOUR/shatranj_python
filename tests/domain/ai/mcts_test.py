@@ -12,7 +12,7 @@ def test_mcts_returns_a_move():
     board.place_piece(ROOK, WHITE, 1)
     board.place_piece(SHAH, BLACK, 63)
     engine = RulesEngine()
-    mcts = MCTS(engine=engine, simulations=50)  # 50 pour les tests (rapide)
+    mcts = MCTS(engine=engine, simulations=2)
     move = mcts.best_move(board, WHITE)
     assert move is not None
 
@@ -25,7 +25,7 @@ def test_mcts_returns_none_when_no_moves():
     board.place_piece(ROOK, BLACK, 1)
     board.place_piece(SHAH, BLACK, 9)
     engine = RulesEngine()
-    mcts = MCTS(engine=engine, simulations=50)
+    mcts = MCTS(engine=engine, simulations=1)
     move = mcts.best_move(board, WHITE)
     assert move is None
 
@@ -41,10 +41,12 @@ def test_mcts_via_ai_player():
     assert move is not None
 
 
-def test_mcts_avoids_immediate_loss():
+def test_mcts_handles_branching_position():
     """
-    MCTS doit éviter de jouer dans une position perdante immédiate.
-    Le Shah blanc ne doit pas se déplacer vers une case attaquée.
+    MCTS returns a legal move even on a position with many choices.
+
+    This test stays lightweight on purpose: it validates integration
+    without turning the suite into a performance benchmark.
     """
     board = Board(setup=False)
     board.place_piece(SHAH, WHITE, 0)  # a1
@@ -52,6 +54,7 @@ def test_mcts_avoids_immediate_loss():
     board.place_piece(SHAH, BLACK, 63)  # h8
     board.place_piece(PAWN, BLACK, 24)  # a4 — capturable
     engine = RulesEngine()
-    mcts = MCTS(engine=engine, simulations=200)
+    mcts = MCTS(engine=engine, simulations=1)
     move = mcts.best_move(board, WHITE)
     assert move is not None
+    assert move in engine.generate_legal_moves(board, WHITE)

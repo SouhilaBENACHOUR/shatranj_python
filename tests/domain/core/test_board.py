@@ -1,14 +1,15 @@
 import pytest
 from shatranj.domain.core.board import Board
-from shatranj.utils.constants import WHITE, ROOK, PAWN
+from shatranj.domain.core.move import Move
+from shatranj.utils.constants import WHITE, BLACK, ROOK, PAWN, FERZ
 
 
 def test_get_and_place_piece():
     board = Board()
     # make sure square 0 is empty by removing whatever is there
     board.remove_piece(0)
-    assert board.get_piece_at(0) is None  # should return None for an empy square
-
+    # should return None for an empy square
+    assert board.get_piece_at(0) is None
     # white rook on square 0
     board.place_piece(ROOK, WHITE, 0)
     assert board.get_piece_at(0) == (ROOK, WHITE)
@@ -41,3 +42,28 @@ def test_occupancy():
     board = Board()
     # total occupancy should be the bitwise OR white and black occupancy
     assert board.occupancy == (board.white_occupancy | board.black_occupancy)
+
+
+def test_apply_move_promotes_pawn_to_ferz():
+    board = Board(setup=False)
+    board.place_piece(PAWN, WHITE, 48)  # a7
+
+    move = Move(48, 56, PAWN, WHITE)
+
+    board.apply_move(move)
+
+    assert board.get_piece_at(56) == (FERZ, WHITE)
+    assert board.get_piece_at(48) is None
+
+
+def test_undo_move_restores_pawn_after_promotion():
+    board = Board(setup=False)
+    board.place_piece(PAWN, WHITE, 48)  # a7
+    board.place_piece(ROOK, BLACK, 57)  # b8
+
+    move = Move(48, 57, PAWN, WHITE, captured_piece=ROOK)
+    captured = board.apply_move(move)
+    board.undo_move(move, captured)
+
+    assert board.get_piece_at(48) == (PAWN, WHITE)
+    assert board.get_piece_at(57) == (ROOK, BLACK)

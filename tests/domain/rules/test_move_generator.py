@@ -1,6 +1,7 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.rules.move_generator import MoveGenerator
-from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, FERZ, SHAH, ALFIL
+from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK
+from shatranj.utils.constants import KNIGHT, FERZ, SHAH, ALFIL
 
 
 def test_generate_pawn_capture():

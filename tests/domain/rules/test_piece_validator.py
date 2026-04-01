@@ -1,7 +1,8 @@
 import pytest
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH
+from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK
+from shatranj.utils.constants import KNIGHT, ALFIL, FERZ, SHAH
 from shatranj.domain.rules.piece_validator import (
     PawnValidator,
     RookValidator,
@@ -223,10 +224,10 @@ class TestAlfilValidator:
     def test_all_four_directions(self, empty_board):
         """Alfil can jump in all 4 diagonal directions"""
         empty_board.place_piece(ALFIL, WHITE, 27)  # d4
-        assert self.validator.is_valid(empty_board, Move(27, 45, ALFIL, WHITE))  # NE
-        assert self.validator.is_valid(empty_board, Move(27, 41, ALFIL, WHITE))  # NW
-        assert self.validator.is_valid(empty_board, Move(27, 13, ALFIL, WHITE))  # SE
-        assert self.validator.is_valid(empty_board, Move(27, 9, ALFIL, WHITE))  # SW
+        assert self.validator.is_valid(empty_board, Move(27, 45, ALFIL, WHITE))
+        assert self.validator.is_valid(empty_board, Move(27, 41, ALFIL, WHITE))
+        assert self.validator.is_valid(empty_board, Move(27, 13, ALFIL, WHITE))
+        assert self.validator.is_valid(empty_board, Move(27, 9, ALFIL, WHITE))
 
     def test_one_square_invalid(self, empty_board):
         """Alfil cannot move just 1 square"""
@@ -274,10 +275,10 @@ class TestFerzValidator:
     def test_all_four_directions(self, empty_board):
         """Ferz can move in all 4 diagonal directions"""
         empty_board.place_piece(FERZ, WHITE, 27)  # d4
-        assert self.validator.is_valid(empty_board, Move(27, 36, FERZ, WHITE))  # NE
-        assert self.validator.is_valid(empty_board, Move(27, 34, FERZ, WHITE))  # NW
-        assert self.validator.is_valid(empty_board, Move(27, 20, FERZ, WHITE))  # SE
-        assert self.validator.is_valid(empty_board, Move(27, 18, FERZ, WHITE))  # SW
+        assert self.validator.is_valid(empty_board, Move(27, 36, FERZ, WHITE))
+        assert self.validator.is_valid(empty_board, Move(27, 34, FERZ, WHITE))
+        assert self.validator.is_valid(empty_board, Move(27, 20, FERZ, WHITE))
+        assert self.validator.is_valid(empty_board, Move(27, 18, FERZ, WHITE))
 
     def test_straight_invalid(self, empty_board):
         """Ferz cannot move straight"""

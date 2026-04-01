@@ -1,0 +1,32 @@
+# Shatranj - French translations
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+
+msgid "Welcome to Shatranj! Type 'help' to see available commands."
+msgstr "Bienvenue dans Shatranj ! Tapez 'help' pour voir les commandes disponibles."
+
+msgid "Start a new game with 'new'."
+msgstr "Démarrez une nouvelle partie avec 'new'."
+
+msgid "Goodbye!"
+msgstr "Au revoir !"
+
+msgid "New game started! White plays first."
+msgstr "Nouvelle partie lancée ! Les blancs jouent en premier."
+
+msgid "It's now {color}'s turn."
+msgstr "C'est au tour de {color} de jouer."
+
+msgid "Checkmate! {color} wins!"
+msgstr "Échec et mat ! {color} gagne !"
+
+msgid "Stalemate! {color} wins!"
+msgstr "Pat ! {color} gagne !"
+
+msgid "Bare King! {color} wins!"
+msgstr "Roi nu ! {color} gagne !"
+
+msgid "AI is thinking..."
+msgstr "L'IA réfléchit..."

@@ -1,10 +1,16 @@
 from shatranj.data.bitboards.bitboard import (
     clear_bit_at,
     get_bit_at,
-    set_bit_at,
     get_lsb,
+    set_bit_at,
 )
 from shatranj.domain.core.move import Move
+from shatranj.utils.exceptions import (
+    InvalidMoveError,
+    InvalidSquareError,
+    MissingShahError,
+    NoPieceError,
+)
 from shatranj.utils.constants import (
     ALFIL,
     BLACK,
@@ -45,9 +51,22 @@ SYMBOL_TO_PIECE = {v: k for k, v in PIECE_TO_SYMBOL.items()}
 
 class Board:
     def __init__(self, setup: bool = True) -> None:
-        self._boards = {(piece, color): 0 for piece in PIECES for color in COLORS}
+        self._boards = {
+            (piece, color): 0 for piece in PIECES for color in COLORS
+        }
         if setup:
             self.setup_starting_position()
+
+    def copy(self) -> "Board":
+        """
+        Return an isolated copy of the board.
+
+        Bitboards are integers, so copying the internal dictionary is enough
+        to detach search code from the displayed game state.
+        """
+        new_board = Board(setup=False)
+        new_board._boards = dict(self._boards)
+        return new_board
 
     def clear(self) -> None:
         for key in self._boards:
@@ -60,7 +79,9 @@ class Board:
             self.set_piece(piece, WHITE, file_idx)
             self.set_piece(PAWN, WHITE, file_idx + BOARD_SIZE)
             self.set_piece(piece, BLACK, file_idx + (NUM_SQUARES - BOARD_SIZE))
-            self.set_piece(PAWN, BLACK, file_idx + (NUM_SQUARES - 2 * BOARD_SIZE))
+            self.set_piece(
+                PAWN, BLACK, file_idx + (NUM_SQUARES - 2 * BOARD_SIZE)
+            )
 
     def set_piece(self, piece: str, color: str, square: int) -> None:
         self.clear_piece(square)
@@ -85,15 +106,29 @@ class Board:
 
     def move_piece(self, from_square: int, to_square: int) -> None:
         if from_square == to_square:
-            raise ValueError("can't move to the same square")
+            raise InvalidMoveError(
+                f"Cannot move to the same square ({from_square})"
+            )
 
         found = self.get_piece_at(from_square)
         if found is None:
-            raise ValueError("no piece on from_square")
+            raise NoPieceError(
+                f"No piece on square {from_square}"
+            )
 
         piece, color = found
         self.clear_piece(from_square)
         self.set_piece(piece, color, to_square)
+
+    def _is_promotion_move(self, move: Move) -> bool:
+        """Return True when a pawn reaches the last rank."""
+        if move.piece_type != PAWN:
+            return False
+
+        target_rank = move.to_square // BOARD_SIZE
+        if move.color == WHITE:
+            return target_rank == BOARD_SIZE - 1
+        return target_rank == 0
 
     @property
     def white_pieces(self) -> int:
@@ -128,39 +163,44 @@ class Board:
     @staticmethod
     def square_to_algebraic(square: int) -> str:
         if not 0 <= square < NUM_SQUARES:
-            raise ValueError("must be in [0, 63]")
+            raise InvalidSquareError(
+                f"Square {square} must be in [0, {NUM_SQUARES - 1}]"
+            )
         return FILES[square % BOARD_SIZE] + RANKS[square // BOARD_SIZE]
 
     @staticmethod
     def algebraic_to_square(pos: str) -> int:
         if len(pos) != 2 or pos[0] not in FILES or pos[1] not in RANKS:
-            raise ValueError("pos must be like 'e4'")
+            raise InvalidSquareError(
+                f"Invalid algebraic notation '{pos}':"
+                f"expected format like 'e4'"
+            )
         return FILES.index(pos[0]) + BOARD_SIZE * RANKS.index(pos[1])
 
-    def find_shah(self, color: str) -> int | None:
+    def find_shah(self, color: str) -> int:
         """
-        Retourne la case du Shah de la couleur donnée.
+        Return the square of the Shah for the given color.
+        Raises MissingShahError if no Shah is found on the board.
         """
         bitboard = self._boards[(SHAH, color)]
         if bitboard == 0:
-            return None
+            raise MissingShahError(
+                f"No Shah found for {color} on the board"
+            )
         return get_lsb(bitboard)
 
     def apply_move(self, move: Move) -> tuple[str, str] | None:
-        """
-        Joue le coup sur le board.
-        Retourne la pièce capturée ou None.
-        """
-        captured = self.get_piece_at(move.to_square)  # sauvegarde la pièce capturée
-        self.move_piece(move.from_square, move.to_square)  # déplace la pièce
-        return captured  # nécessaire pour undo_move
+        """Play a move and promote pawns reaching the last rank to ferz."""
+        captured = self.get_piece_at(move.to_square)
+        self.move_piece(move.from_square, move.to_square)
+        if self._is_promotion_move(move):
+            self.set_piece(FERZ, move.color, move.to_square)
+        return captured
 
     def undo_move(self, move: Move, captured: tuple[str, str] | None) -> None:
-        """
-        Annule le coup joué par apply_move.
-        Remet la pièce à l'origine et restore la pièce capturée.
-        """
-        self.move_piece(move.to_square, move.from_square)  # remet la pièce à l'origine
+        """Undo a move, including promotion moves explored by the AI."""
+        self.clear_piece(move.to_square)
+        self.set_piece(move.piece_type, move.color, move.from_square)
         if captured is not None:
             piece, color = captured
             self.set_piece(piece, color, move.to_square)  # restore la pièce capturée

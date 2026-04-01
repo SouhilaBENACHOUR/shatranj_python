@@ -21,7 +21,7 @@ from shatranj.domain.core.move import Move
 from io import StringIO
 from shatranj.presentation.cli.cli import CLI
 from shatranj.presentation.cli.game_state import GameState
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN
+from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN, FERZ
 
 
 class TestGameState:
@@ -84,24 +84,42 @@ class TestGameState:
     def test_apply_clears_redo_stack(self):
         """Jouer un nouveau coup après undo efface le redo stack."""
 
-        move1 = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
+        move1 = Move(
+            from_square=12, to_square=20, piece_type=PAWN, color=WHITE
+        )
         self.state.apply_move(move1)
         self.state.undo()
         assert self.state.can_redo()
 
         # On joue un coup différent
-        move2 = Move(from_square=11, to_square=19, piece_type=PAWN, color=WHITE)
+        move2 = Move(
+            from_square=11, to_square=19, piece_type=PAWN, color=WHITE
+        )
         self.state.apply_move(move2)
 
         # Le redo stack doit être vide
         assert not self.state.can_redo()
+
+    def test_apply_move_promotes_pawn_to_ferz(self):
+        """Un pion sur la derniere rangee devient un ferz."""
+
+        from shatranj.domain.core.board import Board
+
+        self.state.board = Board(setup=False)
+        self.state.board.place_piece(PAWN, WHITE, 48)  # a7
+        move = Move(from_square=48, to_square=56, piece_type=PAWN, color=WHITE)
+
+        self.state.apply_move(move)
+
+        assert self.state.board.get_piece_at(56) == (FERZ, WHITE)
+        assert self.state.current_color == BLACK
 
 
 class TestDisplay:
     """Tests pour l'affichage ASCII du plateau."""
 
     def test_board_to_string_has_8_rows(self):
-        """Le plateau affiché a bien 8 lignes de pièces + 1 ligne de colonnes."""
+        """The displayed board has 8 piece rows and 1 column label row."""
         from shatranj.domain.core.board import Board
         from shatranj.presentation.cli.display import board_to_string
 
@@ -134,6 +152,17 @@ class TestDisplay:
         result = board_to_string(board, use_color=True)
 
         assert "\033[" in result
+
+    def test_board_to_string_with_color_keeps_layout_simple(self):
+        """Le mode colorÃ© ajoute un fond de case pour la lisibilitÃ©."""
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.display import board_to_string
+
+        board = Board(setup=True)
+        result = board_to_string(board, use_color=True)
+
+        assert "\033[47m" not in result
+        assert "\033[100m" not in result
 
 
 class TestMoveParser:
@@ -211,7 +240,8 @@ class TestMoveValidatorIntegration:
         assert self.validator.is_valid_move(self.board, move)
 
     def test_pawn_e2_e4_is_invalid(self):
-        """Un pion ne peut pas avancer de 2 cases au Shatranj (pas de double pas)."""
+        """Un pion ne peut pas avancer de 2 cases au Shatranj (pas de double
+        pas)."""
 
         move = Move(from_square=12, to_square=28, piece_type=PAWN, color=WHITE)
         assert not self.validator.is_valid_move(self.board, move)
@@ -689,3 +719,71 @@ class TestCliDrawRules:
             cli._state._history.append((Move(4, 12, SHAH, color), {}))
 
         assert cli._is_draw_by_fifty_move_rule()
+
+
+class TestCliBlitzMode:
+    """Tests for blitz mode timing in the CLI."""
+
+    def test_enable_blitz_initializes_timers_on_new_game(self):
+        cli = CLI()
+        cli.enable_blitz(5)
+
+        with (
+            patch("shatranj.presentation.cli.cli.print_board"),
+            patch.object(CLI, "_auto_play_ai_turns"),
+        ):
+            cli._do_new([])
+
+        assert cli._clock_seconds[WHITE] == 300.0
+        assert cli._clock_seconds[BLACK] == 300.0
+        assert cli._turn_started_at is not None
+
+    def test_show_time_displays_remaining_time_in_blitz(self, capsys):
+        cli = CLI()
+        cli.enable_blitz(3)
+        cli._state = GameState()
+        cli._clock_seconds[WHITE] = 179.1
+        cli._clock_seconds[BLACK] = 95.1
+
+        cli._do_show_time()
+
+        out = capsys.readouterr().out
+        assert "White: 03:00" in out
+        assert "Black: 01:36" in out
+        assert "Status: running (WHITE to move)" in out
+
+    def test_pause_toggles_blitz_timer(self, capsys):
+        cli = CLI()
+        cli.enable_blitz(3)
+        cli._state = GameState()
+        cli._start_turn_timer()
+
+        cli._do_pause([])
+        paused = capsys.readouterr().out
+        assert "Blitz timer paused." in paused
+        assert cli._timer_paused is True
+        assert cli._turn_started_at is None
+
+        cli._do_pause([])
+        resumed = capsys.readouterr().out
+        assert "Blitz timer resumed." in resumed
+        assert cli._timer_paused is False
+        assert cli._turn_started_at is not None
+
+    def test_timeout_ends_the_game(self, capsys):
+        cli = CLI()
+        cli.enable_blitz(1)
+        cli._state = GameState()
+        cli._clock_seconds[WHITE] = 0.05
+
+        with patch(
+            "shatranj.presentation.cli.cli.time.monotonic",
+            side_effect=[10.0, 10.2],
+        ):
+            cli._start_turn_timer()
+            timed_out = cli._consume_turn_time()
+
+        out = capsys.readouterr().out
+        assert timed_out is True
+        assert "Time out! BLACK wins!" in out
+        assert cli._state is None

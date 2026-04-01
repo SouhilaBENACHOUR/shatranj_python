@@ -3,6 +3,7 @@ from shatranj.domain.core.move import Move
 from shatranj.domain.rules.move_generator import MoveGenerator
 from shatranj.domain.rules.move_validator import MoveValidator
 from shatranj.utils.constants import BLACK, WHITE, SHAH
+from shatranj.utils.exceptions import MissingShahError
 
 
 class RulesEngine:
@@ -13,13 +14,19 @@ class RulesEngine:
         validator: MoveValidator | None = None,
         generator: MoveGenerator | None = None,
     ) -> None:
-        self._validator = validator if validator is not None else MoveValidator()
-        self._generator = generator if generator is not None else MoveGenerator()
+        self._validator = (
+            validator if validator is not None else MoveValidator()
+        )
+        self._generator = (
+            generator if generator is not None else MoveGenerator()
+        )
 
     def is_valid_move(self, board: Board, move: Move) -> bool:
         return self._validator.is_valid_move(board, move)
 
-    def generate_pseudo_legal_moves(self, board: Board, color: str) -> list[Move]:
+    def generate_pseudo_legal_moves(
+        self, board: Board, color: str
+    ) -> list[Move]:
         moves: list[Move] = []
         generators = (
             self._generator.generate_pawn_moves,
@@ -35,9 +42,9 @@ class RulesEngine:
 
     def generate_legal_moves(self, board: Board, color: str) -> list[Move]:
         """
-        Filtre les coups pseudo-légaux.
-        Un coup est légal seulement si après l'avoir joué,
-        notre Shah n'est pas en échec.
+        Filter pseudo-legal moves.
+        A move is legal only if, after playing it,
+        our Shah is not in check.
         """
         legal = []
         for move in self.generate_pseudo_legal_moves(board, color):
@@ -55,23 +62,23 @@ class RulesEngine:
 
     def _is_in_check(self, board: Board, color: str) -> bool:
         """
-        Vérifie si le Shah de 'color' est attaqué par l'adversaire.
-
-        1. On trouve la case du Shah
-        2. On génère tous les coups adverses
-        3. Si un coup atteint le Shah → échec
+        Check if the Shah of 'color' is attacked by the opponent.
+        1. Find the Shah's square
+        2. Generate all opponent moves
+        3. If any move reaches the Shah's square → check
         """
-        shah_square = board.find_shah(color)
-        if shah_square is None:
-            return True  # Shah introuvable = en échec par définition
+        try:
+            shah_square = board.find_shah(color)
+        except MissingShahError:
+            return True  # Shah not found = in check by definition
         opponent = BLACK if color == WHITE else WHITE
         opponent_moves = self.generate_pseudo_legal_moves(board, opponent)
         return any(move.to_square == shah_square for move in opponent_moves)
 
     def is_checkmate(self, board: Board, color: str) -> bool:
         """
-        Mat : le Shah est en échec ET aucun coup légal ne peut le sauver.
-        La partie est terminée, 'color' a perdu.
+        Checkmate: the Shah is in check AND no legal move can save it.
+        The game is over, 'color' has lost.
         """
         if not self._is_in_check(board, color):
             return False
@@ -79,8 +86,8 @@ class RulesEngine:
 
     def is_stalemate(self, board: Board, color: str) -> bool:
         """
-        Pat : le Shah n'est PAS en échec mais aucun coup légal disponible.
-        En Shatranj le pat est une VICTOIRE pour celui qui l'a provoqué.
+        Stalemate: the Shah is NOT in check but no legal move is available.
+        In Shatranj, stalemate is a VICTORY for the player who caused it
         """
         if self._is_in_check(board, color):
             return False
@@ -88,12 +95,11 @@ class RulesEngine:
 
     def is_bare_king(self, board: Board, color: str) -> bool:
         """
-        Règle propre au Shatranj :
-        Si l'adversaire n'a plus que son Shah → 'color' gagne.
-
-        On compare le bitboard de toutes les pièces adverses
-        avec le bitboard du seul Shah adverse.
-        S'ils sont identiques → il ne reste que le Shah.
+        Shatranj-specific rule:
+        If the opponent has only their Shah left → 'color' wins.
+        Compare the bitboard of all opponent pieces
+        with the bitboard of the opponent's Shah alone.
+        If they are identical → only the Shah remains.
         """
         opponent = BLACK if color == WHITE else WHITE
         opponent_bitboard = (

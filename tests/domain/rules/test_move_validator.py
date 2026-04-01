@@ -2,7 +2,8 @@ import pytest
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.move_validator import MoveValidator
-from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH
+from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK
+from shatranj.utils.constants import KNIGHT, ALFIL, FERZ, SHAH
 
 
 @pytest.fixture

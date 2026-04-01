@@ -1,0 +1,8 @@
+[MAIN]
+recursive = yes
+
+[MESSAGES CONTROL]
+disable =docstring-first-line-empty,
+          missing-module-docstring,
+          missing-class-docstring,
+          missing-function-docstring

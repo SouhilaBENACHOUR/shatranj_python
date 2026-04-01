@@ -1,7 +1,8 @@
 import time
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import PAWN, ROOK, KNIGHT, ALFIL, FERZ, SHAH, NUM_SQUARES
+from shatranj.utils.constants import PAWN, ROOK, KNIGHT, ALFIL
+from shatranj.utils.constants import FERZ, SHAH, NUM_SQUARES
 from shatranj.domain.rules.piece_validator import (
     PieceValidator,
     PawnValidator,
@@ -66,9 +67,9 @@ class MoveValidator:
 
         # --- General Move Logic ---
         # Bounds check
-        if not (0 <= move.from_square < NUM_SQUARES):
+        if not 0 <= move.from_square < NUM_SQUARES:
             return False
-        if not (0 <= move.to_square < NUM_SQUARES):
+        if not 0 <= move.to_square < NUM_SQUARES:
             return False
 
         # Cannot stay on the same square
