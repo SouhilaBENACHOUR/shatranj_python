@@ -31,6 +31,7 @@ from shatranj.utils.exceptions import (
     ShatranjError,
 )
 from shatranj.domain.ai.ai_player import AIPlayer
+from shatranj.domain.ai.hinting import choose_hint_move
 from shatranj.domain.core.board import Board
 
 # Import our own modules
@@ -1066,24 +1067,21 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_hint(self, args: list[str]) -> None:
         """
-        Display a move suggestion.
-
-        For now: returns the first legal move found.
-        A real AI would use Minimax or MCTS (F31-F35).
+        Display an AI-generated move suggestion.
         """
         if self._state is None:
             self._error("No game in progress.")
             return
 
-        legal_moves = self._engine.generate_legal_moves(
-            self._state.board, self._state.current_color
+        suggested = choose_hint_move(
+            self._state.board,
+            self._state.current_color,
+            self._ai_players,
         )
-        if not legal_moves:
+        if suggested is None:
             print("No legal moves available.")
             return
 
-        # Take the first legal move (simple, no AI for now)
-        suggested = legal_moves[0]
         print(f"Hint: {self._format_move_with_piece(suggested)}")
 
     def _format_move_with_piece(self, move: Move) -> str:

@@ -1166,6 +1166,27 @@ class TestDoHint:
         out = capsys.readouterr().out
         assert "Hint:" in out
 
+    def test_hint_uses_ai_best_move(self, capsys):
+        """Hint should use the AI, not just the first legal move."""
+        from shatranj.domain.core.board import Board
+
+        board = Board(setup=False)
+        board.place_piece(SHAH, WHITE, 0)  # a1
+        board.place_piece(ROOK, WHITE, 1)  # b1
+        board.place_piece(SHAH, BLACK, 63)  # h8
+        board.place_piece(PAWN, BLACK, 2)  # c1
+
+        self.cli._state = GameState()
+        self.cli._state.board = board
+        self.cli._state.current_color = WHITE
+        self.cli._state._history = []
+        self.cli._state._redo_stack = []
+
+        self.cli._do_hint([])
+        out = capsys.readouterr().out
+
+        assert "Hint: rook b1xc1" in out
+
 
 class TestDoSave:
     """Tests for save game functionality."""

@@ -19,6 +19,7 @@ What is NOT tested here (requires a real display / integration tests):
 from unittest.mock import MagicMock
 import sys
 import types
+from types import SimpleNamespace
 import pytest
 from shatranj.utils.constants import WHITE, BLACK, BOARD_SIZE
 
@@ -324,6 +325,43 @@ class TestShatranjApp:
             assert callable(run_gui)
         except Exception as e:
             pytest.skip(f"GTK not available: {e}")
+
+
+class TestHintCallback:
+    """Regression tests for translated GUI callbacks."""
+
+    def test_on_hint_does_not_shadow_gettext(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.game_state import GameState
+        from shatranj.utils.constants import SHAH, ROOK, PAWN
+
+        importlib.reload(w)
+
+        board = Board(setup=False)
+        board.place_piece(SHAH, WHITE, 0)
+        board.place_piece(ROOK, WHITE, 1)
+        board.place_piece(SHAH, BLACK, 63)
+        board.place_piece(PAWN, BLACK, 2)
+
+        state = GameState()
+        state.board = board
+        state.current_color = WHITE
+        state._history = []
+        state._redo_stack = []
+
+        dialog = MagicMock()
+        w.Gtk.AlertDialog = MagicMock(return_value=dialog)
+
+        fake_window = SimpleNamespace(
+            _state=state,
+            _ai_players={},
+        )
+
+        w.ShatranjWindow._on_hint(fake_window, object())
+
+        dialog.set_message.assert_called_once_with("Hint")
 
 
 # ---------------------------------------------------------------------------

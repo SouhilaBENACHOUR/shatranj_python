@@ -20,6 +20,7 @@ from gi.repository import Gtk, Gio, GLib, Gdk  # noqa: E402
 from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
 
 from shatranj.domain.ai.ai_player import AIPlayer  # noqa: E402
+from shatranj.domain.ai.hinting import choose_hint_move  # noqa: E402
 
 from shatranj.presentation.cli.game_state import GameState  # noqa: E402
 
@@ -308,6 +309,175 @@ CLOCK_CSS = """
 .clock-card-black .clock-time-critical {
   color: #ff8d78;
 }
+
+.config-dialog-body {
+  padding: 20px;
+  background-image: linear-gradient(
+    180deg,
+    rgba(249, 243, 231, 0.98),
+    rgba(235, 223, 196, 0.96)
+  );
+}
+
+.config-hero {
+  padding: 16px 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(86, 58, 31, 0.18);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 251, 244, 0.98),
+    rgba(243, 231, 209, 0.94)
+  );
+  box-shadow: 0 16px 34px rgba(58, 37, 20, 0.08);
+}
+
+.config-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7b5a33;
+}
+
+.config-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #2f1c10;
+}
+
+.config-subtitle {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(47, 28, 16, 0.76);
+}
+
+.config-card {
+  padding: 14px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(86, 58, 31, 0.16);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 252, 246, 0.98),
+    rgba(244, 233, 212, 0.94)
+  );
+}
+
+.config-section-title {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7b5a33;
+}
+
+.config-section-description {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(70, 51, 32, 0.72);
+}
+
+.config-subsection-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #5f472b;
+}
+
+.config-note {
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(70, 51, 32, 0.64);
+}
+
+.config-choice-row {
+  margin-top: 2px;
+}
+
+.config-choice {
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.44);
+}
+
+.config-input {
+  min-height: 42px;
+}
+
+.config-field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #5f472b;
+}
+
+.config-summary {
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(108, 76, 43, 0.16);
+  background-color: rgba(108, 76, 43, 0.10);
+  color: #5d4428;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.config-action {
+  min-height: 46px;
+  min-width: 132px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(86, 58, 31, 0.18);
+  box-shadow: 0 10px 22px rgba(58, 37, 20, 0.08);
+  font-weight: 800;
+}
+
+.config-action > label {
+  letter-spacing: 0.04em;
+}
+
+.dialog-secondary-action {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(241, 233, 217, 0.92)
+  );
+  color: #5c4428;
+}
+
+.dialog-secondary-action:hover {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 1.0),
+    rgba(245, 237, 224, 0.96)
+  );
+}
+
+.dialog-primary-action {
+  background-image: linear-gradient(
+    180deg,
+    #6d4927 0%,
+    #4c2f18 100%
+  );
+  color: #f9edd9;
+  border-color: rgba(52, 31, 16, 0.48);
+  box-shadow: 0 14px 28px rgba(76, 47, 24, 0.22);
+}
+
+.dialog-primary-action:hover {
+  background-image: linear-gradient(
+    180deg,
+    #7b542f 0%,
+    #56341a 100%
+  );
+}
+
+.dialog-primary-action:disabled {
+  background-image: linear-gradient(
+    180deg,
+    rgba(122, 95, 68, 0.85),
+    rgba(92, 67, 45, 0.82)
+  );
+  color: rgba(249, 237, 217, 0.72);
+  box-shadow: none;
+}
 """
 
 
@@ -343,14 +513,24 @@ class NewGameDialog(Gtk.Dialog):
 
         super().__init__(title=_("New Game"), transient_for=parent, modal=True)
 
-        self.set_default_size(440, 500)
+        self.set_default_size(520, 560)
+        self.set_resizable(True)
 
-        self.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        self.add_button("Start", Gtk.ResponseType.OK)
+        self.add_button(_("Back"), Gtk.ResponseType.CANCEL)
+        self.add_button(_("Start Match"), Gtk.ResponseType.OK)
+        self.set_default_response(Gtk.ResponseType.OK)
 
+        self._cancel_button = self.get_widget_for_response(
+            Gtk.ResponseType.CANCEL
+        )
         self._start_button = self.get_widget_for_response(
             Gtk.ResponseType.OK
         )
+        if self._cancel_button is not None:
+            self._cancel_button.add_css_class("config-action")
+            self._cancel_button.add_css_class("dialog-secondary-action")
+        self._start_button.add_css_class("config-action")
+        self._start_button.add_css_class("dialog-primary-action")
         self._start_button.set_sensitive(False)
 
         self._selected_mode = "hvh"
@@ -360,26 +540,75 @@ class NewGameDialog(Gtk.Dialog):
         self._custom_minutes_spin: Gtk.SpinButton | None = None
         self._custom_increment_spin: Gtk.SpinButton | None = None
 
-        box = self.get_content_area()
+        content_area = self.get_content_area()
+        content_area.set_spacing(0)
+        content_area.set_margin_top(0)
+        content_area.set_margin_bottom(0)
+        content_area.set_margin_start(0)
+        content_area.set_margin_end(0)
 
-        box.set_spacing(12)
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_vexpand(True)
+        scroll.set_hexpand(True)
+        content_area.append(scroll)
+
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=14,
+        )
+        box.add_css_class("config-dialog-body")
         box.set_margin_top(16)
         box.set_margin_bottom(16)
         box.set_margin_start(16)
         box.set_margin_end(16)
+        scroll.set_child(box)
 
-        mode_label = Gtk.Label(label="Game Mode")
-        mode_label.set_halign(Gtk.Align.START)
-        box.append(mode_label)
+        hero = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=6,
+        )
+        hero.add_css_class("config-hero")
+
+        kicker = Gtk.Label(label="MATCH SETTINGS")
+        kicker.set_halign(Gtk.Align.START)
+        kicker.set_xalign(0.0)
+        kicker.add_css_class("config-kicker")
+        hero.append(kicker)
+
+        title = Gtk.Label(label="Shape the next duel")
+        title.set_halign(Gtk.Align.START)
+        title.set_xalign(0.0)
+        title.add_css_class("config-title")
+        hero.append(title)
+
+        subtitle = Gtk.Label(
+            label=(
+                "Pick the players, tune the engine, and lock in a time "
+                "control before the first move."
+            )
+        )
+        subtitle.set_halign(Gtk.Align.START)
+        subtitle.set_xalign(0.0)
+        subtitle.set_wrap(True)
+        subtitle.add_css_class("config-subtitle")
+        hero.append(subtitle)
+
+        box.append(hero)
+
+        mode_section = self._create_section(
+            "Game Mode",
+            "Choose who commands each army.",
+        )
 
         mode_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
-            spacing=6,
+            spacing=8,
         )
         group_button = None
         for label, mode in PLAYER_MODE_OPTIONS:
             button = Gtk.CheckButton(label=label)
             button.set_halign(Gtk.Align.START)
+            button.add_css_class("config-choice")
             if group_button is not None:
                 button.set_group(group_button)
             else:
@@ -388,26 +617,25 @@ class NewGameDialog(Gtk.Dialog):
             mode_box.append(button)
             if mode == "hvh":
                 button.set_active(True)
-        box.append(mode_box)
+        mode_section.append(mode_box)
 
         self._mode_hint = Gtk.Label(label=MODE_HINTS[self._selected_mode])
         self._mode_hint.set_halign(Gtk.Align.START)
+        self._mode_hint.set_xalign(0.0)
         self._mode_hint.set_wrap(True)
-        self._mode_hint.add_css_class("dim-label")
-        box.append(self._mode_hint)
+        self._mode_hint.add_css_class("config-note")
+        mode_section.append(self._mode_hint)
+        box.append(mode_section)
 
-        self._algorithm_section = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
-            spacing=6,
+        self._algorithm_section = self._create_section(
+            "AI Algorithm",
+            "Used whenever at least one side is controlled by the engine.",
         )
-
-        algorithm_label = Gtk.Label(label="AI Algorithm")
-        algorithm_label.set_halign(Gtk.Align.START)
-        self._algorithm_section.append(algorithm_label)
 
         self._algorithm_combo = Gtk.DropDown.new_from_strings(
             [label for label, _ in ALGORITHM_OPTIONS]
         )
+        self._algorithm_combo.add_css_class("config-input")
         self._algorithm_combo.set_selected(0)
         self._algorithm_combo.connect(
             "notify::selected", self._on_algorithm_changed
@@ -415,53 +643,118 @@ class NewGameDialog(Gtk.Dialog):
         self._algorithm_section.append(self._algorithm_combo)
 
         algorithm_hint = Gtk.Label(
-            label="Used for Human vs AI and AI vs AI."
+            label="Alpha-Beta is balanced, Minimax is classic, MCTS is more exploratory."
         )
         algorithm_hint.set_halign(Gtk.Align.START)
+        algorithm_hint.set_xalign(0.0)
         algorithm_hint.set_wrap(True)
-        algorithm_hint.add_css_class("dim-label")
+        algorithm_hint.add_css_class("config-note")
         self._algorithm_section.append(algorithm_hint)
         box.append(self._algorithm_section)
 
-        time_mode_label = Gtk.Label(label="Time Mode")
-        time_mode_label.set_halign(Gtk.Align.START)
-        box.append(time_mode_label)
+        time_section = self._create_section(
+            "Time Control",
+            "Select a tempo, then a preset that fits the pace you want.",
+        )
 
-        time_mode_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
+        time_mode_label = Gtk.Label(label="Game Speed")
+        time_mode_label.set_halign(Gtk.Align.START)
+        time_mode_label.set_xalign(0.0)
+        time_mode_label.add_css_class("config-subsection-title")
+        time_section.append(time_mode_label)
+
+        self._time_mode_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
             spacing=8,
         )
         speed_group = None
+        speed_buttons = []
         for speed_key in TIME_CONTROL_ORDER:
             label = TIME_CONTROL_GROUPS[speed_key]["label"]
             button = Gtk.CheckButton(label=label)
+            button.add_css_class("config-choice")
             if speed_group is not None:
                 button.set_group(speed_group)
             else:
                 speed_group = button
             button.connect("toggled", self._on_speed_changed, speed_key)
-            time_mode_box.append(button)
-        box.append(time_mode_box)
+            speed_buttons.append(button)
+        self._append_choice_rows(self._time_mode_box, speed_buttons, columns=2)
+        time_section.append(self._time_mode_box)
 
-        preset_label = Gtk.Label(label="Time Control")
+        preset_label = Gtk.Label(label="Presets")
         preset_label.set_halign(Gtk.Align.START)
-        box.append(preset_label)
+        preset_label.set_xalign(0.0)
+        preset_label.add_css_class("config-subsection-title")
+        time_section.append(preset_label)
 
         self._preset_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
             spacing=8,
         )
-        box.append(self._preset_box)
+        time_section.append(self._preset_box)
 
         self._time_summary = Gtk.Label(
-            label="Choose a time mode, then a preset."
+            label="Choose a speed to unlock its presets."
         )
         self._time_summary.set_halign(Gtk.Align.START)
+        self._time_summary.set_xalign(0.0)
         self._time_summary.set_wrap(True)
-        self._time_summary.add_css_class("dim-label")
-        box.append(self._time_summary)
+        self._time_summary.add_css_class("config-summary")
+        time_section.append(self._time_summary)
+
+        box.append(time_section)
 
         self._update_ai_options_visibility()
+
+    def _create_section(
+        self,
+        title: str,
+        description: str | None = None,
+    ) -> Gtk.Box:
+        """Return a styled vertical section container."""
+
+        section = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=10,
+        )
+        section.add_css_class("config-card")
+
+        title_label = Gtk.Label(label=title)
+        title_label.set_halign(Gtk.Align.START)
+        title_label.set_xalign(0.0)
+        title_label.add_css_class("config-section-title")
+        section.append(title_label)
+
+        if description is not None:
+            desc_label = Gtk.Label(label=description)
+            desc_label.set_halign(Gtk.Align.START)
+            desc_label.set_xalign(0.0)
+            desc_label.set_wrap(True)
+            desc_label.add_css_class("config-section-description")
+            section.append(desc_label)
+
+        return section
+
+    def _append_choice_rows(
+        self,
+        container: Gtk.Box,
+        buttons: list[Gtk.CheckButton],
+        columns: int = 2,
+    ) -> None:
+        """Append buttons to the container in evenly spaced rows."""
+
+        row = None
+        for index, button in enumerate(buttons):
+            if index % columns == 0:
+                row = Gtk.Box(
+                    orientation=Gtk.Orientation.HORIZONTAL,
+                    spacing=10,
+                )
+                row.add_css_class("config-choice-row")
+                container.append(row)
+            button.set_hexpand(True)
+            row.append(button)
 
     def _on_mode_changed(
         self, button: Gtk.CheckButton, mode: str
@@ -521,22 +814,24 @@ class NewGameDialog(Gtk.Dialog):
         self._custom_minutes_spin = None
         self._custom_increment_spin = None
 
-        preset_row = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
+        preset_grid = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
             spacing=8,
         )
-        self._preset_box.append(preset_row)
+        self._preset_box.append(preset_grid)
 
         preset_group = None
+        preset_buttons = []
         for preset in TIME_CONTROL_GROUPS[speed_key]["presets"]:
             button = Gtk.CheckButton(label=preset["label"])
-            button.set_hexpand(True)
+            button.add_css_class("config-choice")
             if preset_group is not None:
                 button.set_group(preset_group)
             else:
                 preset_group = button
             button.connect("toggled", self._on_preset_changed, preset)
-            preset_row.append(button)
+            preset_buttons.append(button)
+        self._append_choice_rows(preset_grid, preset_buttons, columns=2)
 
     def _build_custom_controls(self) -> None:
         """Render inputs for a custom time control."""
@@ -547,6 +842,7 @@ class NewGameDialog(Gtk.Dialog):
             orientation=Gtk.Orientation.VERTICAL,
             spacing=10,
         )
+        custom_box.add_css_class("config-card")
         self._preset_box.append(custom_box)
 
         minutes_row = Gtk.Box(
@@ -558,6 +854,7 @@ class NewGameDialog(Gtk.Dialog):
         minutes_label = Gtk.Label(label="Minutes per player")
         minutes_label.set_halign(Gtk.Align.START)
         minutes_label.set_hexpand(True)
+        minutes_label.add_css_class("config-field-label")
         minutes_row.append(minutes_label)
 
         minutes_adjustment = Gtk.Adjustment(
@@ -573,6 +870,7 @@ class NewGameDialog(Gtk.Dialog):
             climb_rate=1,
             digits=0,
         )
+        self._custom_minutes_spin.add_css_class("config-input")
         self._custom_minutes_spin.connect(
             "value-changed", self._on_custom_time_changed
         )
@@ -587,6 +885,7 @@ class NewGameDialog(Gtk.Dialog):
         increment_label = Gtk.Label(label="Increment per move (seconds)")
         increment_label.set_halign(Gtk.Align.START)
         increment_label.set_hexpand(True)
+        increment_label.add_css_class("config-field-label")
         increment_row.append(increment_label)
 
         increment_adjustment = Gtk.Adjustment(
@@ -602,6 +901,7 @@ class NewGameDialog(Gtk.Dialog):
             climb_rate=1,
             digits=0,
         )
+        self._custom_increment_spin.add_css_class("config-input")
         self._custom_increment_spin.connect(
             "value-changed", self._on_custom_time_changed
         )
@@ -611,8 +911,9 @@ class NewGameDialog(Gtk.Dialog):
             label="Set your own clock values for a personalized timed game."
         )
         custom_hint.set_halign(Gtk.Align.START)
+        custom_hint.set_xalign(0.0)
         custom_hint.set_wrap(True)
-        custom_hint.add_css_class("dim-label")
+        custom_hint.add_css_class("config-note")
         custom_box.append(custom_hint)
 
         self._selected_preset = self._build_custom_preset()
@@ -1007,20 +1308,20 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         clock_panel.append(self._time_control_label)
 
         (
-            self._white_clock_card,
-            self._white_clock_side_label,
-            self._white_timer_label,
-            self._white_timer_status_label,
-        ) = self._create_clock_card("White", "clock-card-white")
-        clock_panel.append(self._white_clock_card)
-
-        (
             self._black_clock_card,
             self._black_clock_side_label,
             self._black_timer_label,
             self._black_timer_status_label,
         ) = self._create_clock_card("Black", "clock-card-black")
         clock_panel.append(self._black_clock_card)
+
+        (
+            self._white_clock_card,
+            self._white_clock_side_label,
+            self._white_timer_label,
+            self._white_timer_status_label,
+        ) = self._create_clock_card("White", "clock-card-white")
+        clock_panel.append(self._white_clock_card)
 
         # "Move History" label aligned to the left
 
@@ -1710,7 +2011,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     # ------------------------------------------------------------------
 
-    def _on_new_game(self, *_) -> None:
+    def _on_new_game(self, *_args) -> None:
         """Open the new game configuration dialog."""
 
         dialog = NewGameDialog(self)
@@ -1737,7 +2038,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
             dialog.destroy()
 
-    def _on_back_to_menu(self, *_) -> None:
+    def _on_back_to_menu(self, *_args) -> None:
         """Go back to the welcome screen."""
         def do_back():
             self.set_show_menubar(False)  # hide menubar on welcome screen
@@ -1751,13 +2052,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._stack.set_visible_child_name("welcome")
         self._confirm_abandon(do_back)
 
-    def _on_quit(self, *_) -> None:
+    def _on_quit(self, *_args) -> None:
         """Quit the application from the welcome screen."""
         def do_quit():
             self.get_application().quit()
         self._confirm_abandon(do_quit)
 
-    def _on_load_game(self, *_) -> None:
+    def _on_load_game(self, *_args) -> None:
 
         dialog = Gtk.FileDialog()
 
@@ -1817,7 +2118,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         except Exception:
             pass
 
-    def _on_save_game(self, *_) -> None:
+    def _on_save_game(self, *_args) -> None:
 
         if self._state is None:
 
@@ -1858,11 +2159,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         except Exception:
             pass
 
-    def _on_info(self, *_) -> None:
+    def _on_info(self, *_args) -> None:
 
         print("Info")
 
-    def _on_undo(self, *_) -> None:
+    def _on_undo(self, *_args) -> None:
 
         if self._state is None:
 
@@ -1880,7 +2181,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._turn_started_at = time.monotonic()
         self._update_clock_labels()
 
-    def _on_redo(self, *_) -> None:
+    def _on_redo(self, *_args) -> None:
         """Replay the last undone move."""
  
         if self._state is None:
@@ -1900,24 +2201,22 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._turn_started_at = time.monotonic()
         self._update_clock_labels()
 
-    def _on_pause(self, *_) -> None:
+    def _on_pause(self, *_args) -> None:
         self._toggle_pause()
 
-    def _on_hint(self, *_) -> None:
+    def _on_hint(self, *_args) -> None:
 
         if self._state is None:
 
             return
 
-        moves = self._engine.generate_legal_moves(
-            self._state.board, self._state.current_color
+        move = choose_hint_move(
+            self._state.board, self._state.current_color, self._ai_players
         )
 
-        if not moves:
+        if move is None:
 
             return
-
-        move = moves[0]
 
         from shatranj.domain.core.board import Board as B
 
@@ -1933,7 +2232,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         dialog.show(self)
 
-    def _on_help(self, *_) -> None:
+    def _on_help(self, *_args) -> None:
 
         print("Help")
 
