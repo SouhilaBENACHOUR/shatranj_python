@@ -1,47 +1,45 @@
 """
-test_cli.py - Tests unitaires pour le CLI
+test_cli.py - Unit tests for the CLI
 
-On teste chaque composant indépendamment (unitaire) :
-  - le parsing de coups
-  - le dispatch des commandes
+Each component is tested independently (unit tests):
+  - move parsing
+  - command dispatch
   - game_state (undo/redo)
   - display
 
-Pourquoi tester chaque méthode séparément ?
-  Si un test échoue, on sait exactement quelle partie est cassée.
-  C'est le principe des tests unitaires.
+Why test each method separately?
+  If a test fails, we know exactly which part is broken.
+  This is the principle of unit testing.
 
-Lancement :
+Run with:
   pytest tests/test_cli.py -v
 """
 
 import pytest
-from unittest.mock import patch
+import os
+from unittest.mock import patch, MagicMock
 from shatranj.domain.core.move import Move
 from io import StringIO
 from shatranj.presentation.cli.cli import CLI
 from shatranj.presentation.cli.game_state import GameState
 from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN, FERZ
+from shatranj.utils.exceptions import InvalidSquareError
 
 
 class TestGameState:
-    """Tests pour la classe GameState."""
-
+    """Tests for the GameState class."""
     def setup_method(self):
-        """Appelé avant chaque test. Crée un état de jeu frais."""
-
+        """Called before each test. Creates a fresh game state."""
         from shatranj.presentation.cli.game_state import GameState
 
         self.state = GameState()
 
     def test_initial_turn_is_white(self):
-        """Au début, c'est aux blancs de jouer."""
-
+        """At the start, it's White's turn."""
         assert self.state.current_color == WHITE
 
     def test_apply_move_switches_turn(self):
-        """Après un coup blanc, c'est aux noirs de jouer."""
-
+        """After a White move, it's Black's turn."""
         # Coup : pion blanc de e2 (case 12) vers e3 (case 20)
         move = Move(
             from_square=12,
@@ -53,8 +51,7 @@ class TestGameState:
         assert self.state.current_color == BLACK
 
     def test_undo_restores_turn(self):
-        """Après undo, c'est à nouveau aux blancs de jouer."""
-
+        """After undo, it's White's turn again."""
         move = Move(
             from_square=12,  # e2
             to_square=20,  # e3
@@ -68,22 +65,21 @@ class TestGameState:
         assert self.state.current_color == WHITE
 
     def test_undo_empty_history_returns_none(self):
-        """Undo sans historique retourne None sans planter."""
+        """Undo with empty history returns None without crashing."""
         result = self.state.undo()
         assert result is None
 
     def test_redo_empty_returns_none(self):
-        """Redo sans undo préalable retourne None."""
+        """Redo without prior undo returns None."""
         result = self.state.redo()
         assert result is None
 
     def test_history_is_empty_at_start(self):
-        """L'historique est vide au démarrage."""
+        """History is empty at start."""
         assert self.state.get_history() == []
 
     def test_apply_clears_redo_stack(self):
-        """Jouer un nouveau coup après undo efface le redo stack."""
-
+        """Playing a new move after undo clears the redo stack."""
         move1 = Move(
             from_square=12, to_square=20, piece_type=PAWN, color=WHITE
         )
@@ -101,8 +97,7 @@ class TestGameState:
         assert not self.state.can_redo()
 
     def test_apply_move_promotes_pawn_to_ferz(self):
-        """Un pion sur la derniere rangee devient un ferz."""
-
+        """A pawn on the last rank becomes a ferz."""
         from shatranj.domain.core.board import Board
 
         self.state.board = Board(setup=False)
@@ -116,8 +111,7 @@ class TestGameState:
 
 
 class TestDisplay:
-    """Tests pour l'affichage ASCII du plateau."""
-
+    """Tests for ASCII board display."""
     def test_board_to_string_has_8_rows(self):
         """The displayed board has 8 piece rows and 1 column label row."""
         from shatranj.domain.core.board import Board
@@ -130,7 +124,7 @@ class TestDisplay:
         assert len(lines) == 9
 
     def test_board_to_string_contains_pieces(self):
-        """Le plateau en position initiale contient les pièces attendues."""
+        """Initial board contains expected pieces."""
         from shatranj.domain.core.board import Board
         from shatranj.presentation.cli.display import board_to_string
 
@@ -144,7 +138,7 @@ class TestDisplay:
         assert "p" in result  # Pion noir
 
     def test_board_to_string_with_color_contains_ansi_codes(self):
-        """Le mode coloré injecte des séquences ANSI autour des pièces."""
+        """Color mode injects ANSI sequences around pieces."""
         from shatranj.domain.core.board import Board
         from shatranj.presentation.cli.display import board_to_string
 
@@ -154,7 +148,7 @@ class TestDisplay:
         assert "\033[" in result
 
     def test_board_to_string_with_color_keeps_layout_simple(self):
-        """Le mode colorÃ© ajoute un fond de case pour la lisibilitÃ©."""
+        """Color mode adds a square background for readability."""
         from shatranj.domain.core.board import Board
         from shatranj.presentation.cli.display import board_to_string
 
@@ -166,7 +160,7 @@ class TestDisplay:
 
 
 class TestMoveParser:
-    """Tests pour la notation algébrique."""
+    """Tests for algebraic notation."""
 
     def setup_method(self):
         from shatranj.domain.core.board import Board
@@ -201,7 +195,7 @@ class TestMoveParser:
         """Une case invalide lève ValueError."""
         from shatranj.domain.core.board import Board
 
-        with pytest.raises(ValueError):
+        with pytest.raises(InvalidSquareError):
             Board.algebraic_to_square("z9")
 
     def test_looks_like_move_valid(self):
@@ -787,3 +781,545 @@ class TestCliBlitzMode:
         assert timed_out is True
         assert "Time out! BLACK wins!" in out
         assert cli._state is None
+
+
+class TestFormatClock:
+    """Tests for _format_clock method."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_zero(self):
+        """Format zero seconds."""
+        assert self.cli._format_clock(0.0) == "00:00"
+
+    def test_one_minute(self):
+        """Format 60 seconds."""
+        assert self.cli._format_clock(60.0) == "01:00"
+
+    def test_ninety_seconds(self):
+        """Format 90 seconds (1:30)."""
+        assert self.cli._format_clock(90.0) == "01:30"
+
+    def test_negative_clamps(self):
+        """Negative seconds clamp to zero."""
+        assert self.cli._format_clock(-5.0) == "00:00"
+
+    def test_rounds_up(self):
+        """Seconds are rounded up to nearest integer."""
+        assert self.cli._format_clock(9.1) == "00:10"
+
+
+class TestDispatch:
+    """Tests for _dispatch command routing."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_dispatch_show_board(self):
+        """'show board' routes to _do_show_board."""
+        with patch.object(self.cli, "_do_show_board") as mock:
+            self.cli._dispatch("show board")
+            mock.assert_called_once()
+
+    def test_dispatch_show_history(self):
+        """'show history' routes to _do_show_history."""
+        with patch.object(self.cli, "_do_show_history") as mock:
+            self.cli._dispatch("show history")
+            mock.assert_called_once()
+
+    def test_dispatch_show_time(self):
+        """'show time' routes to _do_show_time."""
+        with patch.object(self.cli, "_do_show_time") as mock:
+            self.cli._dispatch("show time")
+            mock.assert_called_once()
+
+    def test_dispatch_show_configuration(self):
+        """'show configuration' routes to _do_show_configuration."""
+        with patch.object(self.cli, "_do_show_configuration") as mock:
+            self.cli._dispatch("show configuration")
+            mock.assert_called_once()
+
+    def test_dispatch_show_unknown_subcommand(self):
+        """Unknown 'show' subcommand prints error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._dispatch("show unknown")
+        assert "Unknown subcommand" in stderr.getvalue()
+
+    def test_dispatch_unknown_command(self):
+        """Unknown command prints error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._dispatch("foobar")
+        assert "Unknown command" in stderr.getvalue()
+
+    def test_dispatch_move(self):
+        """Move notation routes to _do_play_move."""
+        with patch.object(self.cli, "_do_play_move") as mock:
+            self.cli._dispatch("e2-e3")
+            mock.assert_called_once_with("e2-e3")
+
+
+class TestParseMoveEdgeCases:
+    """Edge cases for _parse_move method."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_invalid_format_returns_none(self):
+        """Invalid format like 'e2e4' returns None."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            result = self.cli._parse_move("e2e4")
+        assert result is None
+
+    def test_invalid_square_returns_none(self):
+        """Square 'z9' is invalid."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            result = self.cli._parse_move("z9-a1")
+        assert result is None
+
+    def test_no_piece_on_square_returns_none(self):
+        """Moving from empty square returns None."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            result = self.cli._parse_move("e5-e6")
+        assert result is None
+
+    def test_piece_prefix_stripped(self):
+        """Piece prefix like 'P' is stripped."""
+        result = self.cli._parse_move("Pe2-e3")
+        assert result is not None
+        assert result.from_square == 12
+        assert result.to_square == 20
+
+    def test_valid_capture_move(self):
+        """Capture notation 'x' is parsed correctly."""
+        board = self.cli._state.board
+        board.clear()
+        board.place_piece(PAWN, WHITE, 12)
+        board.place_piece(PAWN, BLACK, 21)
+        result = self.cli._parse_move("e2xf3")
+        assert result is not None
+        assert result.captured_piece == PAWN
+
+
+class TestDoPlayMoveEdgeCases:
+    """Edge cases for _do_play_move method."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_no_game_in_progress(self):
+        """Playing a move without a game shows error."""
+        self.cli._state = None
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_play_move("e2-e3")
+        assert "No game in progress" in stderr.getvalue()
+
+    def test_wrong_color_turn(self):
+        """Playing with wrong color shows error."""
+        self.cli._state.current_color = WHITE
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            with patch.object(self.cli, "_parse_move",
+                              return_value=Move(52, 44, PAWN, BLACK)):
+                self.cli._do_play_move("e7-e6")
+        assert "turn" in stderr.getvalue().lower()
+
+    def test_legal_move_applied(self):
+        """Legal move is applied and turn switches."""
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            self.cli._do_play_move("e2-e3")
+        assert self.cli._state.current_color == BLACK
+
+    def test_illegal_move_rejected(self):
+        """Illegal move is rejected with error message."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_play_move("e2-e5")
+        assert "Illegal move" in stderr.getvalue()
+
+
+class TestDoNewEdgeCases:
+    """Edge cases for _do_new method."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_new_human_vs_human(self):
+        """Default new game is human vs human."""
+        with (
+            patch("shatranj.presentation.cli.cli.print_board"),
+            patch.object(self.cli, "_auto_play_ai_turns"),
+        ):
+            self.cli._do_new([])
+        assert self.cli._state is not None
+        assert self.cli._ai_players == {}
+
+    def test_new_ai_black_alphabeta(self):
+        """AI as black with alphabeta algorithm."""
+        with (
+            patch("shatranj.presentation.cli.cli.print_board"),
+            patch.object(self.cli, "_auto_play_ai_turns"),
+        ):
+            self.cli._do_new(["ai", "BLACK", "alphabeta", "3", "advanced"])
+        assert BLACK in self.cli._ai_players
+
+    def test_new_unknown_algorithm(self):
+        """Unknown algorithm shows error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_new(["ai", "BLACK", "unknown_algo"])
+        assert "Unknown algorithm" in stderr.getvalue()
+
+    def test_new_invalid_depth(self):
+        """Invalid depth value shows error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_new(["ai", "BLACK", "alphabeta", "abc"])
+        assert "Invalid depth" in stderr.getvalue()
+
+    def test_new_unknown_scoring(self):
+        """Unknown scoring function shows error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_new(["ai", "BLACK", "alphabeta", "3", "unknown"])
+        assert "Unknown scoring" in stderr.getvalue()
+
+    def test_new_with_blitz(self):
+        """New game with blitz mode enabled."""
+        self.cli.enable_blitz(5)
+        with (
+            patch("shatranj.presentation.cli.cli.print_board"),
+            patch.object(self.cli, "_auto_play_ai_turns"),
+        ):
+            self.cli._do_new([])
+        assert self.cli._clock_seconds[WHITE] == 300.0
+
+
+class TestDoQuit:
+    """Tests for _do_quit method."""
+
+    def test_quit_no_game(self):
+        """Quit without game just exits."""
+        cli = CLI()
+        cli._running = True
+        cli._do_quit([])
+        assert cli._running is False
+
+    def test_quit_saved_game_no_prompt(self):
+        """Quit with saved game exits without prompt."""
+        cli = CLI()
+        cli._running = True
+        cli._state = GameState()
+        cli._saved = True
+        cli._do_quit([])
+        assert cli._running is False
+
+    def test_quit_unsaved_game_user_says_no(self):
+        """Quit with unsaved game prompts user."""
+        cli = CLI()
+        cli._running = True
+        cli._state = GameState()
+        cli._saved = False
+        with patch("builtins.input", return_value="n"):
+            cli._do_quit([])
+        assert cli._running is False
+
+
+class TestDoHelp:
+    """Tests for _do_help method."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_general_help(self, capsys):
+        """General help shows all commands."""
+        self.cli._do_help([])
+        out = capsys.readouterr().out
+        assert "new" in out
+        assert "quit" in out
+
+    def test_command_help_new(self, capsys):
+        """Help for 'new' command shows syntax."""
+        self.cli._do_help(["new"])
+        out = capsys.readouterr().out
+        assert "new" in out.lower()
+
+    def test_command_help_unknown(self):
+        """Help for unknown command shows error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_help(["unknown_cmd"])
+        assert "Unknown command" in stderr.getvalue()
+
+
+class TestDoShowCommands:
+    """Tests for display commands: board, history, configuration."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_show_board_no_game(self):
+        """Show board without game shows error."""
+        self.cli._state = None
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_show_board()
+        assert "No game" in stderr.getvalue()
+
+    def test_show_history_no_game(self):
+        """Show history without game shows error."""
+        self.cli._state = None
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_show_history()
+        assert "No game" in stderr.getvalue()
+
+    def test_show_history_empty(self, capsys):
+        """Empty history shows message."""
+        self.cli._do_show_history()
+        out = capsys.readouterr().out
+        assert "No moves" in out
+
+    def test_show_history_with_moves(self, capsys):
+        """History shows moves after they are played."""
+        move = Move(12, 20, PAWN, WHITE)
+        self.cli._state.apply_move(move)
+        self.cli._do_show_history()
+        out = capsys.readouterr().out
+        assert "e2" in out
+
+    def test_show_configuration(self, capsys):
+        """Configuration shows current settings."""
+        self.cli._do_show_configuration()
+        out = capsys.readouterr().out
+        assert "verbose" in out
+
+
+class TestUndoRedoEdgeCases:
+    """Edge cases for undo and redo operations."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_undo_no_game(self):
+        """Undo without game shows error."""
+        self.cli._state = None
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_undo([])
+        assert "No game" in stderr.getvalue()
+
+    def test_undo_invalid_n(self):
+        """Undo with invalid number shows error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_undo(["abc"])
+        assert "Invalid number" in stderr.getvalue()
+
+    def test_redo_no_game(self):
+        """Redo without game shows error."""
+        self.cli._state = None
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_redo([])
+        assert "No game" in stderr.getvalue()
+
+    def test_undo_then_redo(self):
+        """Undo then redo restores the move."""
+        move = Move(12, 20, PAWN, WHITE)
+        self.cli._state.apply_move(move)
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            self.cli._do_undo([])
+            self.cli._do_redo([])
+        assert self.cli._state.current_color == BLACK
+
+
+class TestDoHint:
+    """Tests for hint command."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_hint_no_game(self):
+        """Hint without game shows error."""
+        self.cli._state = None
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_hint([])
+        assert "No game" in stderr.getvalue()
+
+    def test_hint_shows_move(self, capsys):
+        """Hint shows a suggested move."""
+        self.cli._state = GameState()
+        self.cli._do_hint([])
+        out = capsys.readouterr().out
+        assert "Hint:" in out
+
+
+class TestDoSave:
+    """Tests for save game functionality."""
+
+    def setup_method(self):
+        self.cli = CLI()
+        self.cli._state = GameState()
+
+    def test_save_no_game(self):
+        """Save without game shows error."""
+        self.cli._state = None
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_save(["game.shj"])
+        assert "No game" in stderr.getvalue()
+
+    def test_save_no_path(self):
+        """Save without filename shows usage."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_save([])
+        assert "Usage" in stderr.getvalue()
+
+    def test_save_and_load_roundtrip(self, tmp_path):
+        """Save then load restores the same game state."""
+        path = str(tmp_path / "game.shj")
+        move = Move(12, 20, PAWN, WHITE)
+        self.cli._state.apply_move(move)
+        self.cli._do_save([path])
+        assert os.path.exists(path)
+
+        cli2 = CLI()
+        cli2._do_load([path])
+        assert cli2._state is not None
+        assert cli2._state.current_color == BLACK
+
+
+class TestDoSet:
+    """Tests for configuration commands."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_set_verbose_true(self):
+        """Set verbose to true."""
+        self.cli._do_set(["verbose=true"])
+        assert self.cli._verbose is True
+
+    def test_set_verbose_false(self):
+        """Set verbose to false."""
+        self.cli._verbose = True
+        self.cli._do_set(["verbose=false"])
+        assert self.cli._verbose is False
+
+    def test_set_no_args(self):
+        """Set without arguments shows usage."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_set([])
+        assert "Usage" in stderr.getvalue()
+
+    def test_set_invalid_format(self):
+        """Invalid format shows error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_set(["verbosefalse"])
+        assert "Invalid format" in stderr.getvalue()
+
+    def test_set_unknown_param(self):
+        """Unknown parameter shows error."""
+        stderr = StringIO()
+        with patch("sys.stderr", stderr):
+            self.cli._do_set(["unknown=value"])
+        assert "Unknown parameter" in stderr.getvalue()
+
+
+class TestCompleter:
+    """Tests for command completion."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_completer_new(self):
+        """Complete 'ne' to 'new'."""
+        assert self.cli._completer("ne", 0) == "new"
+
+    def test_completer_show_multiple(self):
+        """Multiple completions for 'show'."""
+        results = []
+        i = 0
+        while True:
+            r = self.cli._completer("show", i)
+            if r is None:
+                break
+            results.append(r)
+            i += 1
+        assert "show board" in results
+
+    def test_completer_no_match(self):
+        """No match returns None."""
+        assert self.cli._completer("zzz", 0) is None
+
+
+class TestStripComments:
+    """Tests for comment stripping utility."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_inline_comment_removed(self):
+        """Inline # comments are removed."""
+        result = self.cli._strip_comments("hello # comment\nworld\n")
+        assert result == ["hello", "world"]
+
+    def test_empty_lines_ignored(self):
+        """Empty lines are filtered out."""
+        result = self.cli._strip_comments("\n\nhello\n\n")
+        assert result == ["hello"]
+
+    def test_no_comment(self):
+        """Text without comments passes through."""
+        result = self.cli._strip_comments("[settings]\nverbose=false\n")
+        assert result == ["[settings]", "verbose=false"]
+
+
+class TestFormatAiDetails:
+    """Tests for AI details formatting."""
+
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_no_search_attribute(self):
+        """AI without search returns empty string."""
+        ai = MagicMock(spec=[])
+        result = self.cli._format_ai_details(ai)
+        assert result == ""
+
+    def test_with_depth_and_scoring(self):
+        """AI with depth and scoring shows both."""
+        search = MagicMock()
+        search._depth = 4
+        ai = MagicMock()
+        ai._search = search
+        ai.scoring = "advanced"
+        result = self.cli._format_ai_details(ai)
+        assert "4" in result
+        assert "advanced" in result
+
+
+class TestDoContest:
+    """Tests for contest mode."""
+
+    def test_contest_invalid_file_returns_1(self, tmp_path):
+        """Invalid file returns error code 1."""
+        cli = CLI()
+        result = cli._do_contest(path=str(tmp_path / "missing.shj"))
+        assert result == 1

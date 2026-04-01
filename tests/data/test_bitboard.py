@@ -1,14 +1,15 @@
 import pytest
 
 from shatranj.data.bitboards import bitboard as bb
+from shatranj.utils.exceptions import InvalidSquareError
 
 
 def test_check_square_bounds():
     assert bb.check_square(0)
     assert bb.check_square(63)
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSquareError):
         bb.check_square(-1)
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSquareError):
         bb.check_square(64)
 
 
