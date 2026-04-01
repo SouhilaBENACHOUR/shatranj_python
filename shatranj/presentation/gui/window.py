@@ -1881,8 +1881,24 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._update_clock_labels()
 
     def _on_redo(self, *_) -> None:
-
-        print("Redo")
+        """Replay the last undone move."""
+ 
+        if self._state is None:
+            return
+ 
+        move = self._state.redo()
+        if move is None:
+            return
+ 
+        self._board_widget.set_board(
+            self._state.board, self._state.current_color
+        )
+        self._sync_board_interaction()
+ 
+        self._update_history()
+        if self._clock_mode == "timed":
+            self._turn_started_at = time.monotonic()
+        self._update_clock_labels()
 
     def _on_pause(self, *_) -> None:
         self._toggle_pause()
