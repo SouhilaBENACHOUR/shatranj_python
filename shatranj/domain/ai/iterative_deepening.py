@@ -15,7 +15,6 @@ from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.domain.ai.evaluator import Evaluator
 from shatranj.domain.ai.alphabeta import AlphaBeta
-from shatranj.utils.constants import WHITE, BLACK
 
 
 class IterativeDeepening:
@@ -39,19 +38,19 @@ class IterativeDeepening:
 
     def __init__(
         self,
-        engine    : RulesEngine,
-        evaluator : Evaluator,
-        depth     : int   = 4,
+        engine: RulesEngine,
+        evaluator: Evaluator,
+        depth: int = 4,
         time_limit: float = None,
     ) -> None:
-        self._engine     = engine
-        self._evaluator  = evaluator
-        self._depth      = depth       # max depth
+        self._engine = engine
+        self._evaluator = evaluator
+        self._depth = depth  # max depth
         self._time_limit = time_limit  # seconds (None = no limit)
-        self._ab         = AlphaBeta(
-            engine    = engine,
-            evaluator = evaluator,
-            depth     = depth,
+        self._ab = AlphaBeta(
+            engine=engine,
+            evaluator=evaluator,
+            depth=depth,
         )
 
     def best_move(self, board: Board, color: str) -> Move | None:
@@ -66,7 +65,7 @@ class IterativeDeepening:
         if not legal_moves:
             return None
 
-        best_move  = legal_moves[0]  # fallback: first legal move
+        best_move = legal_moves[0]  # fallback: first legal move
         start_time = time.time()
 
         for current_depth in range(1, self._depth + 1):
@@ -104,7 +103,8 @@ class IterativeDeepening:
         if move is None:
             return "none"
         from shatranj.domain.core.board import Board
+
         from_alg = Board.square_to_algebraic(move.from_square)
-        to_alg   = Board.square_to_algebraic(move.to_square)
-        sep      = "x" if move.captured_piece else "-"
+        to_alg = Board.square_to_algebraic(move.to_square)
+        sep = "x" if move.captured_piece else "-"
         return f"{from_alg}{sep}{to_alg}"

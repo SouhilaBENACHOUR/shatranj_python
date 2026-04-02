@@ -7,7 +7,7 @@ from shatranj.domain.ai.alphabeta import AlphaBeta
 from shatranj.domain.ai.mcts import MCTS
 from shatranj.domain.ai.iterative_deepening import IterativeDeepening
 
-ALGORITHMS   = ("minimax", "alphabeta", "mcts", "iterative")
+ALGORITHMS = ("minimax", "alphabeta", "mcts", "iterative")
 SCORING_MODES = ("material", "positional", "advanced")
 
 
@@ -24,41 +24,41 @@ class AIPlayer:
 
     def __init__(
         self,
-        color    : str,
-        depth    : int = 3,
+        color: str,
+        depth: int = 3,
         algorithm: str = "alphabeta",
-        scoring  : str = "advanced",
+        scoring: str = "advanced",
     ) -> None:
-        self.color     = color
+        self.color = color
         self.algorithm = algorithm
-        self.scoring   = scoring
-        self._engine   = RulesEngine()
-        evaluator      = Evaluator(mode=scoring)
+        self.scoring = scoring
+        self._engine = RulesEngine()
+        evaluator = Evaluator(mode=scoring)
 
         if algorithm == "mcts":
             self._search = MCTS(
-                engine      = self._engine,
-                simulations = depth,
+                engine=self._engine,
+                simulations=depth,
             )
         elif algorithm == "alphabeta":
             self._search = AlphaBeta(
-                engine    = self._engine,
-                evaluator = evaluator,
-                depth     = depth,
+                engine=self._engine,
+                evaluator=evaluator,
+                depth=depth,
             )
         elif algorithm == "iterative":
             self._search = IterativeDeepening(
-                engine     = self._engine,
-                evaluator  = evaluator,
-                depth      = depth,
-                time_limit = 5.0,  # 5 secondes par coup par défaut
+                engine=self._engine,
+                evaluator=evaluator,
+                depth=depth,
+                time_limit=5.0,  # 5 secondes par coup par défaut
             )
         else:
             # minimax default
             self._search = Minimax(
-                engine    = self._engine,
-                evaluator = evaluator,
-                depth     = depth,
+                engine=self._engine,
+                evaluator=evaluator,
+                depth=depth,
             )
 
     def choose_move(self, board: Board) -> Move | None:

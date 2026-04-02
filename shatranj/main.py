@@ -41,17 +41,17 @@ def build_argument_parser() -> argparse.ArgumentParser:
         prog="shatranj",
         description="Shatranj - Indian Chess game",
         epilog="Examples:\n"
-        "  shatranj                                           Start a new game (CLI)\n"
-        "  shatranj -a B                                      AI plays BLACK (alphabeta)\n"
-        "  shatranj -a W --ai-mode minimax                    AI plays WHITE with minimax\n"
-        "  shatranj -a B --ai-mode mcts                       AI plays BLACK with MCTS\n"
-        "  shatranj -a W --ai-mode iterative                  AI plays WHITE with Iterative Deepening\n"
-        "  shatranj -a W --ai-mode minimax --ai-depth 6       Minimax depth 6\n"
-        "  shatranj -a W --ai-mode iterative --ai-depth 6     Iterative Deepening depth 6\n"
-        "  shatranj -a W --ai-scoring material                Simple evaluation\n"
-        "  shatranj -a W --ai-scoring positional              Positional evaluation\n"
-        "  shatranj -a W --ai-scoring advanced                Advanced evaluation\n"
-        "  shatranj -b -t 15                                  Blitz game (15 min)\n",
+        "  shatranj "
+        "  shatranj -a B"
+        "  shatranj -a W --ai-mode minimax "
+        "  shatranj -a B --ai-mode mcts "
+        "  shatranj -a W --ai-mode iterative"
+        "  shatranj -a W --ai-mode minimax --ai-depth 6"
+        "  shatranj -a W --ai-mode iterative --ai-depth 6"
+        "  shatranj -a W --ai-scoring material"
+        "  shatranj -a W --ai-scoring positional"
+        "  shatranj -a W --ai-scoring advanced"
+        "  shatranj -b -t 15",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -152,8 +152,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--contest",
         action="store_true",
         default=False,
-        help="Contest mode: read a position from a file and output the best "
-        "move",
+        help="Contest mode: read a position from a"
+        "file and output the best " "move",
     )
 
     # positional: save file
@@ -182,9 +182,9 @@ def main() -> int:
     # ------------------------------------------------------------------
     # F2 — Load (or create) the configuration file
     # ------------------------------------------------------------------
-    cfg    = ShatranjConfig()
+    cfg = ShatranjConfig()
     parser = build_argument_parser()
-    args   = parser.parse_args()
+    args = parser.parse_args()
 
     # Apply CLI overrides on top of the config values
     cfg.apply_args(args)
@@ -192,17 +192,21 @@ def main() -> int:
     # ------------------------------------------------------------------
     # Resolve final values (config merged with CLI)
     # ------------------------------------------------------------------
-    verbose         = cfg.get_bool("verbose")
-    debug           = cfg.get_bool("debug")
-    blitz           = cfg.get_bool("blitz")
+    verbose = cfg.get_bool("verbose")
+    debug = cfg.get_bool("debug")
+    blitz = cfg.get_bool("blitz")
     timeout_minutes = cfg.get_int("timeout")
-    ai_mode         = (
-        args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
+    ai_mode = (
+        args.ai_mode
+        if args.ai_mode is not None
+        else cfg.get_str("ai-mode")
     )
-    ai_depth        = (
-        args.ai_depth if args.ai_depth is not None else cfg.get_int("ai-depth")
+    ai_depth = (
+        args.ai_depth
+        if args.ai_depth is not None
+        else cfg.get_int("ai-depth")
     )
-    ai_scoring      = (
+    ai_scoring = (
         args.ai_scoring
         if args.ai_scoring is not None
         else cfg.get_str("ai-scoring")
@@ -225,12 +229,13 @@ def main() -> int:
             )
             return 1
         from shatranj.presentation.cli.cli import CLI
+
         cli = CLI(verbose=False, debug=False)
         return cli._do_contest(
-            path    = args.savefile,
-            algo    = ai_mode.lower(),
-            depth   = ai_depth,
-            scoring = ai_scoring.lower(),
+            path=args.savefile,
+            algo=ai_mode.lower(),
+            depth=ai_depth,
+            scoring=ai_scoring.lower(),
         )
 
     # --- Launch interface ---
@@ -238,6 +243,7 @@ def main() -> int:
     if args.gui:
         try:
             from shatranj.presentation.gui.app import run_gui
+
             return run_gui()
         except ModuleNotFoundError:
             print(
