@@ -66,7 +66,9 @@ def _detect_language() -> str:
 # ---------------------------------------------------------------------------
 
 
-def setup(language: str | None = None) -> gettext.GNUTranslations:
+def setup(
+    language: str | None = None,
+) -> gettext.GNUTranslations | gettext.NullTranslations:
     """
     Initialise gettext and install _() as a builtin.
 
@@ -104,6 +106,8 @@ def setup(language: str | None = None) -> gettext.GNUTranslations:
 
     # Install _() as a builtin so all modules can use it without importing
     translation.install()
+    global _
+    _ = translation.gettext
     return translation
 
 

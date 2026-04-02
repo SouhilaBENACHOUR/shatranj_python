@@ -35,3 +35,8 @@ pdp/02-final/packages.pngD
 
 # Compiled translations
 *.mo
+!shatranj/i18n/en/LC_MESSAGES/shatranj.mo
+!shatranj/i18n/fr/LC_MESSAGES/shatranj.mo
+.tmp_pytest/
+.tmp_pytest_i18n/
+
