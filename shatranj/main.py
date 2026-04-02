@@ -17,8 +17,9 @@ Options handled (F1):
   -t / --time        : time in minutes for blitz (F5)
   -g / --gui         : graphical interface (F7)
   -a / --ai          : AI player color: W or B (F8)
-  --ai-mode          : AI algorithm: minimax, alphabeta, mcts
-  --ai-depth         : search depth for minimax/alphabeta
+  --ai-mode          : AI algorithm: minimax, alphabeta, mcts, iterative
+  --ai-depth         : search depth for minimax/alphabeta/iterative
+  --ai-scoring       : evaluation function: material, positional, advanced
 """
 
 import argparse
@@ -40,23 +41,17 @@ def build_argument_parser() -> argparse.ArgumentParser:
         prog="shatranj",
         description="Shatranj - Indian Chess game",
         epilog="Examples:\n"
-        "  shatranj                                       Start a new game"
-        "(CLI)\n"
-        "  shatranj -a B                                  AI plays BLACK "
-        "(alphabeta)\n"
-        "  shatranj -a W --ai-mode minimax                AI plays WHITE with"
-        "minimax\n"
-        "  shatranj -a B --ai-mode mcts                   AI plays BLACK with"
-        "MCTS\n"
-        "  shatranj -a W --ai-mode minimax --ai-depth 6   Minimax depth 6\n"
-        "  shatranj -a W --ai-mode alphabeta --ai-scoring positional"
-        "  shatranj -a W --ai-minimax-scoring material    Simple evaluation\n"
-        "  shatranj -a W --ai-minimax-scoring positional  Positional "
-        "evaluation\n"
-        "  shatranj -a W --ai-minimax-scoring advanced    Advanced evaluation"
-        "\n"
-        "  shatranj -b -t 15                              Blitz game (15 min)"
-        "\n",
+        "  shatranj                                           Start a new game (CLI)\n"
+        "  shatranj -a B                                      AI plays BLACK (alphabeta)\n"
+        "  shatranj -a W --ai-mode minimax                    AI plays WHITE with minimax\n"
+        "  shatranj -a B --ai-mode mcts                       AI plays BLACK with MCTS\n"
+        "  shatranj -a W --ai-mode iterative                  AI plays WHITE with Iterative Deepening\n"
+        "  shatranj -a W --ai-mode minimax --ai-depth 6       Minimax depth 6\n"
+        "  shatranj -a W --ai-mode iterative --ai-depth 6     Iterative Deepening depth 6\n"
+        "  shatranj -a W --ai-scoring material                Simple evaluation\n"
+        "  shatranj -a W --ai-scoring positional              Positional evaluation\n"
+        "  shatranj -a W --ai-scoring advanced                Advanced evaluation\n"
+        "  shatranj -b -t 15                                  Blitz game (15 min)\n",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -130,7 +125,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--ai-mode",
         default=None,
         metavar="MODE",
-        help="AI algorithm: minimax, alphabeta, mcts",
+        help="AI algorithm: minimax, alphabeta, mcts, iterative",
     )
 
     # --ai-depth : search depth
@@ -139,11 +134,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         metavar="DEPTH",
-        help="Search depth for minimax/alphabeta"
-        " (default: 3 for minimax, 4 for alphabeta)",
+        help="Search depth for minimax/alphabeta/iterative"
+        " (default: 3 for minimax, 4 for alphabeta/iterative)",
     )
 
-    # --ai-minimax-scoring : evaluation function
+    # --ai-scoring : evaluation function
     parser.add_argument(
         "--ai-scoring",
         default=None,
@@ -183,12 +178,13 @@ def main() -> int:
     from shatranj.i18n import setup as i18n_setup
 
     i18n_setup()
+
     # ------------------------------------------------------------------
     # F2 — Load (or create) the configuration file
     # ------------------------------------------------------------------
-    cfg = ShatranjConfig()
+    cfg    = ShatranjConfig()
     parser = build_argument_parser()
-    args = parser.parse_args()
+    args   = parser.parse_args()
 
     # Apply CLI overrides on top of the config values
     cfg.apply_args(args)
@@ -196,18 +192,17 @@ def main() -> int:
     # ------------------------------------------------------------------
     # Resolve final values (config merged with CLI)
     # ------------------------------------------------------------------
-
-    verbose = cfg.get_bool("verbose")
-    debug = cfg.get_bool("debug")
-    blitz = cfg.get_bool("blitz")
+    verbose         = cfg.get_bool("verbose")
+    debug           = cfg.get_bool("debug")
+    blitz           = cfg.get_bool("blitz")
     timeout_minutes = cfg.get_int("timeout")
-    ai_mode = (
+    ai_mode         = (
         args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
     )
-    ai_depth = (
+    ai_depth        = (
         args.ai_depth if args.ai_depth is not None else cfg.get_int("ai-depth")
     )
-    ai_scoring = (
+    ai_scoring      = (
         args.ai_scoring
         if args.ai_scoring is not None
         else cfg.get_str("ai-scoring")
@@ -232,10 +227,10 @@ def main() -> int:
         from shatranj.presentation.cli.cli import CLI
         cli = CLI(verbose=False, debug=False)
         return cli._do_contest(
-            path=args.savefile,
-            algo=ai_mode.lower(),
-            depth=ai_depth,
-            scoring=ai_scoring.lower(),
+            path    = args.savefile,
+            algo    = ai_mode.lower(),
+            depth   = ai_depth,
+            scoring = ai_scoring.lower(),
         )
 
     # --- Launch interface ---
@@ -243,7 +238,6 @@ def main() -> int:
     if args.gui:
         try:
             from shatranj.presentation.gui.app import run_gui
-
             return run_gui()
         except ModuleNotFoundError:
             print(
@@ -270,10 +264,10 @@ def main() -> int:
             return 1
 
         algo = ai_mode.lower()
-        if algo not in ("minimax", "alphabeta", "mcts"):
+        if algo not in ("minimax", "alphabeta", "mcts", "iterative"):
             print(
                 f"Error: unknown algorithm '{algo}'. Use minimax, "
-                "alphabeta or mcts.",
+                "alphabeta, mcts or iterative.",
                 file=sys.stderr,
             )
             return 1
@@ -283,12 +277,21 @@ def main() -> int:
             print(f"Error: unknown scoring '{scoring}'.", file=sys.stderr)
             return 1
 
-        depth = ai_depth
+        # default depth depending on algorithm
+        if ai_depth is not None:
+            depth = ai_depth
+        elif algo in ("alphabeta", "iterative"):
+            depth = 4
+        elif algo == "mcts":
+            depth = 500
+        else:
+            depth = 3
 
         color_str = "white" if ai_color == "W" else "black"
 
         # store AI config to launch inside run() — avoids double board display
         cli._pending_new = ["ai", color_str, algo, str(depth), scoring]
+
     elif args.blitz:
         cli._pending_new = []
 
