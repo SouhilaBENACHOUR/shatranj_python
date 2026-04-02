@@ -2200,8 +2200,21 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             pass
 
     def _on_info(self, *_args) -> None:
-
-        print("Info")
+        """Show an About dialog with version and author information."""
+ 
+        dialog = Gtk.AboutDialog()
+        dialog.set_transient_for(self)
+        dialog.set_modal(True)
+        dialog.set_program_name("Shatranj")
+        dialog.set_version("0.4.0")
+        dialog.set_comments(
+            _("Indian Chess — a faithful implementation of the ancient game of Shatranj.")
+        )
+        dialog.set_license_type(Gtk.License.UNKNOWN)
+        dialog.set_website("https://www.u-bordeaux.fr")
+        dialog.set_website_label(_("Université de Bordeaux"))
+        dialog.set_copyright("© 2025–2026 Master Informatique — Université de Bordeaux")
+        dialog.present()
 
     def _on_undo(self, *_args) -> None:
 
@@ -2275,8 +2288,34 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.show(self)
 
     def _on_help(self, *_args) -> None:
-
-        print("Help")
+        """Show a help dialog explaining the basic controls."""
+ 
+        help_text = (
+            "HOW TO PLAY\n\n"
+            "Click a piece to select it — valid squares are highlighted.\n"
+            "Drop the piece onto a highlighted square to move.\n\n"
+            "PIECE MOVES\n"
+            "  Shah (K/k)   — one square in any direction\n"
+            "  Ferz (F/f)   — one square diagonally\n"
+            "  Rook (R/r)   — any distance horizontally or vertically\n"
+            "  Knight (N/n) — L-shape jump (2+1 squares)\n"
+            "  Alfil (A/a)  — exactly two squares diagonally (jumps)\n"
+            "  Pawn (P/p)   — one square forward; captures diagonally\n\n"
+            "WINNING CONDITIONS\n"
+            "  Checkmate  — Shah in check with no escape\n"
+            "  Stalemate  — opponent has no legal move (you win)\n"
+            "  Bare King  — opponent has only their Shah left\n\n"
+            "SHORTCUTS\n"
+            "  Ctrl+N  New game    Ctrl+U  Undo\n"
+            "  Ctrl+S  Save        Ctrl+R  Redo\n"
+            "  Ctrl+L  Load        Ctrl+H  Hint\n"
+            "  Ctrl+P  Pause       Ctrl+Q  Quit"
+        )
+ 
+        dialog = Gtk.AlertDialog()
+        dialog.set_message(_("Shatranj — Help"))
+        dialog.set_detail(help_text)
+        dialog.show(self)
 
     def _on_move_played(self, move) -> None:
         """Called by BoardWidget when the user plays a move."""

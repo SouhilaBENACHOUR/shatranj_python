@@ -1137,7 +1137,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             idx_history = lines.index("[history]")
 
             # --- Read [settings] ---
-            for line in lines[idx_settings + 1: idx_game]:
+            for line in lines[idx_settings + 1 : idx_game]:
                 if "=" in line:
                     key, _, val = line.partition("=")
                     key = key.strip().lower()
@@ -1148,7 +1148,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                         self._debug = val in ("true", "1", "yes")
 
             # --- Read [game] ---
-            game_lines = lines[idx_game + 1: idx_history]
+            game_lines = lines[idx_game + 1 : idx_history]
 
             # First line = current player color
             color_letter = game_lines[0].strip().upper()
@@ -1206,7 +1206,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
             # --- Read [history] ---
             history_moves = []
-            for line in lines[idx_history + 1:]:
+            for line in lines[idx_history + 1 :]:
                 # Format: "W e2-e3 B e7-e6"
                 tokens = line.split()
                 i = 0
