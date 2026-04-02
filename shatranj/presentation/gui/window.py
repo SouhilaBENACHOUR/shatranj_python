@@ -2201,19 +2201,20 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_info(self, *_args) -> None:
         """Show an About dialog with version and author information."""
- 
         dialog = Gtk.AboutDialog()
         dialog.set_transient_for(self)
         dialog.set_modal(True)
         dialog.set_program_name("Shatranj")
         dialog.set_version("0.4.0")
         dialog.set_comments(
-            _("Indian Chess — a faithful implementation of the ancient game of Shatranj.")
+            _("Indian Chess — a faithful implementation of"
+              "the ancient game of Shatranj.")
         )
         dialog.set_license_type(Gtk.License.UNKNOWN)
         dialog.set_website("https://www.u-bordeaux.fr")
         dialog.set_website_label(_("Université de Bordeaux"))
-        dialog.set_copyright("© 2025–2026 Master Informatique — Université de Bordeaux")
+        dialog.set_copyright("© 2025–2026 Master Informatique"
+                             " — Université de Bordeaux")
         dialog.present()
 
     def _on_undo(self, *_args) -> None:
@@ -2289,7 +2290,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _on_help(self, *_args) -> None:
         """Show a help dialog explaining the basic controls."""
- 
         help_text = (
             "HOW TO PLAY\n\n"
             "Click a piece to select it — valid squares are highlighted.\n"
@@ -2311,7 +2311,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             "  Ctrl+L  Load        Ctrl+H  Hint\n"
             "  Ctrl+P  Pause       Ctrl+Q  Quit"
         )
- 
         dialog = Gtk.AlertDialog()
         dialog.set_message(_("Shatranj — Help"))
         dialog.set_detail(help_text)
