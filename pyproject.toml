@@ -26,6 +26,7 @@ dependencies = [
     "isort>=5.12.0",
     "sphinx>=7.1.0",
     "PyGObject>=3.42.0; sys_platform == 'linux'",
+    "pycairo>=1.20.0; sys_platform == 'linux'", 
 ]
 
 [project.optional-dependencies]
