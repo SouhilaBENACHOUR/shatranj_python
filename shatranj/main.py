@@ -176,8 +176,12 @@ def main() -> int:
     """
     # F3 — Internationalisation (doit être fait EN PREMIER)
     from shatranj.i18n import setup as i18n_setup
-
-    i18n_setup()
+    cfg = ShatranjConfig()
+    parser = build_argument_parser()
+    args = parser.parse_args()
+    cfg.apply_args(args)
+    language = cfg.get_str("language") 
+    i18n_setup(language=language)
 
     # ------------------------------------------------------------------
     # F2 — Load (or create) the configuration file

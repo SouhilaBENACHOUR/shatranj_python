@@ -38,26 +38,16 @@ DEFAULT_LANGUAGE = "en"
 def _detect_language() -> str:
     """
     Detect the language from environment variables.
-
     Priority: LC_ALL > LANG > default (en)
+    Only used as fallback if no language is set in the config file.
     Only the first two characters are used (e.g. 'fr_FR.UTF-8' → 'fr').
     """
     for var in ("LC_ALL", "LANG"):
         value = os.environ.get(var, "")
         if value:
-            # Extract language code: 'fr_FR.UTF-8' → 'fr'
             lang = value.split("_")[0].split(".")[0].lower()
-            if lang:
+            if lang in SUPPORTED_LANGUAGES:
                 return lang
-
-    # Fallback: ask Python's locale module
-    try:
-        lang, _ = locale.getlocale()
-        if lang:
-            return lang[:2].lower()
-    except Exception:
-        pass
-
     return DEFAULT_LANGUAGE
 
 

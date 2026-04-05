@@ -181,7 +181,7 @@ class CLI:
             return False
 
         winner = BLACK if current == WHITE else WHITE
-        print(f"Time out! {winner} wins!")
+        print(_("Time out! {winner} wins!").format(winner=winner))
         self._state = None
         self._stop_turn_timer()
         return True
@@ -601,8 +601,12 @@ class CLI:
 
         # display the updated board
         print_board(self._state.board)
-        print(f"\nIt's now {self._state.current_color}'s turn.")
-
+        print(
+            "\n"
+            + _("It's now {color}'s turn.").format(
+                color=self._state.current_color
+            )
+        )
         # check if the game is over after the AI's move
         if self._check_game_over():
             return
@@ -625,7 +629,12 @@ class CLI:
             and self._state.current_color in self._ai_players
         ):
             if plies >= max_plies:
-                print(f"\nDraw by move limit ({max_plies} plies).")
+                print(
+                    "\n"
+                    + _("Draw by move limit ({max_plies} plies).").format(
+                        max_plies=max_plies
+                    )
+                )
                 self._state = None
                 self._stop_turn_timer()
                 return
@@ -651,10 +660,10 @@ class CLI:
         """
         if self._state is not None and not self._saved:
             answer = input(
-                "Current game is not saved.Start a new game anyway? [y/N] "
+                _("Current game is not saved. Start a new game anyway? [y/N] ")
             )
             if answer.strip().lower() not in ("y", "yes"):
-                print("New game cancelled.")
+                print(_("New game cancelled."))
                 return
 
         self._state = GameState()
@@ -665,7 +674,7 @@ class CLI:
         if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
             self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=2)
             self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=2)
-            print("New game started! AI plays WHITE and BLACK.")
+            print(_("New game started! AI plays WHITE and BLACK."))
 
         elif len(args) >= 2 and args[0].lower() == "ai":
             ai_color = args[1].upper()
@@ -721,8 +730,10 @@ class CLI:
                     scoring=scoring,
                 )
                 print(
-                    f"New game started! You play WHITE, AI plays BLACK "
-                    f"({algo}, depth={depth}, scoring={scoring})."
+                    _(
+                        "New game started! You play WHITE, AI plays BLACK "
+                        "({algo}, depth={depth}, scoring={scoring})."
+                    ).format(algo=algo, depth=depth, scoring=scoring)
                 )
 
             elif ai_color == "WHITE":
@@ -733,9 +744,11 @@ class CLI:
                     scoring=scoring,
                 )
                 print(
-                    f"New game started! AI plays WHITE "
-                    f"({algo}, depth={depth}, scoring={scoring}),"
-                    " you play BLACK."
+                    _(
+                        "New game started! AI plays WHITE "
+                        "({algo}, depth={depth}, scoring={scoring}), "
+                        "you play BLACK."
+                    ).format(algo=algo, depth=depth, scoring=scoring)
                 )
             else:
                 self._error(
@@ -744,12 +757,13 @@ class CLI:
                 return
 
         else:
-            print("New game started! White plays first.")
+            print(_("New game started! White plays first."))
 
         if self._blitz_enabled:
             print(
-                f"Blitz mode enabled: {self._blitz_minutes} minute(s) "
-                "per player."
+                _(
+                    "Blitz mode enabled: {minutes} minute(s) per player."
+                ).format(minutes=self._blitz_minutes)
             )
 
         print()
@@ -804,26 +818,28 @@ class CLI:
         (default is N, as specified in F15).
         """
         if self._state is not None and not self._saved:
-            print("Save the game before quitting? [y/N]", end=" ")
+            print(_("Save the game before quitting? [y/N]"), end=" ")
             answer = input().strip().lower()
 
             if answer in ("y", "yes"):
                 # Ask for the file path
-                path = input("Enter file path to save: ").strip()
+                path = input(_("Enter file path to save: ")).strip()
                 if path:
                     success = self._save_to_file(path)
                     if not success:
                         # Save failed: ask again (F15)
                         answer2 = (
-                            input("Save failed. Try to save again? [y/N] ")
+                            input(_("Save failed. Try to save again? [y/N] "))
                             .strip()
                             .lower()
                         )
                         if answer2 in ("y", "yes"):
-                            path2 = input("Enter file path to save: ").strip()
+                            path2 = input(
+                                _("Enter file path to save: ")
+                            ).strip()
                             self._save_to_file(path2)
                 else:
-                    print("No path given, quitting without saving.")
+                    print(_("No path given, quitting without saving."))
 
         print(_("Goodbye!"))
         self._running = False
@@ -951,28 +967,38 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _do_show_time(self) -> None:
         """Display remaining time (blitz mode only)."""
         if not self._blitz_enabled:
-            print(
-                "Time display is only available in blitz mode"
-                "(use -b at startup)."
-            )
+            print(_("Time display is only available in blitz mode "
+                    "(use -b at startup)."))
             return
 
         if self._state is None:
-            self._error("No game in progress.")
+            self._error(_("No game in progress."))
             return
 
         status = (
-            "paused"
+            _("paused")
             if self._timer_paused
-            else (f"running ({self._state.current_color} to move)")
+            else (
+                _("running ({color} to move)").format(
+                    color=self._state.current_color
+                )
+            )
         )
-        print(f"White: {self._format_clock(self._clock_seconds[WHITE])}")
-        print(f"Black: {self._format_clock(self._clock_seconds[BLACK])}")
-        print(f"Status: {status}")
+        print(
+            _("White: {time}").format(
+                time=self._format_clock(self._clock_seconds[WHITE])
+            )
+        )
+        print(
+            _("Black: {time}").format(
+                time=self._format_clock(self._clock_seconds[BLACK])
+            )
+        )
+        print(_("Status: {status}").format(status=status))
 
     def _do_show_configuration(self) -> None:
         """Display the current configuration."""
-        print("\nCurrent configuration:")
+        print("\n" + _("Current configuration:"))
         print(f"  verbose = {self._verbose}")
         print(f"  debug   = {self._debug}")
         print()
@@ -1010,15 +1036,24 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             move = self._state.undo()
             if move is None:
                 actual = undone // 2 if human_vs_ai else undone
-                print(f"Nothing more to undo (undid {actual} move(s)).")
+                print(
+                    _("Nothing more to undo (undid {n} move(s)).").format(
+                        n=actual
+                    )
+                )
                 break
             undone += 1
 
         if undone > 0:
             actual = undone // 2 if human_vs_ai else undone
-            print(f"Undid {actual} move(s).")
+            print(_("Undid {n} move(s).").format(n=actual))
             print_board(self._state.board)
-            print(f"\nIt's now {self._state.current_color}'s turn.")
+            print(
+                "\n"
+                + _("It's now {color}'s turn.").format(
+                    color=self._state.current_color
+                )
+            )
             self._saved = False
 
     def _do_redo(self, args: list[str]) -> None:
@@ -1054,15 +1089,24 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             move = self._state.redo()
             if move is None:
                 actual = redone // 2 if human_vs_ai else redone
-                print(f"Nothing more to redo (redid {actual} move(s)).")
+                print(
+                    _("Nothing more to redo (redid {n} move(s)).").format(
+                        n=actual
+                    )
+                )
                 break
             redone += 1
 
         if redone > 0:
             actual = redone // 2 if human_vs_ai else redone
-            print(f"Redid {actual} move(s).")
+            print(_("Redid {n} move(s).").format(n=actual))
             print_board(self._state.board)
-            print(f"\nIt's now {self._state.current_color}'s turn.")
+            print(
+                "\n"
+                + _("It's now {color}'s turn.").format(
+                    color=self._state.current_color
+                )
+            )
             self._saved = False
 
     def _do_hint(self, args: list[str]) -> None:
@@ -1079,10 +1123,14 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             self._ai_players,
         )
         if suggested is None:
-            print("No legal moves available.")
+            print(_("No legal moves available."))
             return
 
-        print(f"Hint: {self._format_move_with_piece(suggested)}")
+        print(
+            _("Hint: {move}").format(
+                move=self._format_move_with_piece(suggested)
+            )
+        )
 
     def _format_move_with_piece(self, move: Move) -> str:
         """Return a human-readable move: 'pawn e2-e3' or 'rook a1xa8'."""
@@ -1258,9 +1306,14 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             self._saved = True
             self._ai_players = {}
 
-            print(f"Game loaded from '{path}'.")
+            print(_("Game loaded from '{path}'.").format(path=path))
             print_board(self._state.board)
-            print(f"\nIt's {self._state.current_color}'s turn.")
+            print(
+                "\n"
+                + _("It's {color}'s turn.").format(
+                    color=self._state.current_color
+                )
+            )
 
         except LoadError as err:
             self._error(f"Error parsing file '{path}': {err}")
@@ -1382,7 +1435,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
                     f.write(" ".join(line_parts) + "\n")
 
-            print(f"Game saved to '{path}'.")
+            print(_("Game saved to '{path}'.").format(path=path))
             return True
 
         except OSError as err:
@@ -1393,22 +1446,22 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _do_pause(self, args: list[str]) -> None:
         """Pause the timer (blitz mode only)."""
         if not self._blitz_enabled:
-            print("Pause is only available in blitz mode.")
+            print(_("Pause is only available in blitz mode."))
             return
 
         if self._state is None:
-            self._error("No game in progress.")
+            self._error(_("No game in progress."))
             return
 
         if self._timer_paused:
             self._timer_paused = False
             self._start_turn_timer()
-            print("Blitz timer resumed.")
+            print(_("Blitz timer resumed."))
             return
 
         self._timer_paused = True
         self._turn_started_at = None
-        print("Blitz timer paused.")
+        print(_("Blitz timer paused."))
 
     def _do_set(self, args: list[str]) -> None:
         """

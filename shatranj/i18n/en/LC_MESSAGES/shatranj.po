@@ -3,6 +3,11 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# ---------------------------------------------------------------------------
+# CLI - startup
+# ---------------------------------------------------------------------------
 
 msgid "Welcome to Shatranj! Type 'help' to see available commands."
 msgstr "Welcome to Shatranj! Type 'help' to see available commands."
@@ -13,11 +18,53 @@ msgstr "Start a new game with 'new'."
 msgid "Goodbye!"
 msgstr "Goodbye!"
 
+# ---------------------------------------------------------------------------
+# CLI - new game
+# ---------------------------------------------------------------------------
+
+msgid "Current game is not saved. Start a new game anyway? [y/N] "
+msgstr "Current game is not saved. Start a new game anyway? [y/N] "
+
+msgid "New game cancelled."
+msgstr "New game cancelled."
+
 msgid "New game started! White plays first."
 msgstr "New game started! White plays first."
 
+msgid "New game started! AI plays WHITE and BLACK."
+msgstr "New game started! AI plays WHITE and BLACK."
+
+msgid "New game started! You play WHITE, AI plays BLACK ({algo}, depth={depth}, scoring={scoring})."
+msgstr "New game started! You play WHITE, AI plays BLACK ({algo}, depth={depth}, scoring={scoring})."
+
+msgid "New game started! AI plays WHITE ({algo}, depth={depth}, scoring={scoring}), you play BLACK."
+msgstr "New game started! AI plays WHITE ({algo}, depth={depth}, scoring={scoring}), you play BLACK."
+
+msgid "Blitz mode enabled: {minutes} minute(s) per player."
+msgstr "Blitz mode enabled: {minutes} minute(s) per player."
+
+# ---------------------------------------------------------------------------
+# CLI - moves
+# ---------------------------------------------------------------------------
+
+msgid "You played: {move}"
+msgstr "You played: {move}"
+
 msgid "It's now {color}'s turn."
 msgstr "It's now {color}'s turn."
+
+msgid "It's {color}'s turn."
+msgstr "It's {color}'s turn."
+
+msgid "AI is thinking...{details}"
+msgstr "AI is thinking...{details}"
+
+msgid "AI plays: {move}"
+msgstr "AI plays: {move}"
+
+# ---------------------------------------------------------------------------
+# CLI - end of game
+# ---------------------------------------------------------------------------
 
 msgid "Checkmate! {color} wins!"
 msgstr "Checkmate! {color} wins!"
@@ -28,5 +75,270 @@ msgstr "Stalemate! {color} wins!"
 msgid "Bare King! {color} wins!"
 msgstr "Bare King! {color} wins!"
 
-msgid "AI is thinking..."
-msgstr "AI is thinking..."
+msgid "Draw by threefold repetition."
+msgstr "Draw by threefold repetition."
+
+msgid "Draw by fifty-move rule."
+msgstr "Draw by fifty-move rule."
+
+msgid "Draw by move limit ({max_plies} plies)."
+msgstr "Draw by move limit ({max_plies} plies)."
+
+msgid "Time out! {winner} wins!"
+msgstr "Time out! {winner} wins!"
+
+msgid "Time out! {color} wins!"
+msgstr "Time out! {color} wins!"
+
+# ---------------------------------------------------------------------------
+# CLI - quit
+# ---------------------------------------------------------------------------
+
+msgid "Save the game before quitting? [y/N]"
+msgstr "Save the game before quitting? [y/N]"
+
+msgid "Enter file path to save: "
+msgstr "Enter file path to save: "
+
+msgid "Save failed. Try to save again? [y/N] "
+msgstr "Save failed. Try to save again? [y/N] "
+
+msgid "No path given, quitting without saving."
+msgstr "No path given, quitting without saving."
+
+# ---------------------------------------------------------------------------
+# CLI - move history
+# ---------------------------------------------------------------------------
+
+msgid "No moves played yet."
+msgstr "No moves played yet."
+
+msgid "Move history:"
+msgstr "Move history:"
+
+# ---------------------------------------------------------------------------
+# CLI - time display
+# ---------------------------------------------------------------------------
+
+msgid "Time display is only available in blitz mode (use -b at startup)."
+msgstr "Time display is only available in blitz mode (use -b at startup)."
+
+msgid "White: {time}"
+msgstr "White: {time}"
+
+msgid "Black: {time}"
+msgstr "Black: {time}"
+
+msgid "Status: {status}"
+msgstr "Status: {status}"
+
+msgid "paused"
+msgstr "paused"
+
+msgid "running ({color} to move)"
+msgstr "running ({color} to move)"
+
+# ---------------------------------------------------------------------------
+# CLI - configuration
+# ---------------------------------------------------------------------------
+
+msgid "Current configuration:"
+msgstr "Current configuration:"
+
+# ---------------------------------------------------------------------------
+# CLI - undo / redo
+# ---------------------------------------------------------------------------
+
+msgid "Nothing more to undo (undid {n} move(s))."
+msgstr "Nothing more to undo (undid {n} move(s))."
+
+msgid "Undid {n} move(s)."
+msgstr "Undid {n} move(s)."
+
+msgid "Nothing more to redo (redid {n} move(s))."
+msgstr "Nothing more to redo (redid {n} move(s))."
+
+msgid "Redid {n} move(s)."
+msgstr "Redid {n} move(s)."
+
+# ---------------------------------------------------------------------------
+# CLI - hint
+# ---------------------------------------------------------------------------
+
+msgid "No legal moves available."
+msgstr "No legal moves available."
+
+msgid "Hint: {move}"
+msgstr "Hint: {move}"
+
+# ---------------------------------------------------------------------------
+# CLI - pause
+# ---------------------------------------------------------------------------
+
+msgid "Pause is only available in blitz mode."
+msgstr "Pause is only available in blitz mode."
+
+msgid "No game in progress."
+msgstr "No game in progress."
+
+msgid "Blitz timer resumed."
+msgstr "Blitz timer resumed."
+
+msgid "Blitz timer paused."
+msgstr "Blitz timer paused."
+
+# ---------------------------------------------------------------------------
+# CLI - load / save
+# ---------------------------------------------------------------------------
+
+msgid "Game loaded from '{path}'."
+msgstr "Game loaded from '{path}'."
+
+msgid "Game saved to '{path}'."
+msgstr "Game saved to '{path}'."
+
+# ---------------------------------------------------------------------------
+# GUI - main window buttons
+# ---------------------------------------------------------------------------
+
+msgid "New Game"
+msgstr "New Game"
+
+msgid "Load Game"
+msgstr "Load Game"
+
+msgid "Save Game"
+msgstr "Save Game"
+
+msgid "Info"
+msgstr "Info"
+
+msgid "Quit"
+msgstr "Quit"
+
+msgid "Undo"
+msgstr "Undo"
+
+msgid "Redo"
+msgstr "Redo"
+
+msgid "Hint"
+msgstr "Hint"
+
+msgid "Back to Menu"
+msgstr "Back to Menu"
+
+# ---------------------------------------------------------------------------
+# GUI - new game dialog
+# ---------------------------------------------------------------------------
+
+msgid "Back"
+msgstr "Back"
+
+msgid "Start Match"
+msgstr "Start Match"
+
+# ---------------------------------------------------------------------------
+# GUI - clock
+# ---------------------------------------------------------------------------
+
+msgid "Game Clock"
+msgstr "Game Clock"
+
+msgid "No active game"
+msgstr "No active game"
+
+msgid "Move History"
+msgstr "Move History"
+
+msgid "Waiting for game"
+msgstr "Waiting for game"
+
+msgid "WHITE"
+msgstr "WHITE"
+
+msgid "BLACK"
+msgstr "BLACK"
+
+msgid "ELAPSED"
+msgstr "ELAPSED"
+
+msgid "TURN"
+msgstr "TURN"
+
+msgid "Time since this game was loaded"
+msgstr "Time since this game was loaded"
+
+msgid "Side to move"
+msgstr "Side to move"
+
+msgid "Paused"
+msgstr "Paused"
+
+msgid "AI thinking"
+msgstr "AI thinking"
+
+msgid "To move"
+msgstr "To move"
+
+msgid "AI ready"
+msgstr "AI ready"
+
+msgid "Waiting"
+msgstr "Waiting"
+
+msgid "{status} | +{n}s increment"
+msgstr "{status} | +{n}s increment"
+
+# ---------------------------------------------------------------------------
+# GUI - end of game
+# ---------------------------------------------------------------------------
+
+msgid "Game Over"
+msgstr "Game Over"
+
+# ---------------------------------------------------------------------------
+# GUI - help
+# ---------------------------------------------------------------------------
+
+msgid "Shatranj — Help"
+msgstr "Shatranj — Help"
+
+# ---------------------------------------------------------------------------
+# GUI - about
+# ---------------------------------------------------------------------------
+
+msgid "Indian Chess — a faithful implementation ofthe ancient game of Shatranj."
+msgstr "Indian Chess — a faithful implementation of the ancient game of Shatranj."
+
+msgid "Université de Bordeaux"
+msgstr "Université de Bordeaux"
+
+# ---------------------------------------------------------------------------
+# GUI - abandon dialog
+# ---------------------------------------------------------------------------
+
+msgid "Save the game before leaving?"
+msgstr "Save the game before leaving?"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "No"
+msgstr "No"
+
+msgid "Yes"
+msgstr "Yes"
+
+# ---------------------------------------------------------------------------
+# GUI - errors
+# ---------------------------------------------------------------------------
+
+msgid "Load Error"
+msgstr "Load Error"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Save Error"
+msgstr "Save Error"

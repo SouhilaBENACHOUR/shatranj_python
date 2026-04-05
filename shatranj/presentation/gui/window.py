@@ -945,9 +945,7 @@ class NewGameDialog(Gtk.Dialog):
         minutes = int(self._custom_minutes_spin.get_value())
         increment = int(self._custom_increment_spin.get_value())
         label = (
-            f"{minutes} | {increment}"
-            if increment > 0
-            else f"{minutes} min"
+            f"{minutes} | {increment}" if increment > 0 else f"{minutes} min"
         )
         return {
             "label": label,
@@ -1326,13 +1324,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         clock_panel.add_css_class("clock-panel")
         panel.append(clock_panel)
 
-        clock_label = Gtk.Label(label="Game Clock")
+        clock_label = Gtk.Label(label=_("Game Clock"))
         clock_label.set_halign(Gtk.Align.START)
         clock_label.set_xalign(0.0)
         clock_label.add_css_class("clock-title")
         clock_panel.append(clock_label)
 
-        self._time_control_label = Gtk.Label(label="No active game")
+        self._time_control_label = Gtk.Label(label=_("No active game"))
         self._time_control_label.set_halign(Gtk.Align.START)
         self._time_control_label.set_xalign(0.0)
         self._time_control_label.add_css_class("time-control-pill")
@@ -1356,7 +1354,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         # "Move History" label aligned to the left
 
-        history_label = Gtk.Label(label="Move History")
+        history_label = Gtk.Label(label=_("Move History"))
 
         history_label.set_halign(Gtk.Align.START)
 
@@ -1427,7 +1425,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         timer_label.add_css_class("clock-time")
         card.append(timer_label)
 
-        status_label = Gtk.Label(label="Waiting for game")
+        status_label = Gtk.Label(label=_("Waiting for game"))
         status_label.set_halign(Gtk.Align.START)
         status_label.set_xalign(0.0)
         status_label.set_wrap(True)
@@ -1561,20 +1559,22 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         """Return the status line shown under one timed clock."""
 
         if self._game_paused:
-            status = "Paused"
+            status = _("Paused")
         elif color == current_color:
             if color in self._ai_players:
-                status = "AI thinking"
+                status = _("AI thinking")
             else:
-                status = "To move"
+                status = _("To move")
         else:
             if color in self._ai_players:
-                status = "AI ready"
+                status = _("AI ready")
             else:
-                status = "Waiting"
+                status = _("Waiting")
 
         if self._increment_seconds > 0:
-            return f"{status} | +{self._increment_seconds}s increment"
+            return _("{status} | +{n}s increment").format(
+                status=status, n=self._increment_seconds
+            )
         return status
 
     def _update_clock_labels(self) -> None:
@@ -1624,14 +1624,14 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if self._state is not None:
                 current_color = self._state.current_color
             self._time_control_label.set_label(self._time_control_name)
-            self._white_clock_side_label.set_label("ELAPSED")
-            self._black_clock_side_label.set_label("TURN")
+            self._white_clock_side_label.set_label(_("ELAPSED"))
+            self._black_clock_side_label.set_label(_("TURN"))
             self._white_timer_label.set_label(_format_clock(elapsed))
             self._black_timer_label.set_label(_display_color(current_color))
             self._white_timer_status_label.set_label(
-                "Time since this game was loaded"
+                _("Time since this game was loaded")
             )
-            self._black_timer_status_label.set_label("Side to move")
+            self._black_timer_status_label.set_label(_("Side to move"))
             self._set_clock_card_state(
                 self._white_clock_card,
                 self._white_timer_label,
@@ -1643,13 +1643,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             )
             return
 
-        self._time_control_label.set_label("No active game")
-        self._white_clock_side_label.set_label("WHITE")
-        self._black_clock_side_label.set_label("BLACK")
+        self._time_control_label.set_label(_("No active game"))
+        self._white_clock_side_label.set_label(_("WHITE"))
+        self._black_clock_side_label.set_label(_("BLACK"))
         self._white_timer_label.set_label("--:--")
         self._black_timer_label.set_label("--:--")
-        self._white_timer_status_label.set_label("Waiting for game")
-        self._black_timer_status_label.set_label("Waiting for game")
+        self._white_timer_status_label.set_label(_("Waiting for game"))
+        self._black_timer_status_label.set_label(_("Waiting for game"))
         self._set_clock_card_state(
             self._white_clock_card,
             self._white_timer_label,
@@ -1689,7 +1689,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._remaining_time[moving_color] = 0.0
             self._update_clock_labels()
             self._show_game_over_dialog(
-                f"Time out! {_display_color(winner)} wins!"
+                _("Time out! {color} wins!").format(
+                    color=_display_color(winner)
+                )
             )
             return False
 
@@ -1730,7 +1732,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         winner = BLACK if current_color == WHITE else WHITE
         self._update_clock_labels()
         self._show_game_over_dialog(
-            f"Time out! {_display_color(winner)} wins!"
+            _("Time out! {color} wins!").format(color=_display_color(winner))
         )
         return True
 
@@ -2107,43 +2109,35 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.open(self, None, self._on_load_game_finish)
 
     def _on_load_game_finish(self, dialog, result) -> None:
-
         try:
-
             file = dialog.open_finish(result)
-
             if file is None:
-
                 return
-
             path = file.get_path()
 
             from shatranj.presentation.cli.cli import CLI
-
-            cli = CLI()
-
+            cli = CLI(verbose=False, debug=False)
             cli._do_load([path])
 
             if cli._state is not None:
-
                 self._state = cli._state
-
                 self._ai_players = {}
-
                 self._board_widget.set_board(
                     self._state.board, self._state.current_color
                 )
                 self._sync_board_interaction()
-
                 self._update_history()
-
                 self._configure_loaded_game_clock()
                 self._start_timer()
-
-                # Switch to game screen after loading
-
                 self.set_show_menubar(True)
                 self._stack.set_visible_child_name("game")
+            else:
+                dialog_err = Gtk.AlertDialog()
+                dialog_err.set_message(_("Load Error"))
+                dialog_err.set_detail(
+                    _("Could not load game from '{path}'.").format(path=path)
+                )
+                dialog_err.show(self)
 
         except LoadError as err:
             dialog_err = Gtk.AlertDialog()
@@ -2155,8 +2149,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             dialog_err.set_message(_("Error"))
             dialog_err.set_detail(str(err))
             dialog_err.show(self)
-        except Exception:
-            pass
+        except Exception as err:
+            dialog_err = Gtk.AlertDialog()
+            dialog_err.set_message(_("Load Error"))
+            dialog_err.set_detail(str(err))
+            dialog_err.show(self)
 
     def _on_save_game(self, *_args) -> None:
 
@@ -2171,33 +2168,40 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.save(self, None, self._on_save_game_finish)
 
     def _on_save_game_finish(self, dialog, result) -> None:
-
         try:
-
             file = dialog.save_finish(result)
-
             if file is None:
-
                 return
-
             path = file.get_path()
 
             from shatranj.presentation.cli.cli import CLI
 
-            cli = CLI()
-
+            cli = CLI(
+                verbose=False,
+                debug=False,
+            )
             cli._state = self._state
-
-            cli._save_to_file(path)
-            self._saved = True
+            success = cli._save_to_file(path)
+            if success:
+                self._saved = True
+            else:
+                dialog_err = Gtk.AlertDialog()
+                dialog_err.set_message(_("Save Error"))
+                dialog_err.set_detail(
+                    _("Could not write to '{path}'.").format(path=path)
+                )
+                dialog_err.show(self)
 
         except ShatranjError as err:
             dialog_err = Gtk.AlertDialog()
             dialog_err.set_message(_("Save Error"))
             dialog_err.set_detail(str(err))
             dialog_err.show(self)
-        except Exception:
-            pass
+        except Exception as err:
+            dialog_err = Gtk.AlertDialog()
+            dialog_err.set_message(_("Save Error"))
+            dialog_err.set_detail(str(err))
+            dialog_err.show(self)
 
     def _on_info(self, *_args) -> None:
         """Show an About dialog with version and author information."""
@@ -2207,14 +2211,17 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.set_program_name("Shatranj")
         dialog.set_version("0.4.0")
         dialog.set_comments(
-            _("Indian Chess — a faithful implementation of"
-              "the ancient game of Shatranj.")
+            _(
+                "Indian Chess — a faithful implementation of"
+                "the ancient game of Shatranj."
+            )
         )
         dialog.set_license_type(Gtk.License.UNKNOWN)
         dialog.set_website("https://www.u-bordeaux.fr")
         dialog.set_website_label(_("Université de Bordeaux"))
-        dialog.set_copyright("© 2025–2026 Master Informatique"
-                             " — Université de Bordeaux")
+        dialog.set_copyright(
+            "© 2025–2026 Master Informatique" " — Université de Bordeaux"
+        )
         dialog.present()
 
     def _on_undo(self, *_args) -> None:
@@ -2496,20 +2503,64 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             modal=True,
             message_type=Gtk.MessageType.QUESTION,
             buttons=Gtk.ButtonsType.NONE,
-            text="Save the game before leaving?",
+            text=_("Save the game before leaving?"),
         )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("No", Gtk.ResponseType.NO)
-        dialog.add_button("Yes", Gtk.ResponseType.YES)
+        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.add_button(_("No"), Gtk.ResponseType.NO)
+        dialog.add_button(_("Yes"), Gtk.ResponseType.YES)
 
         def on_response(dlg, response):
             dlg.destroy()
             if response == Gtk.ResponseType.YES:
-                self._on_save_game()  # ouvre le dialogue de sauvegarde
-                on_confirmed()  # puis exécute l'action
+                self._save_then_confirm(on_confirmed)
             elif response == Gtk.ResponseType.NO:
-                on_confirmed()  # exécute l'action directement
-            # CANCEL : ne rien faire
+                on_confirmed()
 
         dialog.connect("response", on_response)
         dialog.present()
+
+    def _save_then_confirm(self, on_confirmed) -> None:
+        """Open the save dialog, then run on_confirmed only after save."""
+        if self._state is None:
+            on_confirmed()
+            return
+
+        self._state_to_save = self._state
+
+        dialog = Gtk.FileDialog()
+        dialog.set_title(_("Save Game"))
+
+        def on_save_finish(dlg, result):
+            try:
+                file = dlg.save_finish(result)
+                if file is None:
+                    # User cancelled save — don't proceed
+                    return
+                path = file.get_path()
+                from shatranj.presentation.cli.cli import CLI
+                cli = CLI(verbose=False, debug=False)
+                cli._state = self._state_to_save
+                success = cli._save_to_file(path)
+                if success:
+                    self._saved = True
+                else:
+                    dialog_err = Gtk.AlertDialog()
+                    dialog_err.set_message(_("Save Error"))
+                    dialog_err.set_detail(
+                        _("Could not write to '{path}'.").format(path=path)
+                    )
+                    dialog_err.show(self)
+                    return
+            except Exception as err:
+                dialog_err = Gtk.AlertDialog()
+                dialog_err.set_message(_("Save Error"))
+                dialog_err.set_detail(str(err))
+                dialog_err.show(self)
+                return
+            finally:
+                self._state_to_save = None
+
+            # Save succeeded — now execute the original action
+            on_confirmed()
+
+        dialog.save(self, None, on_save_finish)
