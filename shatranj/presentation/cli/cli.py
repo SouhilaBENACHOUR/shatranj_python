@@ -432,6 +432,23 @@ class CLI:
             )
         )
 
+        if self._verbose:
+            from_alg = self._state.board.square_to_algebraic(
+                move.from_square
+            )
+            to_alg = self._state.board.square_to_algebraic(move.to_square)
+            captured = (
+                f" x {move.captured_piece}" if move.captured_piece else ""
+            )
+            print(
+                f"[verbose] {move.piece_type} "
+                f"{from_alg} -> {to_alg}{captured}"
+            )
+            print(
+                f"[verbose] history length: "
+                f"{len(self._state.get_history())}"
+            )
+
         # Display the updated board
         print_board(self._state.board)
         print(
@@ -461,6 +478,7 @@ class CLI:
           - Bare King  -> current player has only their Shah left
         """
         current = self._state.current_color
+        self._debug_print(f"checking game over for {current}")
 
         # Checkmate -> current player loses
         if self._engine.is_checkmate(self._state.board, current):
@@ -572,21 +590,38 @@ class CLI:
         if ai_player is None:
             return
 
-        # display which algorithm and depth the AI uses
         print(
             _("AI is thinking...{details}").format(
                 details=self._format_ai_details(ai_player)
             )
         )
 
+        self._debug_print(
+            f"AI search starting: algo={ai_player.algorithm}, "
+            f"depth={getattr(ai_player._search, '_depth', '?')}, "
+            f"scoring={getattr(ai_player, 'scoring', '?')}, "
+            f"color={self._state.current_color}"
+        )
+
+        import time as _time
+        _t0 = _time.monotonic()
         move = ai_player.choose_move(self._state.board)
+        self._debug_print(
+            f"AI search done in {_time.monotonic() - _t0:.3f}s"
+        )
+
         if self._consume_turn_time():
             return
 
         # no move available -> end of game
         if move is None:
+            self._debug_print("AI found no legal move")
             self._check_game_over()
             return
+
+        self._debug_print(
+            f"AI chose: {self._format_move_with_piece(move)}"
+        )
 
         # display the move played by the AI in algebraic notation
         print(
@@ -598,6 +633,23 @@ class CLI:
         # apply the move on the board
         self._state.apply_move(move)
         self._saved = False
+
+        if self._verbose:
+            from_alg = self._state.board.square_to_algebraic(
+                move.from_square
+            )
+            to_alg = self._state.board.square_to_algebraic(move.to_square)
+            captured = (
+                f" x {move.captured_piece}" if move.captured_piece else ""
+            )
+            print(
+                f"[verbose] AI: {move.piece_type} "
+                f"{from_alg} -> {to_alg}{captured}"
+            )
+            print(
+                f"[verbose] history length: "
+                f"{len(self._state.get_history())}"
+            )
 
         # display the updated board
         print_board(self._state.board)
