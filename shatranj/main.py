@@ -180,7 +180,7 @@ def main() -> int:
     parser = build_argument_parser()
     args = parser.parse_args()
     cfg.apply_args(args)
-    language = cfg.get_str("language") 
+    language = cfg.get_str("language")
     i18n_setup(language=language)
 
     # ------------------------------------------------------------------

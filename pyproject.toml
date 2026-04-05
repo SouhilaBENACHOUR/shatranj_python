@@ -50,9 +50,3 @@ addopts = [
   "--cov-report=term",
   "--cov-branch",
 ]
-
-
-[tool.coverage.run]
-omit = [
-    "shatranj/presentation/gui/*",
-]

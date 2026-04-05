@@ -16,7 +16,6 @@ Usage in other modules:
 """
 
 import gettext
-import locale
 import os
 import sys
 from pathlib import Path
