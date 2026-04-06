@@ -116,28 +116,52 @@ class GameServer:
 
     def _handle_invite(self, connection: PlayerConnection, message: Message):
         if not message.args: return
-        target_id = message.args[0]
+        
+        # ---> FIX: Use scissors to cut the string into parts! <---
+        raw_target = message.args[0]
+        parts = raw_target.split() # This splits the text wherever there is a space
+        
+        target_id = parts[0] # The first part is the real ID
         sender_id = connection.player_id
         
+        blitz_setting = ""
+        # The second part (if it exists) is our secret blitz note!
+        if len(parts) > 1 and parts[1].startswith("blitz="):
+            blitz_setting = parts[1]
+
+        if target_id == sender_id:
+            connection.send(Message.build(Response.ERROR, "Vous ne pouvez pas vous inviter vous-même !"))
+            return
+            
         if target_id not in self.players or self.players[target_id]["status"] != "idle":
             connection.send(Message.build(Response.ERROR, "Joueur non disponible"))
             return
             
         self.players[sender_id]["status"] = "waitgame"
         self.players[target_id]["status"] = "waitgame"
-        self.invitations[sender_id] = {"to": target_id, "time": time.time()}
+        
+        # Save the blitz setting in the server's memory
+        self.invitations[sender_id] = {"to": target_id, "time": time.time(), "blitz": blitz_setting}
         
         target_conn = self.players[target_id]["conn"]
-        target_conn.send(Message.build(Response.INVITE_RECV, f"FROM={self.players[sender_id]['name']}", "EXPIRES=300s"))
+        
+        # Tell the receiver if it is a blitz game!
+        invite_msg = f"FROM={self.players[sender_id]['name']}"
+        if blitz_setting:
+            invite_msg += f" ({blitz_setting})"
+            
+        target_conn.send(Message.build(Response.INVITE_RECV, invite_msg, "EXPIRES=300s"))
         connection.send(Message.build(Response.INVITE_SENT, f"PLAYER={self.players[target_id]['name']}", "TIMEOUT=300s"))
 
     def _handle_accept(self, connection: PlayerConnection):
         target_id = connection.player_id
         sender_id = None
+        blitz_setting = ""
         
         for sid, inv in self.invitations.items():
             if inv["to"] == target_id:
                 sender_id = sid
+                blitz_setting = inv.get("blitz", "") # ---> NEW: Get the secret note out of memory
                 break
                 
         if sender_id:
@@ -152,8 +176,35 @@ class GameServer:
             self.active_sessions[session_id] = session
             
             fen = session.board.to_fen()
-            white_conn.send(Message.build(Response.GAME_START, "white=You", "black=Opponent", f"board={fen}"))
-            black_conn.send(Message.build(Response.GAME_START, "white=Opponent", "black=You", f"board={fen}"))
+            
+            # ---> NEW: Send the blitz setting to BOTH players so they turn on their clocks! <---
+            if blitz_setting:
+                white_conn.send(Message.build(Response.GAME_START, "white=You", "black=Opponent", f"board={fen}", blitz_setting))
+                black_conn.send(Message.build(Response.GAME_START, "white=Opponent", "black=You", f"board={fen}", blitz_setting))
+            else:
+                white_conn.send(Message.build(Response.GAME_START, "white=You", "black=Opponent", f"board={fen}"))
+                black_conn.send(Message.build(Response.GAME_START, "white=Opponent", "black=You", f"board={fen}"))
+    
+    def _handle_quit(self, connection: PlayerConnection):
+        try:
+            # 1. Tell the opponent and destroy the game session
+            for sid, ses in list(self.active_sessions.items()):
+                if ses.white == connection or ses.black == connection:
+                    opponent = ses.get_opponent(connection)
+                    if opponent:
+                        opponent.send(Message.build(Response.ERROR, "L'adversaire a quitté la partie !"))
+                    del self.active_sessions[sid]
+                    break
+
+            # 2. Remove the player from the lobby
+            pid = getattr(connection, 'player_id', None)
+            if pid and pid in self.players:
+                del self.players[pid]
+                
+            connection.running = False
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Erreur de quit: {e}")
 
     def _handle_decline(self, connection: PlayerConnection):
         target_id = connection.player_id
@@ -166,39 +217,47 @@ class GameServer:
                 break
 
     def _handle_move(self, connection: PlayerConnection, message: Message):
-        try:
-            if not message.args: return
-            move_str = message.args[0]
-            
-            # 1. Find the active game session
-            session = None
-            for sid, ses in self.active_sessions.items():
-                if ses.white == connection or ses.black == connection:
-                    session = ses
-                    break
+            try:
+                if not message.args: return
+                move_str = message.args[0]
+                
+                # 1. Find the active game session
+                session = None
+                session_id = None
+                for sid, ses in self.active_sessions.items():
+                    if ses.white == connection or ses.black == connection:
+                        session = ses
+                        session_id = sid
+                        break
+                        
+                if not session:
+                    connection.send(Message.build(Response.ERROR, "Aucune partie en cours"))
+                    return
+
+                # 2. Verify it is actually this player's turn
+                player_color = session.get_player_color(connection)
+                if player_color != session.current_color:
+                    connection.send(Message.build(Response.INVALID, "Ce n'est pas ton tour !"))
+                    return
+
+                # 3. RELAY THE MOVE AND CHECK FOR ZOMBIES! 
+                opponent = session.get_opponent(connection)
+                if opponent:
+                    success = opponent.send(Message.build(Response.OPPONENT_MOVE, move_str))
                     
-            if not session:
-                connection.send(Message.build(Response.ERROR, "Aucune partie en cours"))
-                return
+                    # THE FIX: If sending failed, the opponent pulled the plug without telling us!
+                    if success is False:
+                        connection.send(Message.build(Response.ERROR, "L'adversaire s'est déconnecté (Fantôme) !"))
+                        del self.active_sessions[session_id]
+                        return
 
-            # 2. Verify it is actually this player's turn
-            player_color = session.get_player_color(connection)
-            if player_color != session.current_color:
-                connection.send(Message.build(Response.INVALID, "Ce n'est pas ton tour !"))
-                return
+                # 4. Flip the turn only if the opponent is actually alive
+                session.current_color = BLACK if player_color == WHITE else WHITE
 
-            # 3. Flip the turn on the server
-            session.current_color = BLACK if player_color == WHITE else WHITE
-
-            # 4. RELAY THE MOVE! 
-            opponent = session.get_opponent(connection)
-            if opponent:
-                opponent.send(Message.build(Response.OPPONENT_MOVE, move_str))
-
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Erreur coup: {e}")
-            connection.send(Message.build(Response.INVALID, f"Erreur technique: {e}"))
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Erreur coup: {e}")
+                connection.send(Message.build(Response.INVALID, f"Erreur technique: {e}"))
 
     def _handle_quit(self, connection: PlayerConnection):
         pid = connection.player_id

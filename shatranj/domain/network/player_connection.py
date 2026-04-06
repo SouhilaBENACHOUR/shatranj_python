@@ -45,33 +45,35 @@ class PlayerConnection:
         self.thread.start()
         logger.info(f"Player connection started: {self.addr}")
 
-    def stop(self) -> None:
-        """Stop communication with this player."""
+    def stop(self):
         self.running = False
         try:
             self.socket.close()
         except:
             pass
-        if self.thread:
-            self.thread.join(timeout=2)
-        logger.info(f"Player connection closed: {self.addr}")
+            
+        # THE FIX: Check if we are inside the thread before trying to join it!
+        import threading
+        if self.thread and self.thread != threading.current_thread():
+            try:
+                self.thread.join(timeout=1)
+            except:
+                pass
 
-    def send(self, message: str) -> bool:
-        """
-        Send a message to the player.
-
-        Args:
-            message: Message string (should include \\n)
-
-        Returns:
-            True if sent successfully, False otherwise
-        """
+    def send(self, message):
+        if not self.running:
+            return False
+            
         try:
-            with self._lock:
-                self.socket.sendall(message.encode('utf-8'))
+            # Send the message over the socket
+            data = message.encode() if hasattr(message, 'encode') else str(message).encode('utf-8')
+            if not data.endswith(b'\n'):
+                data += b'\n'
+            self.socket.sendall(data)
             return True
         except Exception as e:
-            logger.error(f"Error sending to {self.addr}: {e}")
+            # THE FIX: If the wire is cut, just silently shut down this connection instead of crashing
+            self.running = False
             return False
 
     def _receive_loop(self) -> None:
