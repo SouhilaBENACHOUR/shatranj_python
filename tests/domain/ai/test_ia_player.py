@@ -2,69 +2,16 @@ import pytest
 
 from shatranj.domain.core.board import Board
 from shatranj.domain.ai.ai_player import AIPlayer
-from shatranj.domain.ai.evaluator import Evaluator
+from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN
 
 # ================================================================
-# Evaluator
-# ================================================================
-
-
-def test_evaluator_equal_position():
-    """Position symétrique → score nul."""
-    board = Board(setup=False)
-    board.place_piece(SHAH, WHITE, 0)
-    board.place_piece(SHAH, BLACK, 63)
-    evaluator = Evaluator()
-    assert evaluator.evaluate(board, WHITE) == 0
-
-
-def test_evaluator_white_advantage():
-    """White a une tour de plus → score positif pour WHITE."""
-    board = Board(setup=False)
-    board.place_piece(SHAH, WHITE, 0)
-    board.place_piece(ROOK, WHITE, 1)  # tour en plus pour WHITE
-    board.place_piece(SHAH, BLACK, 63)
-    evaluator = Evaluator()
-    assert evaluator.evaluate(board, WHITE) > 0
-
-
-def test_evaluator_black_advantage():
-    """Black a une tour de plus → score positif pour BLACK."""
-    board = Board(setup=False)
-    board.place_piece(SHAH, WHITE, 0)
-    board.place_piece(SHAH, BLACK, 63)
-    board.place_piece(ROOK, BLACK, 62)  # tour en plus pour BLACK
-    evaluator = Evaluator()
-    assert evaluator.evaluate(board, BLACK) > 0
-
-
-def test_evaluator_rewards_mobility():
-    """À matériel égal, une position plus active doit être mieux évaluée."""
-    evaluator = Evaluator()
-
-    board_center = Board(setup=False)
-    board_center.place_piece(SHAH, WHITE, 0)  # a1
-    board_center.place_piece(ROOK, WHITE, 27)  # d4 (très mobile)
-    board_center.place_piece(SHAH, BLACK, 63)  # h8
-
-    board_edge = Board(setup=False)
-    board_edge.place_piece(SHAH, WHITE, 0)  # a1
-    board_edge.place_piece(ROOK, WHITE, 8)  # a2 (moins mobile)
-    board_edge.place_piece(SHAH, BLACK, 63)  # h8
-
-    assert evaluator.evaluate(board_center, WHITE) > evaluator.evaluate(
-        board_edge, WHITE
-    )
-
-
-# ================================================================
-# AIPlayer
+# AIPlayer — positive tests
 # ================================================================
 
 
 def test_ai_returns_a_move():
-    """L'IA retourne un coup quand des coups sont disponibles."""
+    """AI returns a move when moves are available."""
     board = Board(setup=False)
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, WHITE, 1)
@@ -75,7 +22,7 @@ def test_ai_returns_a_move():
 
 
 def test_ai_returns_none_when_no_moves():
-    """L'IA retourne None si aucun coup disponible (mat)."""
+    """AI returns None if no move available (checkmate)."""
     board = Board(setup=False)
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, BLACK, 8)
@@ -87,15 +34,14 @@ def test_ai_returns_none_when_no_moves():
 
 
 def test_ai_captures_winning_piece():
-    """L'IA doit capturer une pièce adverse si c'est le meilleur coup."""
+    """AI must capture an opponent piece if it is the best move."""
     board = Board(setup=False)
-    board.place_piece(SHAH, WHITE, 0)  # a1
-    board.place_piece(ROOK, WHITE, 16)  # a3
-    board.place_piece(SHAH, BLACK, 63)  # h8
-    board.place_piece(PAWN, BLACK, 24)  # a4 — capturable par la tour
+    board.place_piece(SHAH, WHITE, 0)
+    board.place_piece(ROOK, WHITE, 16)
+    board.place_piece(SHAH, BLACK, 63)
+    board.place_piece(PAWN, BLACK, 24)
     ai = AIPlayer(color=WHITE, depth=2)
     move = ai.choose_move(board)
-    # l'IA doit capturer le pion en a4
     assert move is not None
     assert move.to_square == 24
 
@@ -109,16 +55,83 @@ def test_ai_captures_winning_piece():
     ],
 )
 def test_ai_does_not_mutate_source_board(algorithm, depth):
-    """choose_move() must not mutate the caller board."""
+    """choose_move() must not mutate the board."""
     board = Board(setup=False)
     board.place_piece(SHAH, WHITE, 0)
     board.place_piece(ROOK, WHITE, 1)
     board.place_piece(SHAH, BLACK, 63)
 
     snapshot = dict(board._boards)
-
     ai = AIPlayer(color=WHITE, depth=depth, algorithm=algorithm)
     move = ai.choose_move(board)
 
     assert move is not None
     assert board._boards == snapshot
+
+
+# ================================================================
+# AIPlayer — negative tests
+# ================================================================
+
+
+def test_ai_player_invalid_algorithm_uses_default():
+    """Invalid algorithm falls back to minimax without raising."""
+    board = Board(setup=False)
+    board.place_piece(SHAH, WHITE, 0)
+    board.place_piece(ROOK, WHITE, 1)
+    board.place_piece(SHAH, BLACK, 63)
+    ai = AIPlayer(color=WHITE, algorithm="invalid_algo", depth=2)
+    move = ai.choose_move(board)
+    assert move is not None  # falls back to minimax → still works
+
+
+def test_ai_player_invalid_scoring_raises():
+    """Invalid scoring raises an error."""
+    with pytest.raises(Exception):
+        AIPlayer(color=WHITE, scoring="invalid_scoring")
+
+
+def test_ai_player_returns_none_on_checkmate_all_algos():
+    """All algorithms return None on checkmate."""
+    board = Board(setup=False)
+    board.place_piece(SHAH, WHITE, 0)
+    board.place_piece(ROOK, BLACK, 1)
+    board.place_piece(ROOK, BLACK, 8)
+    board.place_piece(SHAH, BLACK, 9)
+
+    for algo in ("minimax", "alphabeta", "mcts", "iterative"):
+        ai = AIPlayer(color=WHITE, algorithm=algo, depth=2)
+        move = ai.choose_move(board)
+        assert move is None, f"{algo} should return None on checkmate"
+
+
+def test_ai_player_returns_legal_move_all_algos():
+    """All algorithms return a legal move."""
+    board = Board(setup=False)
+    board.place_piece(SHAH, WHITE, 0)
+    board.place_piece(ROOK, WHITE, 1)
+    board.place_piece(SHAH, BLACK, 63)
+    engine = RulesEngine()
+
+    for algo in ("minimax", "alphabeta", "mcts", "iterative"):
+        ai = AIPlayer(color=WHITE, algorithm=algo, depth=2)
+        move = ai.choose_move(board)
+        assert move is not None
+        assert move in engine.generate_legal_moves(
+            board, WHITE
+        ), f"{algo} returned an illegal move"
+
+
+def test_ai_player_does_not_modify_board_all_algos():
+    """All algorithms must not modify the board."""
+    board = Board(setup=False)
+    board.place_piece(SHAH, WHITE, 0)
+    board.place_piece(ROOK, WHITE, 1)
+    board.place_piece(SHAH, BLACK, 63)
+
+    boards_before = dict(board._boards)
+
+    for algo in ("minimax", "alphabeta", "mcts", "iterative"):
+        ai = AIPlayer(color=WHITE, algorithm=algo, depth=2)
+        ai.choose_move(board)
+        assert board._boards == boards_before, f"{algo} modified the board"

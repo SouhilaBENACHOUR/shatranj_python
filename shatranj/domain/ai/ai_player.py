@@ -5,8 +5,9 @@ from shatranj.domain.ai.evaluator import Evaluator
 from shatranj.domain.ai.minmax import Minimax
 from shatranj.domain.ai.alphabeta import AlphaBeta
 from shatranj.domain.ai.mcts import MCTS
+from shatranj.domain.ai.iterative_deepening import IterativeDeepening
 
-ALGORITHMS = ("minimax", "alphabeta", "mcts")
+ALGORITHMS = ("minimax", "alphabeta", "mcts", "iterative")
 SCORING_MODES = ("material", "positional", "advanced")
 
 
@@ -14,8 +15,11 @@ class AIPlayer:
     """
     Configurable AI player.
 
-    Supports three algorithms : minimax, alphabeta, mcts
-    Supports three scoring modes: material, positional, advanced
+    Supports four algorithms:
+      - minimax   : Minimax + TT, depth 3
+      - alphabeta : Alpha-Beta + TT, depth 4
+      - mcts      : Monte Carlo Tree Search, 500 simulations
+      - iterative : Iterative Deepening + Alpha-Beta + TT, depth 4
     """
 
     def __init__(
@@ -42,7 +46,15 @@ class AIPlayer:
                 evaluator=evaluator,
                 depth=depth,
             )
+        elif algorithm == "iterative":
+            self._search = IterativeDeepening(
+                engine=self._engine,
+                evaluator=evaluator,
+                depth=depth,
+                time_limit=5.0,  # 5 secondes par coup par défaut
+            )
         else:
+            # minimax default
             self._search = Minimax(
                 engine=self._engine,
                 evaluator=evaluator,

@@ -6,22 +6,24 @@ Role: draws the board and pieces using Cairo + SVG images.
 """
 
 import os
-import gi
+
 import cairo
+import gi
 from gi.repository import Gtk, Rsvg
+
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.utils.constants import (
-    WHITE,
+    ALFIL,
     BLACK,
     BOARD_SIZE,
-    SHAH,
     FERZ,
-    ROOK,
-    ALFIL,
     KNIGHT,
     PAWN,
+    ROOK,
+    SHAH,
+    WHITE,
 )
 
 gi.require_version("Gtk", "4.0")
@@ -32,6 +34,15 @@ LIGHT_SQUARE = (0.94, 0.85, 0.71)  # beige
 DARK_SQUARE = (0.71, 0.53, 0.39)  # brown
 HIGHLIGHT = (0.20, 0.70, 0.50, 0.6)  # green (selected)
 HINT_COLOR = (0.20, 0.70, 0.50, 0.3)  # green (valid destination)
+
+
+def _board_geometry(width: int, height: int) -> tuple[float, float, float]:
+    """Return square size and top-left offsets for a centered board."""
+    board_size = min(width, height)
+    square_size = board_size / BOARD_SIZE
+    offset_x = (width - board_size) / 2
+    offset_y = (height - board_size) / 2
+    return square_size, offset_x, offset_y
 
 
 class BoardWidget(Gtk.DrawingArea):
@@ -160,19 +171,25 @@ class BoardWidget(Gtk.DrawingArea):
         if self._board is None:
             return
 
-        square_size = min(width, height) / BOARD_SIZE
+        square_size, offset_x, offset_y = _board_geometry(width, height)
 
-        self._draw_squares(cr, square_size)
-        self._draw_highlights(cr, square_size)
-        self._draw_pieces(cr, square_size)
-        self._draw_coordinates(cr, square_size)
+        self._draw_squares(cr, square_size, offset_x, offset_y)
+        self._draw_highlights(cr, square_size, offset_x, offset_y)
+        self._draw_pieces(cr, square_size, offset_x, offset_y)
+        self._draw_coordinates(cr, square_size, offset_x, offset_y)
 
-    def _draw_squares(self, cr: cairo.Context, sq: float) -> None:
+    def _draw_squares(
+        self,
+        cr: cairo.Context,
+        sq: float,
+        offset_x: float,
+        offset_y: float,
+    ) -> None:
         """Draw the 64 squares."""
         for rank in range(BOARD_SIZE):
             for file in range(BOARD_SIZE):
-                x = file * sq
-                y = (BOARD_SIZE - 1 - rank) * sq
+                x = offset_x + file * sq
+                y = offset_y + (BOARD_SIZE - 1 - rank) * sq
 
                 if (rank + file) % 2 == 0:
                     cr.set_source_rgb(*LIGHT_SQUARE)
@@ -182,7 +199,13 @@ class BoardWidget(Gtk.DrawingArea):
                 cr.rectangle(x, y, sq, sq)
                 cr.fill()
 
-    def _draw_highlights(self, cr: cairo.Context, sq: float) -> None:
+    def _draw_highlights(
+        self,
+        cr: cairo.Context,
+        sq: float,
+        offset_x: float,
+        offset_y: float,
+    ) -> None:
         """Highlight selected square and valid destinations."""
         selected = self._selected_square
         if self._dragging and self._drag_square is not None:
@@ -192,21 +215,27 @@ class BoardWidget(Gtk.DrawingArea):
             return
 
         rank, file = divmod(selected, BOARD_SIZE)
-        x = file * sq
-        y = (BOARD_SIZE - 1 - rank) * sq
+        x = offset_x + file * sq
+        y = offset_y + (BOARD_SIZE - 1 - rank) * sq
         cr.set_source_rgba(*HIGHLIGHT)
         cr.rectangle(x, y, sq, sq)
         cr.fill()
 
         for move in self._valid_moves:
             rank, file = divmod(move.to_square, BOARD_SIZE)
-            x = file * sq
-            y = (BOARD_SIZE - 1 - rank) * sq
+            x = offset_x + file * sq
+            y = offset_y + (BOARD_SIZE - 1 - rank) * sq
             cr.set_source_rgba(*HINT_COLOR)
             cr.rectangle(x, y, sq, sq)
             cr.fill()
 
-    def _draw_pieces(self, cr: cairo.Context, sq: float) -> None:
+    def _draw_pieces(
+        self,
+        cr: cairo.Context,
+        sq: float,
+        offset_x: float,
+        offset_y: float,
+    ) -> None:
         """Draw each piece using its SVG image."""
         for rank in range(BOARD_SIZE):
             for file in range(BOARD_SIZE):
@@ -224,8 +253,8 @@ class BoardWidget(Gtk.DrawingArea):
                 if handle is None:
                     continue
 
-                x = file * sq
-                y = (BOARD_SIZE - 1 - rank) * sq
+                x = offset_x + file * sq
+                y = offset_y + (BOARD_SIZE - 1 - rank) * sq
 
                 has_size, svg_w, svg_h = handle.get_intrinsic_size_in_pixels()
                 if not has_size or svg_w == 0 or svg_h == 0:
@@ -256,16 +285,28 @@ class BoardWidget(Gtk.DrawingArea):
                     handle.render_cairo(cr)
                     cr.restore()
 
-    def _draw_coordinates(self, cr: cairo.Context, sq: float) -> None:
+    def _draw_coordinates(
+        self,
+        cr: cairo.Context,
+        sq: float,
+        offset_x: float,
+        offset_y: float,
+    ) -> None:
         """Draw rank numbers and file letters around the board."""
         cr.set_font_size(sq * 0.18)
 
         for i in range(BOARD_SIZE):
             cr.set_source_rgb(0.3, 0.3, 0.3)
-            cr.move_to(2, (BOARD_SIZE - 1 - i) * sq + sq * 0.25)
+            cr.move_to(
+                offset_x + 2,
+                offset_y + (BOARD_SIZE - 1 - i) * sq + sq * 0.25,
+            )
             cr.show_text(str(i + 1))
 
-            cr.move_to(i * sq + sq * 0.8, BOARD_SIZE * sq - 2)
+            cr.move_to(
+                offset_x + i * sq + sq * 0.8,
+                offset_y + BOARD_SIZE * sq - 2,
+            )
             cr.show_text(chr(ord("a") + i))
 
     # ------------------------------------------------------------------
@@ -277,9 +318,17 @@ class BoardWidget(Gtk.DrawingArea):
         if self._board is None or not self._interaction_enabled:
             return
 
-        sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE
-        file = int(x / sq_size)
-        rank = BOARD_SIZE - 1 - int(y / sq_size)
+        sq_size, offset_x, offset_y = _board_geometry(
+            self.get_width(), self.get_height()
+        )
+        board_x = x - offset_x
+        board_y = y - offset_y
+
+        if board_x < 0 or board_y < 0:
+            return
+
+        file = int(board_x / sq_size)
+        rank = BOARD_SIZE - 1 - int(board_y / sq_size)
 
         if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
             return
@@ -324,9 +373,17 @@ class BoardWidget(Gtk.DrawingArea):
         if self._board is None or not self._interaction_enabled:
             return
 
-        sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE
-        file = int(x / sq_size)
-        rank = BOARD_SIZE - 1 - int(y / sq_size)
+        sq_size, offset_x, offset_y = _board_geometry(
+            self.get_width(), self.get_height()
+        )
+        board_x = x - offset_x
+        board_y = y - offset_y
+
+        if board_x < 0 or board_y < 0:
+            return
+
+        file = int(board_x / sq_size)
+        rank = BOARD_SIZE - 1 - int(board_y / sq_size)
 
         if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
             return
@@ -343,13 +400,11 @@ class BoardWidget(Gtk.DrawingArea):
         self._dragging = True
         self._selected_square = None
 
-        self._valid_moves = [
-            m
-            for m in self._engine.generate_legal_moves(
-                self._board, self._current_color
-            )
-            if m.from_square == square
-        ]
+        legal_moves = self._engine.generate_legal_moves(
+            self._board,
+            self._current_color,
+        )
+        self._valid_moves = [m for m in legal_moves if m.from_square == square]
         self.queue_draw()
 
     def _on_drag_update(self, gesture, dx, dy) -> None:
@@ -370,7 +425,9 @@ class BoardWidget(Gtk.DrawingArea):
         if not self._dragging:
             return
 
-        sq_size = min(self.get_width(), self.get_height()) / BOARD_SIZE
+        sq_size, offset_x, offset_y = _board_geometry(
+            self.get_width(), self.get_height()
+        )
         ok, start_x, start_y = gesture.get_start_point()
         if not ok:
             self._dragging = False
@@ -381,12 +438,22 @@ class BoardWidget(Gtk.DrawingArea):
 
         end_x = start_x + dx
         end_y = start_y + dy
+        board_x = end_x - offset_x
+        board_y = end_y - offset_y
 
         file = int(end_x / sq_size)
         rank = BOARD_SIZE - 1 - int(end_y / sq_size)
 
         self._dragging = False
         self._drag_square = None
+
+        if board_x < 0 or board_y < 0:
+            self._valid_moves = []
+            self.queue_draw()
+            return
+
+        file = int(board_x / sq_size)
+        rank = BOARD_SIZE - 1 - int(board_y / sq_size)
 
         if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
             self._valid_moves = []

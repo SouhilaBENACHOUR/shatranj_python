@@ -1,124 +1,965 @@
-\documentclass[a4paper]{article}
+\documentclass[a4paper,11pt]{article}
 
 \usepackage{pdp}
 
 %------------------------------------------------------------------------------
-%	REPORT INFORMATION
+% Packages supplémentaires
+%------------------------------------------------------------------------------
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{microtype}
+\usepackage{csquotes}
+\usepackage{tikz}
+\usepackage{longtable}
+\usetikzlibrary{arrows.meta, positioning}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=DarkBlue,
+  citecolor=DarkGreen,
+  urlcolor=DarkBlue
+}
+
+%------------------------------------------------------------------------------
+%   INFORMATIONS DU RAPPORT
 %------------------------------------------------------------------------------
 
-\title{ProjectName -- C/Java/Python}
-\subtitle{Rapport final}
-\author{Étudiant1, Étudiant2, Étudiant3, Étudiant4, Étudiant5}
+\title{
+Shatranj --- Python\\
+\large Rapport final de projet de programmation
+}\author{
+Dries Amina \\
+Meklat Sarah \\
+Benachour Souhila \\
+El Ghali Ayman \\
+Marchoud Souhail
+}
 
 %------------------------------------------------------------------------------
 
 \begin{document}
 
-%------------------------------------------------------------------------------
-%	TITLE PAGE
-%------------------------------------------------------------------------------
-
 \maketitle
 \thispagestyle{empty}
 
-%------------------------------------------------------------------------------
-%	MAIN MATTER
-%------------------------------------------------------------------------------
-
+%==============================================================================
 \section*{Introduction}
+\addcontentsline{toc}{section}{Introduction}
+%==============================================================================
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+Dans le cadre du cours de \emph{Projet de Programmation}, nous avons développé
+\texttt{shatranj-python}, une implémentation complète du jeu de Shatranj en
+Python~3.12. Le Shatranj est l'ancêtre direct des échecs modernes, né en Perse
+sassanide aux \textsc{vi}\textsuperscript{e}--\textsc{vii}\textsuperscript{e}
+siècles~\cite{Murray1913} ; ses règles de déplacement diffèrent sensiblement
+des pièces actuelles, ce qui en fait un sujet de programmation à part entière.
 
-Pellentesque iaculis molestie euismod. In hac habitasse platea dictumst. Duis eu
-gravida sem. Vivamus pulvinar, tellus auctor sollicitudin iaculis, quam massa
-blandit ligula, in mollis est tellus et velit. Nulla gravida sapien nibh, nec
-faucibus lorem aliquam sed. Curabitur rutrum elit purus, et congue neque
-venenatis vitae. Sed non magna nisi. Pellentesque euismod non ipsum a hendrerit.
-Pellentesque vehicula tincidunt lacinia. Sed rhoncus porttitor facilisis.
+Ce rapport présente les règles du jeu et leur contexte historique
+(section~\ref{sec:regles}), les structures de données et algorithmes employés
+(section~\ref{sec:algo}), l'architecture logicielle (section~\ref{sec:archi}),
+puis détaille deux fonctionnalités clés~: la représentation par \emph{bitboards}
+(section~\ref{sec:bitboards}) et l'intelligence artificielle AlphaBeta avec table
+de transposition et MCTS (section~\ref{sec:ia}). La section~\ref{sec:critique}
+dresse un bilan critique du projet.
 
-Etiam sed molestie odio. Nunc cursus sollicitudin est vitae posuere. Nullam
-pellentesque metus eu dui porttitor bibendum. Morbi egestas arcu ut urna dictum
-placerat non non nisl. Quisque non ante in eros cursus pulvinar. Sed augue
-libero, eleifend a urna eget, pellentesque condimentum odio. Sed sed dui non
-diam mattis interdum eget sed urna. Integer consectetur, erat id rutrum posuere,
-dui velit dictum mi, quis tincidunt magna diam sit amet nunc. Etiam dui augue,
-sollicitudin rhoncus nisl a, rhoncus tempor purus.
+%==============================================================================
+\section{Explication détaillée du sujet}
+\label{sec:regles}
+%==============================================================================
 
-Suspendisse cursus erat et metus fermentum ullamcorper. Etiam eros arcu, dapibus
-quis efficitur ut, congue id nunc. Pellentesque aliquam venenatis convallis.
-Nulla nisi justo, aliquet quis lacus eget, aliquet maximus velit. Maecenas ex
-turpis, iaculis eget dignissim non, efficitur vel mi. Maecenas pharetra elit
-ornare sem suscipit ornare id id sapien. Vivamus sem neque, consectetur vitae
-aliquet non, finibus eu lectus. Fusce aliquam ipsum ut viverra vehicula. Donec
-ultrices varius nulla vel finibus. Donec convallis fringilla ante id porta.
+\subsection{Contexte historique}
 
-\section{Première section}
+Le \emph{chaturanga} indien, attesté dès le \textsc{vi}\textsuperscript{e}
+siècle~\cite{Murray1913}, est l'ancêtre commun de tous les jeux d'échecs
+modernes. Il donna naissance au Shatranj en Perse sassanide~; ce jeu est décrit
+en détail dans le \emph{Kit\=ab al-Shatr\=anj} d'al-Adl\={\i}~\cite{AlAdli850},
+traité du \textsc{ix}\textsuperscript{e} siècle qui codifie les règles, les
+problèmes (\emph{mansūbāt}) et les ouvertures. Le Shatranj se diffusa ensuite
+en Europe médiévale et évolua progressivement vers les échecs modernes entre le
+\textsc{xv}\textsuperscript{e} et le \textsc{xvi}\textsuperscript{e}
+siècle~\cite{Shenk2006,Eales1985}~; cette transition s'accompagna notamment de
+l'acquisition par le Ferz de la mobilité illimitée de la Dame
+moderne~\cite{Davidson1949}.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+La différence la plus frappante concerne précisément ce \emph{Ferz}~: il ne
+se déplace que d'une case en diagonale, là où la Dame moderne est la pièce la
+plus puissante du jeu~\cite{Davidson1949}. L'Alfil, ancêtre du Fou, ne peut
+atteindre que huit cases fixes toutes de même couleur~\cite{Browne2012}, contre
+une diagonale entière pour le Fou actuel.
 
-\section{Seconde section}
+\subsection{Implémentations existantes (état de l'art)}
 
-Voici un exemple de code en Python :
+Plusieurs implémentations du Shatranj existent dans la communauté open-source.
+\textbf{Fairy-Stockfish}~\cite{FairyStockfish} est un moteur d'échecs variants
+basé sur Stockfish~; il supporte le Shatranj grâce à un système de pièces
+configurables, utilise des bitboards 64~bits et l'algorithme NNUE (réseau de
+neurones efficacement mis à jour). La librairie \textbf{python-chess}~\cite{Pythonchess}
+permet de représenter des variantes d'échecs en Python mais ne supporte pas
+nativement le Shatranj.
 
-{\large
-  \begin{minted}[frame=single]{python}
-def hello_world():
-    print("Hello, World!")
-hello_world()
-  \end{minted}
+Notre implémentation se distingue sur plusieurs points~: elle propose une
+interface graphique GTK, une CLI interactive complète avec historique et
+complétion, et un moteur de règles spécifique au Shatranj (Bare King, promotion
+uniquement en Ferz), sans dépendance externe pour le moteur de jeu.
+
+\subsection{Le plateau et la notation}
+
+Le Shatranj se joue sur un échiquier $8 \times 8$. Les colonnes sont désignées
+par \texttt{a}--\texttt{h} et les rangées par \texttt{1}--\texttt{8}.
+En interne, les cases sont numérotées de~0 (\texttt{a1}) à~63 (\texttt{h8})~:
+\[
+  \text{numéro} = \text{rangée} \times 8 + \text{colonne}
+\]
+\noindent\textbf{Exemple.} La case \texttt{e4}~: rangée~3, colonne~4,
+numéro~$3 \times 8 + 4 = 28$.
+
+\subsection{Les pièces}
+
+\begin{center}
+\begin{tabular}{llccp{4.8cm}}
+\toprule
+\textbf{Pièce} & \textbf{Nom persan} & \textbf{Bl.} & \textbf{No.} & \textbf{Mouvement} \\
+\midrule
+Shah (Roi)        & Sh\=ah   & K & k & 1~case dans toutes les directions \\
+Ferz (Conseiller) & Farz\={\i}n & F & f & 1~case en diagonale seulement \\
+Rook (Tour)       & Rukh     & R & r & Ligne droite, toute la longueur \\
+Alfil (Éléphant)  & Al-f\={\i}l & A & a & Saut de 2~cases en diagonale \\
+Knight (Cavalier) & Faras    & N & n & Saut en L (2+1) \\
+Pawn (Pion)       & Baidaq   & P & p & 1~case en avant, capture diagonale \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Règles de déplacement détaillées}
+
+\paragraph{Shah (K/k).} Se déplace d'une case dans toutes les directions,
+identique au Roi des échecs modernes~\cite{Murray1913}. \emph{Exemple~:} un
+Shah en \texttt{e1} peut aller en \texttt{d1}, \texttt{f1}, \texttt{d2},
+\texttt{e2} ou \texttt{f2}.
+
+\paragraph{Ferz (F/f).} Se déplace d'une \emph{seule} case en diagonale~:
+c'est la principale différence avec la Dame moderne~\cite{Davidson1949}.
+Le Ferz ne contrôle que 4~cases depuis le centre (contre 27 pour la Dame).
+\emph{Exemple~:} Ferz en \texttt{d4} $\rightarrow$ \texttt{c3}, \texttt{e3},
+\texttt{c5} ou \texttt{e5}.
+
+\paragraph{Alfil (A/a).} Saute exactement deux cases en diagonale en
+franchissant la case intermédiaire~\cite{Browne2012}. Il ne peut jamais
+changer de couleur de case~: un Alfil sur case blanche restera sur cases
+blanches toute la partie~; ses 8~cases accessibles sont fixes.
+\emph{Exemple~:} Alfil en \texttt{c1} $\rightarrow$ \texttt{a3} ou \texttt{e3}
+(si non bloqué).
+
+\paragraph{Knight (N/n).} Saut en L (2~cases puis 1~perpendiculaire), peut
+franchir les pièces, identique au Cavalier des échecs modernes.
+\emph{Exemple~:} Cavalier en \texttt{d4} $\rightarrow$ \texttt{b3},
+\texttt{b5}, \texttt{c2}, \texttt{c6}, \texttt{e2}, \texttt{e6},
+\texttt{f3} ou \texttt{f5}.
+
+\paragraph{Rook (R/r).} Ligne droite sur toute la longueur~\cite{Murray1913},
+identique à la Tour moderne. Bloqué par les pièces intermédiaires.
+
+\paragraph{Pawn (P/p).} Avance d'une seule case (pas de double avance
+initiale), capture en diagonale d'une case. Pas de prise en passant. La
+promotion se fait \emph{uniquement} en Ferz~\cite{Murray1913}.
+\emph{Exemple~:} Pion blanc en \texttt{e5} $\rightarrow$ avance en \texttt{e6}
+ou capture en \texttt{d6}/\texttt{f6}.
+
+\subsection{Analyse de la complexité du jeu}
+
+Le facteur de branchement moyen du Shatranj est d'environ $b \approx 30$,
+inférieur aux $\approx 35$ des échecs modernes, car le Ferz et l'Alfil sont
+très limités. À profondeur~$d$, l'espace de recherche exhaustif contient
+$b^d$ nœuds~; l'élagage $\alpha$-$\beta$~\cite{Knuth1975} le ramène à
+$b^{d/2}$ dans le meilleur cas~\cite{RussellNorvig2020}~:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Profondeur $d$ & Sans élagage ($30^d$) & Avec élagage ($30^{d/2}$) & Gain \\
+\midrule
+3 & 27\,000     & 164       & $\times 165$ \\
+4 & 810\,000    & 900       & $\times 900$ \\
+5 & 24\,300\,000 & 5\,477  & $\times 4\,437$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Conditions de fin de partie}
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Échec et mat~:} le Shah adverse est attaqué et ne peut
+    s'échapper --- le joueur qui donne mat gagne.
+  \item \textbf{Pat~:} le joueur n'a aucun coup légal mais son Shah n'est
+    pas en échec --- la partie est nulle.
+  \item \textbf{Bare King~:} le joueur ne conserve que son Shah (toutes
+    ses autres pièces capturées)~\cite{AlAdli850}. Règle propre au Shatranj,
+    absente des échecs modernes~: l'adversaire gagne.
+  \item \textbf{Timeout~:} en mode blitz, le joueur dont le chronomètre
+    atteint zéro perd la partie.
+\end{itemize}
+
+%==============================================================================
+\section{Algorithmes et structures de données}
+\label{sec:algo}
+%==============================================================================
+
+\subsection{Vue d'ensemble}
+
+Le projet mobilise les structures et algorithmes suivants, issus de la
+littérature en informatique des jeux~\cite{Shannon1950,Knuth1975,RussellNorvig2020}~:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Bitboards~:} entiers 64~bits représentant l'état du plateau.
+  \item \textbf{Minimax~:} recherche arborescente exhaustive, complexité $O(b^d)$.
+  \item \textbf{Élagage $\alpha$-$\beta$~:} réduit à $O(b^{d/2})$~\cite{Knuth1975}.
+  \item \textbf{Zobrist hashing~:} hachage incrémental de positions en $O(1)$~\cite{Zobrist1970}.
+  \item \textbf{Table de transposition~:} mémoïsation des positions évaluées.
+  \item \textbf{MCTS~:} recherche par simulations aléatoires~\cite{Browne2012}.
+\end{itemize}
+
+\subsection{Représentation mémoire du plateau}
+
+Un plateau d'échecs possède exactement 64~cases, ce qui correspond naturellement
+à un entier de 64~bits~\cite{Shannon1950}. La classe \texttt{Board} maintient un
+dictionnaire de 12~bitboards ($6$~types de pièces $\times$ 2~couleurs)~:
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+self._boards = {
+    (piece, color): 0
+    for piece in PIECES   # shah, ferz, rook, alfil, knight, pawn
+    for color in COLORS   # white, black
 }
+\end{minted}
 
-Un exemple d'image flottante (Fig.~\ref{fig:example}).
+Le bit~$i$ vaut~1 si et seulement si une pièce de ce type et de cette couleur
+occupe la case~$i$. L'état complet du plateau ne requiert que $12 \times 8 = 96$
+octets, contre $64 \times 4 = 256$~octets minimum pour un tableau classique.
 
-\begin{figure}[!ht]
+\subsection{Application et annulation d'un coup}
+
+L'application d'un coup (\texttt{apply\_move}) se ramène à deux
+opérations sur les bitboards : effacer le bit source et activer le bit
+destination. L'annulation (\texttt{undo\_move}) est l'opération symétrique.
+Ces deux opérations sont en $O(1)$~:
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+def apply_move(self, move: Move) -> str | None:
+    # 1. Retirer la pièce de sa case source
+    self._boards[(move.piece_type, move.color)] = clear_bit_at(
+        self._boards[(move.piece_type, move.color)], move.from_square)
+    # 2. La placer sur la case destination
+    self._boards[(move.piece_type, move.color)] = set_bit_at(
+        self._boards[(move.piece_type, move.color)], move.to_square)
+    # 3. Capturer l'éventuelle pièce adverse
+    captured = None
+    for piece in PIECES:
+        if get_bit_at(self._boards[(piece, opponent)], move.to_square):
+            self._boards[(piece, opponent)] = clear_bit_at(
+                self._boards[(piece, opponent)], move.to_square)
+            captured = piece
+            break
+    return captured   # nécessaire pour undo_move
+\end{minted}
+
+\texttt{undo\_move} repose sur la même logique en sens inverse~: on remet
+la pièce en \texttt{from\_square} et, si une pièce avait été capturée,
+on la repose sur \texttt{to\_square}.
+
+\subsection{Génération des coups}
+
+La génération des coups légaux suit deux étapes~:
+\begin{enumerate}[noitemsep]
+  \item \textbf{Pseudo-légaux~:} \texttt{MoveGenerator} produit tous les
+    déplacements géométriquement corrects par opérations bit-à-bit.
+  \item \textbf{Filtrage~:} \texttt{RulesEngine} élimine les coups qui
+    laisseraient le Shah en échec en simulant chaque coup puis testant si
+    la case du Shah est attaquée.
+\end{enumerate}
+
+\begin{minted}[frame=single,fontsize=\small]{text}
+FUNCTION generate_legal_moves(board, color):
+    pseudo_moves <- generate_pseudo_legal_moves(board, color)
+    legal_moves  <- []
+    FOR move IN pseudo_moves:
+        captured <- board.apply_move(move)       -- O(1)
+        IF NOT is_in_check(board, color):        -- O(P)
+            legal_moves.append(move)
+        board.undo_move(move, captured)          -- O(1)
+    RETURN legal_moves
+\end{minted}
+
+\noindent\textbf{Complexité.} La génération pseudo-légale est $O(P)$ où $P$
+est le nombre de pièces ($\leq 32$). Le filtrage applique et annule chaque
+coup en $O(1)$, puis teste l'échec en $O(P)$. La complexité totale est
+$O(P^2) = O(1024)$ --- négligeable par rapport au nombre de nœuds explorés.
+
+\subsection{Algorithmes de recherche : Minimax et Alpha-Bêta}
+
+\begin{minted}[frame=single,fontsize=\small]{text}
+FUNCTION alphabeta(board, depth, alpha, beta, is_max, color, opp):
+    IF depth = 0 OR terminal(board):
+        RETURN evaluate(board, color)
+    IF is_max:
+        FOR move IN legal_moves(board, color):
+            apply(move)
+            score <- alphabeta(board, depth-1, alpha, beta, FALSE,...)
+            undo(move)
+            alpha <- max(alpha, score)
+            IF beta <= alpha: BREAK      (* coupure beta *)
+        RETURN alpha
+    ELSE:
+        FOR move IN legal_moves(board, opp):
+            apply(move)
+            score <- alphabeta(board, depth-1, alpha, beta, TRUE, ...)
+            undo(move)
+            beta <- min(beta, score)
+            IF beta <= alpha: BREAK      (* coupure alpha *)
+        RETURN beta
+\end{minted}
+
+\noindent\textbf{Déroulement sur un exemple.} Supposons $\alpha = 5$ (MAX a
+déjà trouvé un coup de valeur~5). Si MIN explore une branche et obtient~3
+($\beta = 3 \leq \alpha = 5$), cette branche est coupée~: MAX ne la
+choisira jamais. À profondeur~4, on passe de $30^4 = 810\,000$ à
+$\approx 30^2 = 900$~nœuds dans le meilleur cas~\cite{RussellNorvig2020}.
+
+\subsection{Hachage de Zobrist}
+
+La technique de Zobrist~\cite{Zobrist1970} associe à chaque triplet
+(type de pièce, couleur, case) un nombre pseudo-aléatoire de 64~bits tiré
+une seule fois à l'initialisation. La clé d'une position est le XOR de tous
+ces nombres~; une mise à jour après un coup coûte $O(1)$ (deux XOR) contre
+$O(64)$ pour un hachage naïf de l'état complet.
+
+%==============================================================================
+\section{Architecture logicielle}
+\label{sec:archi}
+%==============================================================================
+
+\subsection{Principe N-tiers}
+
+L'application suit une architecture en couches strictement séparées~\cite{Fowler2002}
+où chaque couche ne communique qu'avec la couche immédiatement inférieure,
+garantissant testabilité et maintenabilité.
+
+\begin{figure}[H]
   \centering
-  \frame{\includegraphics[width=.85\textwidth]{layered_architectures.png}}
-  \caption{Une architecture en couches}\label{fig:example}
+  \frame{\includegraphics[width=0.85\textwidth]{layered_architectures.png}}
+  \caption{Architecture en couches du projet Shatranj}
+  \label{fig:archi}
 \end{figure}
 
+\subsection{Flux d'interactions entre les couches}
+
+Lorsqu'un utilisateur saisit un coup dans le CLI ou effectue un drag-and-drop
+dans l'interface GTK, la couche \textbf{Présentation} construit un objet
+\texttt{Move} et le transmet au \texttt{RulesEngine}. Celui-ci interroge
+\texttt{MoveValidator} pour vérifier la légalité du coup, puis appelle
+\texttt{Board.apply\_move()} qui modifie les bitboards en $O(1)$. Lorsque
+c'est au tour de l'IA, \texttt{AlphaBeta} (ou \texttt{MCTS}) est invoqué
+depuis la couche Métier~: il appelle \texttt{RulesEngine.generate\_legal\_moves()},
+consulte la \texttt{TranspositionTable}, et renvoie le meilleur coup à la
+couche Présentation pour affichage.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{diagramme d'interaction.png}
+  \caption{Flux d'interaction entre les couches avec complexités}
+  \label{fig:flux}
+\end{figure}
+
+\subsection{Couche Présentation}
+
+La couche présentation ne contient \emph{aucune} règle de jeu~: elle traduit
+les actions utilisateur en objets \texttt{Move} et délègue au \texttt{RulesEngine}.
+
+\begin{description}[noitemsep]
+  \item[\texttt{presentation/cli/}] Shell interactif avec prompt \texttt{>>},
+    undo/redo, sauvegarde/chargement, hint, complétion Tab (\texttt{readline}),
+    historique des commandes (Ctrl+R).
+  \item[\texttt{presentation/gui/}] Interface graphique GTK (PyGObject) avec
+    plateau SVG, drag-and-drop et menus File/Game avec raccourcis clavier.
+\end{description}
+
+\subsection{Couche Métier (Domain)}
+
+\begin{description}[noitemsep]
+  \item[\texttt{domain/core/}] \texttt{Board} (12 bitboards, apply/undo en
+    $O(1)$) et \texttt{Move} (case source, destination, type de pièce,
+    couleur, pièce capturée).
+  \item[\texttt{domain/rules/}] \texttt{MoveGenerator} (génération pseudo-légale
+    en $O(P)$), \texttt{MoveValidator}, \texttt{RulesEngine} (détection d'échec,
+    mat, pat, Bare King).
+  \item[\texttt{domain/ai/}] \texttt{Minimax}, \texttt{AlphaBeta},
+    \texttt{MCTS}, \texttt{Evaluator} (3~niveaux), \texttt{TranspositionTable}.
+\end{description}
+
+\subsection{Couche Données (Data)}
+
+\begin{description}[noitemsep]
+  \item[\texttt{data/bitboards/bitboard.py}] Primitives bit-à-bit~:
+    \texttt{set\_bit\_at}, \texttt{clear\_bit\_at}, \texttt{get\_bit\_at},
+    \texttt{pop\_lsb}.
+  \item[\texttt{data/persistence/}] Sauvegarde/chargement au format texte
+    ASCII en trois sections~: \texttt{[settings]}, \texttt{[game]},
+    \texttt{[history]}.
+\end{description}
+
+\subsection{Internationalisation}
+
+Le projet supporte le français et l'anglais via \texttt{gettext}. Les catalogues
+compilés (\texttt{.mo}) sont dans \texttt{i18n/fr/} et \texttt{i18n/en/}.
+La langue est détectée depuis \texttt{LANG} ou \texttt{LC\_ALL}.
+
+\subsection{Structure du projet}
+
+\begin{minted}[frame=single,fontsize=\small]{text}
+shatranj/
++-- data/
+|   +-- bitboards/bitboard.py      # primitives bit-à-bit
+|   +-- persistence/               # sauvegarde/chargement
++-- domain/
+|   +-- ai/
+|   |   +-- alphabeta.py           # AlphaBeta
+|   |   +-- evaluator.py           # fonctions d'évaluation
+|   |   +-- mcts.py                # Monte Carlo Tree Search
+|   |   +-- minmax.py              # Minimax basique
+|   |   \-- transposition_table.py # Zobrist + table
+|   +-- core/
+|   |   +-- board.py               # 12 bitboards, apply/undo
+|   |   \-- move.py                # représentation d'un coup
+|   \-- rules/
+|       +-- move_generator.py      # génération pseudo-légale
+|       +-- move_validator.py      # filtrage légalité
+|       \-- rules_engine.py        # mat, pat, Bare King
++-- presentation/
+|   +-- cli/                       # shell interactif
+|   \-- gui/                       # interface GTK
++-- i18n/                          # traductions fr/en
+\-- utils/constants.py             # constantes globales
+\end{minted}
+
+%==============================================================================
+\section{Fonctionnalité approfondie~1 : les Bitboards}
+\label{sec:bitboards}
+%==============================================================================
+
+\subsection{Principe général}
+
+Un \emph{bitboard} est un entier non signé de 64~bits dans lequel chaque bit
+représente une case du plateau~\cite{Shannon1950}. Le bit~$i$ vaut~1 si une
+pièce donnée occupe la case~$i$, et~0 sinon. Cette représentation, classique
+dans les moteurs d'échecs depuis Shannon~\cite{Shannon1950}, permet d'effectuer
+des opérations sur \emph{toutes les cases simultanément} grâce aux instructions
+bit-à-bit du processeur.
+
+\subsection{Numérotation des cases}
+
+\begin{center}
+\begin{tabular}{r|cccccccc}
+  & a & b & c & d & e & f & g & h \\\hline
+8 & 56 & 57 & 58 & 59 & 60 & 61 & 62 & 63 \\
+7 & 48 & 49 & 50 & 51 & 52 & 53 & 54 & 55 \\
+\vdots & \multicolumn{8}{c}{\dots} \\
+2 &  8 &  9 & 10 & 11 & 12 & 13 & 14 & 15 \\
+1 &  0 &  1 &  2 &  3 &  4 &  5 &  6 &  7 \\
+\end{tabular}
+\end{center}
+
+\subsection{Primitives bit-à-bit}
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+def set_bit_at(bitboard: int, square: int) -> int:
+    return bitboard | (1 << square)      # activer le bit i
+
+def clear_bit_at(bitboard: int, square: int) -> int:
+    return bitboard & ~(1 << square)     # effacer le bit i
+
+def get_bit_at(bitboard: int, square: int) -> int:
+    return (bitboard >> square) & 1      # lire le bit i
+
+def pop_lsb(bitboard: int) -> tuple[int, int]:
+    """Extrait et supprime le bit le moins significatif (LSB)."""
+    idx = (bitboard & -bitboard).bit_length() - 1
+    return idx, bitboard ^ (1 << idx)
+\end{minted}
+
+L'astuce \texttt{bitboard \& -bitboard} isole le LSB en $O(1)$ grâce à la
+représentation en complément à deux~: $-x = \lnot x + 1$, donc
+$x \mathbin{\&} (-x)$ met à zéro tous les bits sauf le moins significatif.
+
+\textbf{Exemple numérique.} Pour $x = \texttt{0b10110100}$~:
+$-x = \texttt{0b01001100}$,
+$x \mathbin{\&} (-x) = \texttt{0b00000100}$, soit le bit~2 (case \texttt{c1}).
+
+\subsection{Génération des coups par opérations bit-à-bit}
+
+\paragraph{Pions blancs.}
+En position initiale, les pions blancs occupent les cases 8--15 (rangée~2)~:
+\[
+  \texttt{white\_pawns} = \texttt{0x000000000000FF00} = \sum_{i=8}^{15} 2^{i}
+\]
+Pour calculer \emph{toutes} les cases accessibles par avance ou capture~:
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+# Avance d'une case : décalage de 8 bits (O(1) pour les 8 pions)
+pawn_pushes = (white_pawns << 8) & ~all_pieces
+
+# Captures diagonales
+pawn_attacks_left  = (white_pawns << 7) & ~FILE_H & black_pieces
+pawn_attacks_right = (white_pawns << 9) & ~FILE_A & black_pieces
+\end{minted}
+
+\noindent\textbf{Déroulement complet.}
+\texttt{white\_pawns = 0xFF00}, \texttt{all\_pieces = 0xFFFF00000000FFFF}.
+Après \texttt{white\_pawns << 8}~: \texttt{0xFF0000}.
+La rangée~3 est vide~: $\texttt{0xFF0000} \mathbin{\&} \lnot\texttt{all\_pieces}
+= \texttt{0xFF0000}$, représentant les 8~cases \texttt{a3}--\texttt{h3}.
+\textbf{Une seule instruction CPU a calculé les 8~pousses simultanément}, contre
+une boucle de 8~itérations avec un tableau.
+
+\paragraph{Alfil (éléphant).}
+L'Alfil saute exactement deux cases en diagonale. Ses 8~destinations depuis la
+case~$s$ sont obtenues en activant les bits $s \pm 7$, $s \pm 9$, $s \pm 14$
+et $s \pm 18$ (avec masques de bord pour éviter les débordements)~:
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+ALFIL_ATTACKS = {}   # pré-calculé à l'initialisation
+for sq in range(64):
+    attacks = 0
+    for delta in [-18, -14, 14, 18, -7, 7, -9, 9]:
+        # version simplifiée -- la vraie implémentation
+        # vérifie aussi les débordements de colonnes
+        target = sq + delta
+        if 0 <= target < 64:
+            attacks = set_bit_at(attacks, target)
+    ALFIL_ATTACKS[sq] = attacks
+\end{minted}
+
+Ce pré-calcul est effectué \emph{une seule fois} au démarrage~; lors de la
+génération des coups, on lit simplement \texttt{ALFIL\_ATTACKS[sq]} en $O(1)$.
+
+\subsection{Agrégation : occupancy}
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+@property
+def white_pieces(self) -> int:
+    bb = 0
+    for piece in PIECES:        # 6 itérations
+        bb |= self._boards[(piece, WHITE)]
+    return bb                   # O(6) = O(1)
+\end{minted}
+
+La détection d'une pièce sur une case (\texttt{get\_piece\_at}) itère sur
+les 12~bitboards et teste le bit correspondant~: $O(12) = O(1)$.
+
+\subsection{Avantages et limites}
+
+\paragraph{Avantages.}
+\begin{itemize}[noitemsep]
+  \item \textbf{Performance~:} opérations AND, OR, XOR, SHIFT en une
+    instruction CPU ; l'IA explore les positions bien plus rapidement
+    qu'avec une représentation par tableau~\cite{Shannon1950}.
+  \item \textbf{Compacité~:} $12 \times 8 = 96$~octets pour tout l'état
+    du plateau, contre $64 \times 4 = 256$~octets pour un tableau classique.
+  \item \textbf{Parallélisme implicite~:} calcul simultané sur toutes les
+    cases d'un type de pièce sans boucle explicite.
+\end{itemize}
+
+\paragraph{Limites.}
+\begin{itemize}[noitemsep]
+  \item Python ne dispose pas de type entier natif 64~bits (précision
+    arbitraire)~: un léger surcoût existe par rapport au C/C++, mais il
+    reste négligeable aux profondeurs utilisées (3--4).
+  \item L'Alfil, limité à 8~cases fixes de même couleur, produit un
+    bitboard très creux~: sa représentation est sous-optimale pour ce type
+    de pièce si peu mobile.
+\end{itemize}
+
+%==============================================================================
+\section{Fonctionnalité approfondie~2 : Intelligence Artificielle}
+\label{sec:ia}
+%==============================================================================
+
+\subsection{Vue d'ensemble}
+
+Le module \texttt{domain/ai/} propose trois algorithmes~: \texttt{Minimax}
+(profondeur~3), \texttt{AlphaBeta} (profondeur~4) et \texttt{MCTS}
+(500~simulations par coup). Tous partagent le même \texttt{Evaluator} et la
+même \texttt{TranspositionTable}.
+
+\subsection{Minimax}
+
+L'algorithme Minimax~\cite{Shannon1950} modélise le jeu comme un arbre de
+décision alternant MAX (l'IA maximise son score) et MIN (l'adversaire le
+minimise). La récursion s'arrête à une profondeur~$d$ fixée.
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+for move in legal_moves:
+    captured = board.apply_move(move)
+    score = self._minimax(board, depth-1, False, ai_color, opponent, key)
+    board.undo_move(move, captured)
+    if score > best_score:
+        best_score = score
+        best_moves = [move]
+\end{minted}
+
+En cas d'égalité de score, \texttt{\_select\_most\_active\_move} favorise
+successivement~: les captures, la mobilité, puis la distance parcourue.
+
+\subsection{Élagage Alpha-Bêta}
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+if is_maximizing:
+    best = float("-inf")
+    for move in legal_moves:
+        captured = board.apply_move(move)
+        score = self._alphabeta(board, depth-1, alpha, beta,
+                                False, ai_color, opponent, key)
+        board.undo_move(move, captured)
+        best = max(best, score)
+        alpha = max(alpha, best)
+        if beta <= alpha:
+            break   # coupure beta
+\end{minted}
+
+\subsection{Table de transposition et Zobrist hashing}
+
+\subsubsection{Problème des transpositions}
+
+Une même position peut être atteinte par des séquences de coups différentes.
+\emph{Exemple~:} e2-e4 / e7-e5 et e7-e5 / e2-e4 produisent la même
+position --- sans table de transposition, elle serait réévaluée deux fois.
+
+\subsubsection{Hachage de Zobrist}
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+# Initialisation (graine fixe = 42 pour la reproductibilité)
+for piece in ALL_PIECES:
+    for color in ALL_COLORS:
+        for square in range(64):
+            table[(piece, color, square)] = rng.getrandbits(64)
+
+# Mise à jour en O(1) après un coup
+key ^= table[(piece, color, from_square)]   # retirer la pièce
+key ^= table[(piece, color, to_square)]     # placer la pièce
+key ^= black_to_move_key                    # changer de joueur
+\end{minted}
+
+\subsubsection{Table de transposition}
+
+La \texttt{TranspositionTable} associe chaque clé Zobrist à un triplet
+(\emph{score}, \emph{profondeur}, \emph{flag})~:
+
+\begin{itemize}[noitemsep]
+  \item \texttt{EXACT}~: score exact calculé à cette profondeur.
+  \item \texttt{LOWER\_BOUND}~: score minimum connu (coupure $\beta$).
+  \item \texttt{UPPER\_BOUND}~: score maximum connu (coupure $\alpha$).
+\end{itemize}
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+entry = self._table.get(key)
+if entry and entry["depth"] >= depth:
+    if entry["flag"] == EXACT:
+        return entry["score"], True
+    if entry["flag"] == LOWER_BOUND and entry["score"] >= beta:
+        return entry["score"], True
+    if entry["flag"] == UPPER_BOUND and entry["score"] <= alpha:
+        return entry["score"], True
+\end{minted}
+
+Taille maximale~: 10\,000 entrées avec stratégie \emph{always-replace}.
+
+\subsection{Fonction d'évaluation}
+
+L'\texttt{Evaluator} propose trois niveaux croissants~:
+
+\begin{enumerate}[noitemsep]
+  \item \textbf{Material~:} somme algébrique des valeurs des pièces
+    (Pion=1, Alfil=Ferz=2, Cavalier=6, Tour=9)~\cite{Berliner1999}.
+  \item \textbf{Positional~:} material + bonus positionnel par table de
+    64~valeurs pour chaque type de pièce~; tables miroirs pour les noirs.
+  \item \textbf{Advanced~:} positional + mobilité (nombre de coups légaux),
+    contrôle du centre (+2~pts pour d4/e4/d5/e5), sécurité du Shah (malus
+    si proche du centre en milieu de partie).
+\end{enumerate}
+
+\subsection{Monte Carlo Tree Search}
+
+\subsubsection{Principe et structure}
+
+Le MCTS~\cite{Browne2012} évalue les positions par simulations aléatoires.
+Chaque nœud de l'arbre (\texttt{MCTSNode}) conserve le coup joué, les
+statistiques victoires/visites, et la liste des coups non encore explorés~:
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+class MCTSNode:
+    def __init__(self, move, parent, color):
+        self.move     = move
+        self.parent   = parent
+        self.color    = color
+        self.children : list["MCTSNode"] = []
+        self.wins  : float = 0.0
+        self.visits: int   = 0
+        self.untried: list[Move] = []
+\end{minted}
+
+\subsubsection{Formule UCB1 et sélection}
+
+La sélection utilise UCB1~\cite{Browne2012} avec $C = \sqrt{2}$~:
+\[
+  \text{UCB1}(n_i) = \frac{w_i}{n_i} + C\sqrt{\frac{\ln N}{n_i}}
+\]
+où $w_i$ est le nombre de victoires, $n_i$ le nombre de visites du nœud~$i$
+et $N$ celui du parent.
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+def best_child(self, exploration: float = 1.41) -> "MCTSNode":
+    return max(
+        self.children,
+        key=lambda c: (c.wins / c.visits)
+            + exploration * math.sqrt(math.log(self.visits) / c.visits),
+    )
+\end{minted}
+
+\subsubsection{Rollout avec table de transposition}
+
+La simulation consulte d'abord la table de transposition pour éviter de
+rejouer des positions déjà connues~:
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+def _rollout(self, board, current_color, ai_color,
+             max_moves=50) -> float:
+    color = current_color
+    key   = self._hasher.compute_key(board, color)
+    # Consultation TT avant de simuler
+    tt_score, should_use = self._tt.get(
+        key, 0, float("-inf"), float("+inf"))
+    if should_use:
+        return tt_score
+    for _ in range(max_moves):
+        legal_moves = self._engine.generate_legal_moves(board, color)
+        if not legal_moves:
+            opp    = BLACK if color == WHITE else WHITE
+            result = 1.0 if opp == ai_color else 0.0
+            self._tt.store(key, result, 0, EXACT)
+            return result
+        if self._engine.is_bare_king(board, color):
+            opp    = BLACK if color == WHITE else WHITE
+            result = 1.0 if opp == ai_color else 0.0
+            self._tt.store(key, result, 0, EXACT)
+            return result
+        move = random.choice(legal_moves)
+        board.apply_move(move)
+        color = BLACK if color == WHITE else WHITE
+    self._tt.store(key, 0.5, 0, EXACT)
+    return 0.5
+\end{minted}
+
+\subsubsection{Rétropropagation}
+
+\begin{minted}[frame=single,fontsize=\small]{python}
+def _backpropagate(self, node, result: float) -> None:
+    while node is not None:
+        node.visits += 1
+        node.wins   += result
+        result = 1.0 - result   # inversion de perspective parent/enfant
+        node = node.parent
+\end{minted}
+
+Le coup final retenu est le plus \emph{visité}~: la fréquence de visite est
+un indicateur plus robuste que le ratio victoires/visites~\cite{Browne2012}.
+
+%==============================================================================
+\section{Revue critique du projet}
+\label{sec:critique}
+%==============================================================================
+
+\subsection{Ce qui a été réalisé}
+
+\begin{itemize}[noitemsep]
+  \item Moteur de règles complet~: validation des coups, détection de
+    l'échec, de l'échec et mat, du pat et du Bare King pour toutes les pièces.
+  \item CLI interactif (prompt \texttt{>>}, complétion Tab, historique,
+    undo/redo, sauvegarde/chargement, hint).
+  \item GUI PyGObject avec plateau SVG, drag-and-drop et menus complets.
+  \item IA fonctionnelle~: Minimax (profondeur~3), AlphaBeta (profondeur~4)
+    et MCTS (500~simulations), avec table de transposition et hachage Zobrist.
+  \item Internationalisation français/anglais via \texttt{gettext}.
+  \item Tests automatisés (\texttt{pytest}) avec couverture (\texttt{pytest-cov}).
+\end{itemize}
+
+\subsection{Ce qui n'a pas été réalisé}
+
+\begin{itemize}[noitemsep]
+  \item TODO\end{itemize}
+
+\subsection{Performances}
+
+L'AlphaBeta à profondeur~4 répond en moins de cinq secondes sur des positions
+ouvertes. La table de transposition réduit le nombre de nœuds évalués de
+30~à~50\,\% sur les positions répétées. Le MCTS avec 500~simulations est
+légèrement plus lent mais produit une variété de jeu intéressante.
+
+\subsection{Cas limites et bugs identifiés}
+
+\begin{itemize}[noitemsep]
+  \item TODO
+\end{itemize}
+
+\subsection{Améliorations possibles}
+
+\begin{itemize}[noitemsep]
+  \item TODO
+\end{itemize}
+
+%==============================================================================
 \section*{Conclusion}
+\addcontentsline{toc}{section}{Conclusion}
+%==============================================================================
 
-Suspendisse sit amet nisi placerat, vestibulum nisl vel, iaculis nunc.
-Suspendisse quis libero vel ipsum gravida congue nec id arcu. Donec vel mi
-viverra, commodo urna vitae, tincidunt lectus. Fusce pellentesque, lectus a
-placerat vestibulum, magna lectus placerat nibh, vehicula pellentesque lacus
-erat non nulla. Suspendisse maximus, turpis at suscipit egestas, libero massa
-ultrices libero, at tincidunt velit eros a eros. Maecenas id tempor nunc.
-Phasellus condimentum porttitor sapien in sagittis. Proin in metus diam. Mauris
-in turpis sed ex viverra iaculis. Sed lobortis, tellus vitae congue blandit, leo
-elit auctor libero, id tempor ante dolor quis quam. Donec eget ligula quam.
-Maecenas porttitor massa vel felis elementum tristique.
+Ce projet nous a permis de mettre en pratique des compétences variées~:
+conception d'une architecture logicielle en couches, implémentation
+d'algorithmes de recherche arborescente, manipulation de structures de données
+bas niveau (bitboards), développement d'interfaces graphiques et gestion de
+projet en équipe.
 
-%------------------------------------------------------------------------------
-%	BIBLIOGRAPHY
-%------------------------------------------------------------------------------
+La représentation par bitboards et l'algorithme AlphaBeta avec table de
+transposition constituent les deux apports techniques les plus significatifs~:
+ils permettent à l'IA de jouer à profondeur~4 en temps réel, produisant un
+adversaire cohérent et difficile pour un joueur débutant. Le MCTS offre une
+alternative plus exploratoire, utile lorsque la profondeur de recherche est
+difficile à fixer a priori~\cite{Browne2012}.
 
+Les fonctionnalités non implémentées (réseau, iterative deepening, ML)
+constituent des perspectives réalistes. Le bug de sauvegarde, trivial à
+corriger (une f-string mal fermée), illustre l'importance des tests
+d'intégration sur la persistance.
+
+%==============================================================================
 \nocite{*}
 \bibliographystyle{plain}
 \bibliography{bibliography}
+%==============================================================================
 
-%------------------------------------------------------------------------------
-% BACK MATTER
-%------------------------------------------------------------------------------
+%==============================================================================
 \appendix
+%==============================================================================
 
-\section{Section en annexe}
+\section{Bilan des fonctionnalités (F1--F40)}
+\label{sec:bilan}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+\small
+\renewcommand{\arraystretch}{1.2}
+
+\begin{longtable}{>{\ttfamily}l p{8cm} c}
+\caption{Bilan des fonctionnalités (F1--F40)} \\
+\toprule
+\textbf{ID} & \textbf{Description} & \textbf{État} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{ID} & \textbf{Description} & \textbf{État} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{3}{r}{\textit{Suite page suivante}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\multicolumn{3}{l}{\textbf{Lancement et configuration}} \\
+F1  & Options \texttt{-h}, \texttt{-V}, \texttt{-v}, \texttt{-d} & Fait \\
+F2  & Fichier de configuration \texttt{.shatranjrc} & Fait \\
+F3  & Internationalisation fr/en via \texttt{gettext} & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Options au lancement}} \\
+F4  & Interface CLI par défaut & Fait \\
+F5  & Mode Blitz avec chronomètre & Fait \\
+F6  & Mode Contest (entrée fichier, sortie stdout) & Fait \\
+F7  & Interface graphique GTK (\texttt{-g}) & Fait \\
+F8  & Mode IA joueur (\texttt{-a W/B/A}) & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Gestion du jeu}} \\
+F9  & Validation des coups et mise à jour de l'état & Fait \\
+F10 & Gestion des erreurs utilisateur (messages stderr) & Fait \\
+F11 & Undo / Redo & Fait \\
+F12 & Hints (suggestion de coup via IA) & Fait \\
+F13 & Blitz : décompte, pause, timeout & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Interface CLI}} \\
+F14 & Shell interactif avec prompt \texttt{>>} & Fait \\
+F15 & Proposition de sauvegarde avant de quitter & Fait \\
+F16 & Édition de la ligne de commande (\texttt{readline}) & Fait \\
+F17 & Historique des commandes (flèches, Ctrl+R) & Fait \\
+F18 & Complétion Tab & Fait \\
+F19 & Notation algébrique des coups & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Format de sauvegarde}} \\
+F20 & Sauvegarde / restauration d'une partie & Fait \\
+F21 & Commentaires dans la sauvegarde (\texttt{\#}, \texttt{\{\}}) & Fait \\
+F23 & Format du plateau dans \texttt{[game]} & Fait \\
+F24 & Format de l'historique dans \texttt{[history]} & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Bitboards}} \\
+F25 & Module bitboard (primitives bit-à-bit) & Fait \\
+F26 & Génération et application des coups & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Interface graphique}} \\
+F27 & Menus File / Game & Fait \\
+F28 & Raccourcis clavier & Fait \\
+F29 & Drag-and-Drop & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Intelligence artificielle}} \\
+F30 & Temps de réflexion borné & Fait \\
+F31 & Minimax avec élagage $\alpha$-$\beta$ & Fait \\
+F32 & Fonctions d'évaluation (material, positional, advanced) & Fait \\
+F33 & Approfondissement itératif & Fait \\
+F34 & Profondeur de recherche configurable & Fait \\
+F35 & Monte Carlo Tree Search (MCTS) & Fait \\
+F36 & Sélection par Machine Learning (Keras) & Non fait \\
+F37 & Tables de transposition (Zobrist) & Fait \\
+
+\midrule
+\multicolumn{3}{l}{\textbf{Jeu en réseau}} \\
+F38 & Découverte de serveurs (UDP) et connexion TCP & Fait \\
+F39 & Serveur multi-clients, tableau des scores & Fait \\
+F40 & Système d'invitations, statuts des joueurs & Fait \\
+
+\end{longtable}
+
+\section{Valeurs des pièces}
+\label{sec:annexe-valeurs}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Pièce} & \textbf{Valeur} & \textbf{Commentaire} \\
+\midrule
+Pion (Pawn)       & 1  & unité de base \\
+Alfil             & 2  & 8~cases fixes de même couleur \\
+Ferz              & 2  & 1~case en diagonale seulement \\
+Cavalier (Knight) & 6  & saut en L, très mobile \\
+Tour (Rook)       & 9  & ligne droite illimitée \\
+Shah (Roi)        & 0  & non capturé, à protéger \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \end{document}

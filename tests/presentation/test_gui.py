@@ -16,11 +16,15 @@ What is NOT tested here (requires a real display / integration tests):
   - Signal / event handling
   - Cairo drawing functions
 """
-from unittest.mock import MagicMock
+
 import sys
 import types
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
 import pytest
-from shatranj.utils.constants import WHITE, BLACK, BOARD_SIZE
+
+from shatranj.utils.constants import BLACK, BOARD_SIZE, WHITE
 
 # ---------------------------------------------------------------------------
 # GTK mock — installed BEFORE any shatranj.presentation.gui import
@@ -97,13 +101,16 @@ _gi_mock, _gtk_mock = _make_gtk_mock()
 # Tests for _format_clock (pure function in window.py)
 # ---------------------------------------------------------------------------
 
+
 class TestFormatClock:
     """Tests for the _format_clock helper (no GTK dependency)."""
 
     def _get_format_clock(self):
         # Import lazily to ensure mocks are in place
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w._format_clock
 
@@ -143,12 +150,15 @@ class TestFormatClock:
 # Tests for _display_color (pure function in window.py)
 # ---------------------------------------------------------------------------
 
+
 class TestDisplayColor:
     """Tests for the _display_color helper."""
 
     def _get_display_color(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w._display_color
 
@@ -172,6 +182,7 @@ class TestDisplayColor:
 # ---------------------------------------------------------------------------
 # Tests for board coordinate math (board_widget logic)
 # ---------------------------------------------------------------------------
+
 
 class TestBoardCoordinateMath:
     """
@@ -239,10 +250,35 @@ class TestBoardCoordinateMath:
         # y=500 → rank = 7 - int(500/60) = -1 → hors bornes
         assert self._pixel_to_square(0, 500) is None
 
+    def test_board_geometry_centers_when_wider_than_tall(self):
+        import importlib
+
+        import shatranj.presentation.gui.board_widget as bw
+
+        importlib.reload(bw)
+        sq, offset_x, offset_y = bw._board_geometry(800, 480)
+
+        assert sq == 60
+        assert offset_x == 160
+        assert offset_y == 0
+
+    def test_board_geometry_centers_when_taller_than_wide(self):
+        import importlib
+
+        import shatranj.presentation.gui.board_widget as bw
+
+        importlib.reload(bw)
+        sq, offset_x, offset_y = bw._board_geometry(480, 800)
+
+        assert sq == 60
+        assert offset_x == 0
+        assert offset_y == 160
+
 
 # ---------------------------------------------------------------------------
 # Tests for NewGameDialog.get_config logic
 # ---------------------------------------------------------------------------
+
 
 class TestNewGameDialogConfig:
     """
@@ -250,8 +286,15 @@ class TestNewGameDialogConfig:
     mocked away from GTK.
     """
 
-    def _make_config(self, mode, algorithm, speed_label,
-                     time_label, base_seconds, increment_seconds):
+    def _make_config(
+        self,
+        mode,
+        algorithm,
+        speed_label,
+        time_label,
+        base_seconds,
+        increment_seconds,
+    ):
         """Build a config dict as get_config() would return."""
         return {
             "mode": mode,
@@ -280,9 +323,7 @@ class TestNewGameDialogConfig:
         assert config["ai_color"] == BLACK
 
     def test_aivai_mode(self):
-        config = self._make_config(
-            "aivai", "mcts", "Bullet", "1 min", 60, 0
-        )
+        config = self._make_config("aivai", "mcts", "Bullet", "1 min", 60, 0)
         assert config["mode"] == "aivai"
         assert config["algorithm"] == "mcts"
 
@@ -303,14 +344,17 @@ class TestNewGameDialogConfig:
 # Tests for ShatranjApp structure (app.py)
 # ---------------------------------------------------------------------------
 
+
 class TestShatranjApp:
     """Tests for the ShatranjApp class — structure only, no GTK launch."""
 
     def test_app_module_importable(self):
         """app.py should be importable without a display."""
         import importlib
+
         try:
             import shatranj.presentation.gui.app as app_module
+
             importlib.reload(app_module)
             assert hasattr(app_module, "ShatranjApp")
             assert hasattr(app_module, "run_gui")
@@ -321,14 +365,54 @@ class TestShatranjApp:
         """run_gui should be a callable."""
         try:
             from shatranj.presentation.gui.app import run_gui
+
             assert callable(run_gui)
         except Exception as e:
             pytest.skip(f"GTK not available: {e}")
 
 
+class TestHintCallback:
+    """Regression tests for translated GUI callbacks."""
+
+    def test_on_hint_does_not_shadow_gettext(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.board import Board
+        from shatranj.presentation.cli.game_state import GameState
+        from shatranj.utils.constants import PAWN, ROOK, SHAH
+
+        importlib.reload(w)
+
+        board = Board(setup=False)
+        board.place_piece(SHAH, WHITE, 0)
+        board.place_piece(ROOK, WHITE, 1)
+        board.place_piece(SHAH, BLACK, 63)
+        board.place_piece(PAWN, BLACK, 2)
+
+        state = GameState()
+        state.board = board
+        state.current_color = WHITE
+        state._history = []
+        state._redo_stack = []
+
+        dialog = MagicMock()
+        w.Gtk.AlertDialog = MagicMock(return_value=dialog)
+
+        fake_window = SimpleNamespace(
+            _state=state,
+            _ai_players={},
+        )
+
+        w.ShatranjWindow._on_hint(fake_window, object())
+
+        dialog.set_message.assert_called_once_with("Hint")
+
+
 # ---------------------------------------------------------------------------
 # Tests for clock state helpers (pure logic)
 # ---------------------------------------------------------------------------
+
 
 class TestClockHelpers:
     """Tests for clock-related pure calculations."""
@@ -336,32 +420,42 @@ class TestClockHelpers:
     def test_format_clock_30_minutes(self):
         """30 minutes = 1800 seconds → '30:00'."""
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         assert w._format_clock(1800.0) == "30:00"
 
     def test_format_clock_rounds_up(self):
         """9.1 seconds should round up to 10 → '00:10'."""
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         assert w._format_clock(9.1) == "00:10"
 
     def test_format_clock_exact_seconds(self):
         """Exact integer seconds should not be rounded up."""
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         assert w._format_clock(10.0) == "00:10"
 
     def test_display_color_white(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         assert w._display_color(WHITE) == "White"
 
     def test_display_color_black(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         assert w._display_color(BLACK) == "Black"
