@@ -56,6 +56,64 @@ class TestMainEntryPoint:
                 result = main.main()
                 assert result == 1
 
+    def test_main_server_mode(self):
+        """Run main with dedicated multiplayer server mode."""
+        with patch("sys.argv", ["shatranj", "--server", "12345"]):
+            with patch(
+                "shatranj.domain.network.DiscoveryServer"
+            ) as MockDiscovery:
+                with patch(
+                    "shatranj.domain.network.GameServer"
+                ) as MockServer:
+                    with patch(
+                        "shatranj.main.time.sleep",
+                        side_effect=KeyboardInterrupt,
+                    ):
+                        result = main.main()
+
+        assert result == 0
+        MockDiscovery.assert_called_once_with(
+            "ShatranjServer",
+            12345,
+            main.VERSION,
+        )
+        MockServer.assert_called_once_with("ShatranjServer", 12345)
+        MockDiscovery.return_value.start.assert_called_once()
+        MockServer.return_value.start.assert_called_once()
+        MockServer.return_value.stop.assert_called_once()
+        MockDiscovery.return_value.stop.assert_called_once()
+
+    def test_main_server_mode_with_daemon_flag(self):
+        """Run main with server mode and the daemon flag."""
+        with patch(
+            "sys.argv",
+            ["shatranj", "--server", "--daemon"],
+        ):
+            with patch(
+                "shatranj.domain.network.DiscoveryServer"
+            ) as MockDiscovery:
+                with patch(
+                    "shatranj.domain.network.GameServer"
+                ) as MockServer:
+                    with patch(
+                        "shatranj.main.time.sleep",
+                        side_effect=KeyboardInterrupt,
+                    ):
+                        with patch(
+                            "sys.stdout",
+                            new_callable=StringIO,
+                        ) as mock_stdout:
+                            result = main.main()
+
+        assert result == 0
+        assert mock_stdout.getvalue() == ""
+        MockDiscovery.assert_called_once_with(
+            "ShatranjServer",
+            12345,
+            main.VERSION,
+        )
+        MockServer.assert_called_once_with("ShatranjServer", 12345)
+
     def test_main_contest_mode(self, tmp_path):
         """Run main with contest mode."""
         save_file = tmp_path / "game.shj"

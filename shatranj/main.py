@@ -7,6 +7,7 @@ then launch the requested interface.
 
 import argparse
 import sys
+import time
 
 from shatranj.config import ShatranjConfig
 
@@ -76,6 +77,22 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help="Launch the graphical interface",
     )
     parser.add_argument(
+        "-s",
+        "--server",
+        nargs="?",
+        const=12345,
+        default=None,
+        type=int,
+        metavar="PORT",
+        help="Start the multiplayer server on PORT (default: 12345)",
+    )
+    parser.add_argument(
+        "--daemon",
+        action="store_true",
+        default=False,
+        help="Run the multiplayer server without launching CLI or GUI",
+    )
+    parser.add_argument(
         "-a",
         "--ai",
         nargs="?",
@@ -131,6 +148,31 @@ def main() -> int:
     args = parser.parse_args()
     cfg.apply_args(args)
     i18n_setup(language=cfg.get_str("language"))
+
+    if args.server is not None:
+        from shatranj.domain.network import DiscoveryServer, GameServer
+
+        port = args.server
+        server_name = "ShatranjServer"
+        discovery = DiscoveryServer(server_name, port, VERSION)
+        server = GameServer(server_name, port)
+
+        discovery.start()
+        server.start()
+
+        if not args.daemon:
+            print(f"Starting Shatranj server on TCP {port} / UDP 12346...")
+            print("Press Ctrl+C to stop the server.")
+
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            server.stop()
+            discovery.stop()
+        return 0
 
     verbose = cfg.get_bool("verbose")
     debug = cfg.get_bool("debug")

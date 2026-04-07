@@ -9,6 +9,7 @@ Role: builds the main window with a welcome screen, menu bar, board widget,
 """
 
 import builtins
+import os
 
 import gi
 
@@ -21,6 +22,9 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from shatranj.domain.ai.ai_player import AIPlayer  # noqa: E402
 from shatranj.domain.ai.hinting import choose_hint_move  # noqa: E402
+from shatranj.domain.core.board import Board  # noqa: E402
+from shatranj.domain.core.move import Move  # noqa: E402
+from shatranj.domain.network.game_client import GameClient  # noqa: E402
 from shatranj.persistence import ClockState, load_game_file, save_game_file  # noqa: E402
 from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
 from shatranj.presentation.cli.game_state import GameState  # noqa: E402
@@ -517,6 +521,142 @@ def _display_color(color: str | None) -> str:
     if color == BLACK:
         return "Black"
     return "--"
+
+
+def _move_to_network_text(move: Move) -> str:
+    """Serialize a GUI move using the network protocol notation."""
+
+    frm = Board.square_to_algebraic(move.from_square)
+    to = Board.square_to_algebraic(move.to_square)
+    separator = "x" if move.captured_piece else "-"
+    return f"{frm}{separator}{to}"
+
+
+def _move_from_network_text(board: Board, text: str) -> Move | None:
+    """Build a move object from a network move string and the live board."""
+
+    raw = text.strip().lower()
+    separator = "x" if "x" in raw else "-"
+    parts = raw.split(separator)
+    if len(parts) != 2:
+        return None
+
+    try:
+        from_square = Board.algebraic_to_square(parts[0])
+        to_square = Board.algebraic_to_square(parts[1])
+    except Exception:
+        return None
+
+    piece_info = board.get_piece_at(from_square)
+    if piece_info is None:
+        return None
+
+    target = board.get_piece_at(to_square)
+    piece_type, color = piece_info
+    captured_piece = target[0] if target is not None else None
+    return Move(
+        from_square=from_square,
+        to_square=to_square,
+        piece_type=piece_type,
+        color=color,
+        captured_piece=captured_piece,
+    )
+
+
+def _build_network_invite_target(
+    target_id: str,
+    blitz_minutes: int | None = None,
+) -> str:
+    """Build the payload expected by the TCP invite command."""
+
+    payload = target_id.strip()
+    if not payload:
+        return ""
+    if blitz_minutes is None:
+        return payload
+    return f"{payload} blitz={max(1, int(blitz_minutes))}"
+
+
+def _build_network_clock_config(blitz_minutes: int | None) -> dict | None:
+    """Return a GUI clock config for online blitz games."""
+
+    if blitz_minutes is None:
+        return None
+    minutes = max(1, int(blitz_minutes))
+    return {
+        "mode": "hvh",
+        "ai_color": BLACK,
+        "algorithm": "alphabeta",
+        "speed_label": "Custom",
+        "time_control_label": f"{minutes} min",
+        "base_seconds": minutes * 60,
+        "increment_seconds": 2,
+    }
+
+
+def _parse_network_game_start(args: list[str]) -> dict[str, object]:
+    """Extract board state, local color, and blitz settings from a message."""
+
+    board = Board()
+    my_color = None
+    blitz_minutes = None
+
+    for arg in args:
+        if arg.startswith("board="):
+            board = Board.from_fen(arg.split("=", 1)[1])
+        elif arg == "white=You":
+            my_color = WHITE
+        elif arg == "black=You":
+            my_color = BLACK
+        elif arg.lower().startswith("blitz="):
+            try:
+                blitz_minutes = max(1, int(arg.split("=", 1)[1]))
+            except ValueError:
+                blitz_minutes = 30
+
+    return {
+        "board": board,
+        "my_color": my_color,
+        "blitz_minutes": blitz_minutes,
+    }
+
+
+def _format_network_players(args: list[str]) -> str:
+    """Format the server's PLAYERS list into a readable multiline string."""
+
+    if not args:
+        return "No players reported by the server."
+
+    lines = []
+    for entry in args:
+        parts = entry.split(":", 2)
+        if len(parts) == 3:
+            player_id, name, status = parts
+            lines.append(f"{player_id} | {name} | {status}")
+        else:
+            lines.append(entry)
+    return "\n".join(lines)
+
+
+def _can_interact_with_board(
+    state: GameState | None,
+    *,
+    game_paused: bool,
+    ai_players: dict[str, AIPlayer],
+    network_player_color: str | None = None,
+) -> bool:
+    """Return whether the local user is allowed to move pieces now."""
+
+    if state is None or game_paused:
+        return False
+    if state.current_color in ai_players:
+        return False
+    if (
+        network_player_color is not None
+        and state.current_color != network_player_color
+    ):
+        return False
+    return True
 
 
 def _sort_captured_piece_types(piece_types: list[str]) -> list[str]:
@@ -1146,6 +1286,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._turn_started_at: float | None = None
         self._elapsed_started_at: float | None = None
         self._game_paused = False
+        self._network_client: GameClient | None = None
+        self._network_player_id: str | None = None
+        self._network_player_name: str | None = None
+        self._network_server_address: str | None = None
+        self._network_my_color: str | None = None
+        self._network_last_players: list[str] = []
+        self._network_last_invite: str | None = None
 
         # Build the interface in order
 
@@ -1323,6 +1470,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         load_btn.add_css_class("welcome-action")
         load_btn.connect("clicked", self._on_load_game)
         sidebar.append(load_btn)
+
+        online_btn = Gtk.Button(label=_("Join Server"))
+        online_btn.add_css_class("welcome-action")
+        online_btn.connect("clicked", self._on_join_server)
+        sidebar.append(online_btn)
 
         info_btn = Gtk.Button(label=_("Info"))
         info_btn.add_css_class("welcome-action")
@@ -1737,8 +1889,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
     def _configure_loaded_game_clock(self) -> None:
         """Prepare the fallback clock used for legacy saves."""
 
+        self._configure_elapsed_clock("Loaded Game")
+
+    def _configure_elapsed_clock(self, label: str) -> None:
+        """Show an untimed elapsed clock with a custom label."""
+
         self._clock_mode = "elapsed"
-        self._time_control_name = "Loaded Game"
+        self._time_control_name = label
         self._increment_seconds = 0
         self._remaining_time = {}
         self._turn_started_at = None
@@ -2027,10 +2184,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         if not hasattr(self, "_board_widget"):
             return
 
-        can_interact = (
-            self._state is not None
-            and not self._game_paused
-            and self._state.current_color not in self._ai_players
+        can_interact = _can_interact_with_board(
+            self._state,
+            game_paused=self._game_paused,
+            ai_players=self._ai_players,
+            network_player_color=self._network_my_color,
         )
         self._board_widget.set_interaction_enabled(can_interact)
 
@@ -2094,6 +2252,16 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         menu.append_submenu("Game", game_menu)
 
+        network_menu = Gio.Menu()
+
+        network_menu.append("Join Server", "win.join-server")
+        network_menu.append("Online Players", "win.online-players")
+        network_menu.append("Invite Player", "win.invite-player")
+        network_menu.append("Accept Invite", "win.accept-invite")
+        network_menu.append("Decline Invite", "win.decline-invite")
+
+        menu.append_submenu("Network", network_menu)
+
         help_menu = Gio.Menu()
 
         help_menu.append("Help", "win.help")
@@ -2109,6 +2277,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             "redo": self._on_redo,
             "pause": self._on_pause,
             "hint": self._on_hint,
+            "join-server": self._on_join_server,
+            "online-players": self._on_online_players,
+            "invite-player": self._on_invite_player,
+            "accept-invite": self._on_accept_invite,
+            "decline-invite": self._on_decline_invite,
             "help": self._on_help,
             "quit": self._on_quit,
         }
@@ -2161,6 +2334,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     def _start_game(self, config: dict) -> None:
         """Start a new game with the given configuration."""
+
+        if self._is_network_connected():
+            self._close_network_connection()
 
         # Create a fresh game state
 
@@ -2354,6 +2530,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         """Go back to the welcome screen."""
 
         def do_back():
+            self._close_network_connection()
             self.set_show_menubar(False)  # hide menubar on welcome screen
             self._stop_timer(reset=True)
 
@@ -2370,6 +2547,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         """Quit the application from the welcome screen."""
 
         def do_quit():
+            self._close_network_connection()
             self.get_application().quit()
 
         self._confirm_abandon(do_quit)
@@ -2388,6 +2566,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if file is None:
                 return
             path = file.get_path()
+            if self._is_network_connected():
+                self._close_network_connection()
             loaded = load_game_file(path)
             self._state = loaded.state
             self._saved = True
@@ -2528,6 +2708,12 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.present()
 
     def _on_undo(self, *_args) -> None:
+        if self._is_network_game_active():
+            self._show_alert(
+                _("Network"),
+                _("Undo is not available during an online game."),
+            )
+            return
 
         if self._state is None:
 
@@ -2543,6 +2729,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
     def _on_redo(self, *_args) -> None:
         """Replay the last undone move."""
 
+        if self._is_network_game_active():
+            self._show_alert(
+                _("Network"),
+                _("Redo is not available during an online game."),
+            )
+            return
+
         if self._state is None:
             return
 
@@ -2556,6 +2749,12 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._update_clock_labels()
 
     def _on_pause(self, *_args) -> None:
+        if self._is_network_game_active():
+            self._show_alert(
+                _("Network"),
+                _("Pause is not available during an online game."),
+            )
+            return
         self._toggle_pause()
 
     def _on_hint(self, *_args) -> None:
@@ -2615,6 +2814,578 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.set_detail(help_text)
         dialog.show(self)
 
+    def _default_network_player_name(self) -> str:
+        """Return the default name proposed in the join-server dialog."""
+
+        return (
+            os.environ.get("USERNAME")
+            or os.environ.get("USER")
+            or "Player"
+        )
+
+    def _is_network_connected(self) -> bool:
+        """Return True when the GUI holds an active TCP client."""
+
+        client = self._network_client
+        if client is None:
+            return False
+        if hasattr(client, "is_connected"):
+            return bool(client.is_connected())
+        return bool(getattr(client, "connected", False))
+
+    def _is_network_game_active(self) -> bool:
+        """Return True when the current visible game is an online match."""
+
+        return self._state is not None and self._network_my_color is not None
+
+    def _close_network_connection(self) -> None:
+        """Disconnect from the online server and clear the GUI network state."""
+
+        client = self._network_client
+        self._network_client = None
+        self._network_player_id = None
+        self._network_player_name = None
+        self._network_server_address = None
+        self._network_my_color = None
+        self._network_last_players = []
+        self._network_last_invite = None
+
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:
+                pass
+
+    def _show_online_lobby_dialog(self) -> None:
+        """Show one simple lobby dialog with the connected players."""
+
+        if not self._is_network_connected():
+            self._show_alert(
+                _("Network"),
+                _("Join a server before opening the online lobby."),
+            )
+            return
+
+        dialog = Gtk.Dialog(
+            title=_("Online Lobby"),
+            transient_for=self,
+            modal=True,
+        )
+        dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
+        dialog.add_button(_("Invite"), Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.OK)
+
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=10,
+        )
+        box.set_margin_top(18)
+        box.set_margin_bottom(18)
+        box.set_margin_start(18)
+        box.set_margin_end(18)
+
+        summary = Gtk.Label(
+            label=_("Connected as {name} ({pid})").format(
+                name=self._network_player_name or _("Player"),
+                pid=self._network_player_id or "--",
+            )
+        )
+        summary.set_halign(Gtk.Align.START)
+        summary.set_xalign(0.0)
+        summary.set_wrap(True)
+        box.append(summary)
+
+        players = Gtk.Label(
+            label=_format_network_players(self._network_last_players)
+        )
+        players.set_halign(Gtk.Align.START)
+        players.set_xalign(0.0)
+        players.set_wrap(True)
+        players.set_selectable(True)
+        box.append(players)
+
+        player_label = Gtk.Label(label=_("Target Player ID"))
+        player_label.set_halign(Gtk.Align.START)
+        player_label.set_xalign(0.0)
+        box.append(player_label)
+
+        player_entry = Gtk.Entry()
+        box.append(player_entry)
+
+        blitz_label = Gtk.Label(label=_("Blitz Minutes (0 = untimed)"))
+        blitz_label.set_halign(Gtk.Align.START)
+        blitz_label.set_xalign(0.0)
+        box.append(blitz_label)
+
+        blitz_adjustment = Gtk.Adjustment(
+            value=0,
+            lower=0,
+            upper=120,
+            step_increment=1,
+            page_increment=5,
+            page_size=0,
+        )
+        blitz_spin = Gtk.SpinButton(
+            adjustment=blitz_adjustment,
+            climb_rate=1,
+            digits=0,
+        )
+        box.append(blitz_spin)
+
+        note = Gtk.Label(
+            label=_(
+                "Copy an ID from the list above, paste it here, then click Invite."
+            )
+        )
+        note.set_halign(Gtk.Align.START)
+        note.set_xalign(0.0)
+        note.set_wrap(True)
+        note.add_css_class("config-note")
+        box.append(note)
+
+        dialog.get_content_area().append(box)
+
+        def on_response(dlg, response):
+            if response == Gtk.ResponseType.OK:
+                target_id = player_entry.get_text().strip()
+                blitz_value = int(blitz_spin.get_value())
+                dlg.destroy()
+                self._send_network_invite(
+                    target_id,
+                    blitz_minutes=blitz_value if blitz_value > 0 else None,
+                )
+                return
+            dlg.destroy()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    def _show_network_invitation_dialog(self) -> None:
+        """Show a direct accept/decline prompt for the latest invitation."""
+
+        dialog = Gtk.MessageDialog(
+            transient_for=self,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            text=_("Invitation Received"),
+        )
+        dialog.format_secondary_text(
+            self._network_last_invite or _("Unknown player")
+        )
+        dialog.add_button(_("Decline"), Gtk.ResponseType.NO)
+        dialog.add_button(_("Accept"), Gtk.ResponseType.YES)
+
+        def on_response(dlg, response):
+            dlg.destroy()
+            if response == Gtk.ResponseType.YES:
+                self._on_accept_invite()
+            elif response == Gtk.ResponseType.NO:
+                self._on_decline_invite()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    def _on_join_server(self, *_args) -> None:
+        """Open the connection dialog used to join a TCP game server."""
+
+        if self._is_network_connected():
+            self._on_online_players()
+            return
+
+        if self._state is not None:
+            self._show_alert(
+                _("Network"),
+                _(
+                    "Finish the current game or return to the menu before joining a server."
+                ),
+            )
+            return
+
+        dialog = Gtk.Dialog(
+            title=_("Join Server"),
+            transient_for=self,
+            modal=True,
+        )
+        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.add_button(_("Connect"), Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.OK)
+
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=10,
+        )
+        box.set_margin_top(18)
+        box.set_margin_bottom(18)
+        box.set_margin_start(18)
+        box.set_margin_end(18)
+
+        address_label = Gtk.Label(label=_("Server Address"))
+        address_label.set_halign(Gtk.Align.START)
+        address_label.set_xalign(0.0)
+        box.append(address_label)
+
+        address_entry = Gtk.Entry()
+        address_entry.set_text("localhost:12345")
+        box.append(address_entry)
+
+        name_label = Gtk.Label(label=_("Player Name"))
+        name_label.set_halign(Gtk.Align.START)
+        name_label.set_xalign(0.0)
+        box.append(name_label)
+
+        name_entry = Gtk.Entry()
+        name_entry.set_text(self._default_network_player_name())
+        box.append(name_entry)
+
+        dialog.get_content_area().append(box)
+
+        def on_response(dlg, response):
+            if response == Gtk.ResponseType.OK:
+                address = address_entry.get_text().strip() or "localhost:12345"
+                name = (
+                    name_entry.get_text().strip()
+                    or self._default_network_player_name()
+                )
+                dlg.destroy()
+                self._connect_to_network_server(address, name)
+                return
+            dlg.destroy()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    def _connect_to_network_server(self, address: str, player_name: str) -> None:
+        """Create the TCP client used by the online GUI."""
+
+        try:
+            client = GameClient(address, callback=self._on_network_message)
+            if not client.start_connection(player_name=player_name):
+                self._show_alert(
+                    _("Network"),
+                    _("Could not connect to {address}.").format(
+                        address=address
+                    ),
+                )
+                return
+
+            self._network_client = client
+            self._network_player_name = player_name
+            self._network_server_address = address
+            self._network_last_players = []
+            self._show_alert(
+                _("Network"),
+                _("Connected to {address} as {name}.").format(
+                    address=address,
+                    name=player_name,
+                ),
+            )
+            client.get_players()
+        except Exception as err:
+            self._show_alert(_("Network Error"), str(err))
+
+    def _on_online_players(self, *_args) -> None:
+        """Request the current list of online players."""
+
+        if not self._is_network_connected():
+            self._show_alert(
+                _("Network"),
+                _("Join a server before requesting the online players."),
+            )
+            return
+
+        if self._network_last_players:
+            self._show_online_lobby_dialog()
+            return
+
+        if not self._network_client.get_players():
+            self._show_alert(
+                _("Network"),
+                _("Could not request the online players."),
+            )
+
+    def _on_invite_player(self, *_args) -> None:
+        """Open a small dialog used to invite another online player."""
+
+        if not self._is_network_connected():
+            self._show_alert(
+                _("Network"),
+                _("Join a server before inviting another player."),
+            )
+            return
+
+        dialog = Gtk.Dialog(
+            title=_("Invite Player"),
+            transient_for=self,
+            modal=True,
+        )
+        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.add_button(_("Invite"), Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.OK)
+
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=10,
+        )
+        box.set_margin_top(18)
+        box.set_margin_bottom(18)
+        box.set_margin_start(18)
+        box.set_margin_end(18)
+
+        player_label = Gtk.Label(label=_("Target Player ID"))
+        player_label.set_halign(Gtk.Align.START)
+        player_label.set_xalign(0.0)
+        box.append(player_label)
+
+        player_entry = Gtk.Entry()
+        box.append(player_entry)
+
+        blitz_label = Gtk.Label(label=_("Blitz Minutes (0 = untimed)"))
+        blitz_label.set_halign(Gtk.Align.START)
+        blitz_label.set_xalign(0.0)
+        box.append(blitz_label)
+
+        blitz_adjustment = Gtk.Adjustment(
+            value=0,
+            lower=0,
+            upper=120,
+            step_increment=1,
+            page_increment=5,
+            page_size=0,
+        )
+        blitz_spin = Gtk.SpinButton(
+            adjustment=blitz_adjustment,
+            climb_rate=1,
+            digits=0,
+        )
+        box.append(blitz_spin)
+
+        if self._network_last_players:
+            hint = Gtk.Label(
+                label=_("Known players:\n{players}").format(
+                    players=_format_network_players(self._network_last_players)
+                )
+            )
+            hint.set_halign(Gtk.Align.START)
+            hint.set_xalign(0.0)
+            hint.set_wrap(True)
+            hint.add_css_class("config-note")
+            box.append(hint)
+
+        dialog.get_content_area().append(box)
+
+        def on_response(dlg, response):
+            if response == Gtk.ResponseType.OK:
+                target_id = player_entry.get_text().strip()
+                blitz_value = int(blitz_spin.get_value())
+                dlg.destroy()
+                self._send_network_invite(
+                    target_id,
+                    blitz_minutes=blitz_value if blitz_value > 0 else None,
+                )
+                return
+            dlg.destroy()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    def _send_network_invite(
+        self,
+        target_id: str,
+        *,
+        blitz_minutes: int | None = None,
+    ) -> None:
+        """Send a network invitation to another connected player."""
+
+        if not self._is_network_connected():
+            self._show_alert(
+                _("Network"),
+                _("Join a server before inviting another player."),
+            )
+            return
+
+        payload = _build_network_invite_target(target_id, blitz_minutes)
+        if not payload:
+            self._show_alert(
+                _("Network"),
+                _("A target player ID is required."),
+            )
+            return
+
+        if not self._network_client.invite_player(payload):
+            self._show_alert(
+                _("Network"),
+                _("Could not send the invitation."),
+            )
+
+    def _on_accept_invite(self, *_args) -> None:
+        """Accept the latest invitation received from the online lobby."""
+
+        if not self._is_network_connected():
+            self._show_alert(
+                _("Network"),
+                _("Join a server before accepting invitations."),
+            )
+            return
+
+        if not self._network_client.accept_invite():
+            self._show_alert(
+                _("Network"),
+                _("Could not accept the invitation."),
+            )
+
+    def _on_decline_invite(self, *_args) -> None:
+        """Decline the latest invitation received from the online lobby."""
+
+        if not self._is_network_connected():
+            self._show_alert(
+                _("Network"),
+                _("Join a server before declining invitations."),
+            )
+            return
+
+        if not self._network_client.decline_invite():
+            self._show_alert(
+                _("Network"),
+                _("Could not decline the invitation."),
+            )
+
+    def _on_network_message(self, msg) -> None:
+        """Relay TCP messages onto the GTK main loop."""
+
+        GLib.idle_add(self._process_network_message, msg)
+
+    def _process_network_message(self, msg) -> bool:
+        """Handle one online message from the server on the GTK thread."""
+
+        cmd = str(getattr(msg, "command", "")).upper()
+        args = list(getattr(msg, "args", []))
+
+        if cmd == "CONN_OK":
+            for arg in args:
+                if arg.startswith("id="):
+                    self._network_player_id = arg.split("=", 1)[1]
+                    break
+            return False
+
+        if cmd == "CONN_FAIL":
+            self._close_network_connection()
+            self._show_alert(
+                _("Network"),
+                "\n".join(args) if args else _("Connection refused by the server."),
+            )
+            return False
+
+        if cmd == "PLAYERS_LIST":
+            self._network_last_players = args
+            if self._state is None and self._network_my_color is None:
+                self._show_online_lobby_dialog()
+            else:
+                self._show_alert(
+                    _("Online Players"),
+                    _format_network_players(args),
+                )
+            return False
+
+        if cmd == "INVITE_RECV":
+            self._network_last_invite = " | ".join(args)
+            self._show_network_invitation_dialog()
+            return False
+
+        if cmd == "INVITE_SENT":
+            self._show_alert(
+                _("Invitation Sent"),
+                "\n".join(args) if args else _("Waiting for the opponent."),
+            )
+            return False
+
+        if cmd == "INVITE_DECLINED":
+            self._show_alert(
+                _("Invitation Declined"),
+                "\n".join(args) if args else _("The opponent declined."),
+            )
+            return False
+
+        if cmd == "PONG":
+            self._show_alert(
+                _("Ping"),
+                "\n".join(args) if args else _("Server reached."),
+            )
+            return False
+
+        if cmd == "GAME_START":
+            try:
+                start_info = _parse_network_game_start(args)
+            except Exception as err:
+                self._show_alert(_("Network Error"), str(err))
+                return False
+
+            self._state = GameState()
+            self._state.board = start_info["board"]
+            self._saved = False
+            self._ai_players = {}
+            self._network_my_color = start_info["my_color"]
+            self._refresh_game_view()
+
+            clock_config = _build_network_clock_config(
+                start_info["blitz_minutes"]
+            )
+            if clock_config is not None:
+                self._configure_new_game_clock(clock_config)
+            else:
+                self._configure_elapsed_clock("Online Match")
+            self._start_timer()
+
+            self.set_show_menubar(True)
+            self._stack.set_visible_child_name("game")
+            self._sync_board_interaction()
+            return False
+
+        if cmd in ("OPPONENT_MOVE", "MOVE"):
+            if self._state is None or not args:
+                return False
+
+            move = _move_from_network_text(self._state.board, args[0])
+            if move is None:
+                self._show_alert(
+                    _("Network Error"),
+                    _("Could not parse the opponent move: {move}").format(
+                        move=args[0]
+                    ),
+                )
+                return False
+
+            moving_color = self._state.current_color
+            if not self._finish_active_turn(moving_color):
+                return False
+
+            self._state.apply_move(move)
+            self._saved = False
+            self._refresh_game_view()
+
+            if self._check_game_over():
+                return False
+
+            self._start_next_turn()
+            self._sync_board_interaction()
+            return False
+
+        if cmd in ("ERROR", "INVALID"):
+            message = "\n".join(args) if args else _("Network error.")
+            if self._is_network_game_active():
+                lowered = message.lower()
+                if any(
+                    token in lowered
+                    for token in ("quit", "quitt", "left", "disconnect", "fant")
+                ):
+                    self._close_network_connection()
+                    self._show_game_over_dialog(message)
+                    return False
+            self._show_alert(_("Network"), message)
+            return False
+
+        return False
+
     def _on_move_played(self, move) -> None:
         """Called by BoardWidget when the user plays a move."""
 
@@ -2630,9 +3401,26 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._sync_board_interaction()
             return
 
+        if (
+            self._is_network_game_active()
+            and self._state.current_color != self._network_my_color
+        ):
+            self._sync_board_interaction()
+            return
+
         moving_color = self._state.current_color
         if not self._finish_active_turn(moving_color):
             return
+
+        if self._is_network_game_active():
+            client = self._network_client
+            move_text = _move_to_network_text(move)
+            if client is None or not client.play_move(move_text):
+                self._close_network_connection()
+                self._show_game_over_dialog(
+                    _("Connection to the server was lost.")
+                )
+                return
 
         self._state.apply_move(move)
         self._saved = False
@@ -2644,6 +3432,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             return
 
         self._start_next_turn()
+        self._sync_board_interaction()
 
         # Let AI play if it's its turn
 

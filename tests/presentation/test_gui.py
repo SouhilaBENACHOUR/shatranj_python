@@ -606,6 +606,11 @@ class TestMenuAndShortcuts:
                 _on_redo=lambda *_args: None,
                 _on_pause=lambda *_args: None,
                 _on_hint=lambda *_args: None,
+                _on_join_server=lambda *_args: None,
+                _on_online_players=lambda *_args: None,
+                _on_invite_player=lambda *_args: None,
+                _on_accept_invite=lambda *_args: None,
+                _on_decline_invite=lambda *_args: None,
                 _on_help=lambda *_args: None,
                 _on_quit=lambda *_args: None,
                 add_action=added_actions.append,
@@ -619,11 +624,16 @@ class TestMenuAndShortcuts:
             w.Gio.SimpleAction = original_simple_action
 
         assert sorted(action.name for action in added_actions) == [
+            "accept-invite",
+            "decline-invite",
             "help",
             "hint",
             "info",
+            "invite-player",
+            "join-server",
             "load-game",
             "new-game",
+            "online-players",
             "pause",
             "quit",
             "redo",
@@ -722,6 +732,145 @@ class TestClockHelpers:
 
         importlib.reload(w)
         assert w._display_color(BLACK) == "Black"
+
+
+class TestNetworkHelpers:
+    """Tests for GUI network helper functions."""
+
+    def test_build_network_invite_target_adds_optional_blitz(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        assert w._build_network_invite_target("abcd1234", 5) == (
+            "abcd1234 blitz=5"
+        )
+
+    def test_parse_network_game_start_reads_color_and_clock(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.board import Board
+
+        importlib.reload(w)
+
+        board = Board()
+        parsed = w._parse_network_game_start(
+            [
+                "white=Opponent",
+                "black=You",
+                f"board={board.to_fen()}",
+                "blitz=3",
+            ]
+        )
+
+        assert parsed["my_color"] == BLACK
+        assert parsed["blitz_minutes"] == 3
+        assert parsed["board"].to_fen() == board.to_fen()
+
+    def test_can_interact_with_board_blocks_remote_turn(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.presentation.cli.game_state import GameState
+
+        importlib.reload(w)
+
+        state = GameState()
+        state.current_color = BLACK
+
+        assert w._can_interact_with_board(
+            state,
+            game_paused=False,
+            ai_players={},
+            network_player_color=WHITE,
+        ) is False
+
+    def test_move_to_network_text_uses_capture_separator(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.move import Move
+
+        importlib.reload(w)
+
+        move = Move(0, 8, ROOK, WHITE, captured_piece=PAWN)
+
+        assert w._move_to_network_text(move) == "a1xa2"
+
+    def test_on_move_played_sends_network_move(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.move import Move
+
+        importlib.reload(w)
+
+        move = Move(0, 8, ROOK, WHITE)
+        state = SimpleNamespace(
+            current_color=WHITE,
+            apply_move=MagicMock(),
+        )
+        client = SimpleNamespace(play_move=MagicMock(return_value=True))
+        fake_window = SimpleNamespace(
+            _state=state,
+            _game_paused=False,
+            _ai_players={},
+            _network_my_color=WHITE,
+            _network_client=client,
+            _saved=True,
+            _finish_active_turn=MagicMock(return_value=True),
+            _refresh_game_view=MagicMock(),
+            _check_game_over=MagicMock(return_value=False),
+            _start_next_turn=MagicMock(),
+            _sync_board_interaction=MagicMock(),
+            _auto_play_ai_turns=MagicMock(),
+            _is_network_game_active=lambda: True,
+            _close_network_connection=MagicMock(),
+            _show_game_over_dialog=MagicMock(),
+        )
+
+        w.ShatranjWindow._on_move_played(fake_window, move)
+
+        client.play_move.assert_called_once_with("a1-a2")
+        state.apply_move.assert_called_once_with(move)
+        assert fake_window._saved is False
+
+    def test_connect_to_network_server_requests_players_on_success(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        client = SimpleNamespace(
+            start_connection=MagicMock(return_value=True),
+            get_players=MagicMock(),
+        )
+        original_client = w.GameClient
+        try:
+            w.GameClient = MagicMock(return_value=client)
+
+            fake_window = SimpleNamespace(
+                _on_network_message=lambda *_args: None,
+                _network_client=None,
+                _network_player_name=None,
+                _network_server_address=None,
+                _network_last_players=None,
+                _show_alert=MagicMock(),
+            )
+
+            w.ShatranjWindow._connect_to_network_server(
+                fake_window,
+                "localhost:12345",
+                "Alice",
+            )
+        finally:
+            w.GameClient = original_client
+
+        client.get_players.assert_called_once_with()
 
 
 class TestCapturedPiecesHelpers:
