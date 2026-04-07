@@ -9,6 +9,10 @@ import os
 
 import cairo
 import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Rsvg", "2.0")
+
 from gi.repository import Gtk, Rsvg
 
 from shatranj.domain.core.board import Board
@@ -26,14 +30,26 @@ from shatranj.utils.constants import (
     WHITE,
 )
 
-gi.require_version("Gtk", "4.0")
-gi.require_version("Rsvg", "2.0")
-
 # Colors
 LIGHT_SQUARE = (0.94, 0.85, 0.71)  # beige
 DARK_SQUARE = (0.71, 0.53, 0.39)  # brown
 HIGHLIGHT = (0.20, 0.70, 0.50, 0.6)  # green (selected)
 HINT_COLOR = (0.20, 0.70, 0.50, 0.3)  # green (valid destination)
+
+PIECE_FILENAMES = {
+    (SHAH, WHITE): "wK.svg",
+    (FERZ, WHITE): "wF.svg",
+    (ROOK, WHITE): "wR.svg",
+    (ALFIL, WHITE): "wA.svg",
+    (KNIGHT, WHITE): "wN.svg",
+    (PAWN, WHITE): "wP.svg",
+    (SHAH, BLACK): "bK.svg",
+    (FERZ, BLACK): "bF.svg",
+    (ROOK, BLACK): "bR.svg",
+    (ALFIL, BLACK): "bA.svg",
+    (KNIGHT, BLACK): "bN.svg",
+    (PAWN, BLACK): "bP.svg",
+}
 
 
 def _board_geometry(width: int, height: int) -> tuple[float, float, float]:
@@ -43,6 +59,23 @@ def _board_geometry(width: int, height: int) -> tuple[float, float, float]:
     offset_x = (width - board_size) / 2
     offset_y = (height - board_size) / 2
     return square_size, offset_x, offset_y
+
+
+def get_piece_asset_path(piece: str, color: str) -> str | None:
+    """Return the SVG file path for one GUI piece, if available."""
+    filename = PIECE_FILENAMES.get((piece, color))
+    if filename is None:
+        return None
+
+    base_dir = os.path.dirname(__file__)
+    pieces_dir = os.path.join(base_dir, "pieces_royal")
+    if not os.path.isdir(pieces_dir):
+        pieces_dir = os.path.join(base_dir, "pieces")
+
+    path = os.path.join(pieces_dir, filename)
+    if not os.path.exists(path):
+        return None
+    return path
 
 
 class BoardWidget(Gtk.DrawingArea):
@@ -137,28 +170,10 @@ class BoardWidget(Gtk.DrawingArea):
 
     def _load_pieces(self) -> dict:
         """Load SVG piece images from the active theme directory."""
-        base_dir = os.path.dirname(__file__)
-        pieces_dir = os.path.join(base_dir, "pieces_royal")
-        if not os.path.isdir(pieces_dir):
-            pieces_dir = os.path.join(base_dir, "pieces")
-        file_map = {
-            (SHAH, WHITE): "wK.svg",
-            (FERZ, WHITE): "wF.svg",
-            (ROOK, WHITE): "wR.svg",
-            (ALFIL, WHITE): "wA.svg",
-            (KNIGHT, WHITE): "wN.svg",
-            (PAWN, WHITE): "wP.svg",
-            (SHAH, BLACK): "bK.svg",
-            (FERZ, BLACK): "bF.svg",
-            (ROOK, BLACK): "bR.svg",
-            (ALFIL, BLACK): "bA.svg",
-            (KNIGHT, BLACK): "bN.svg",
-            (PAWN, BLACK): "bP.svg",
-        }
         handles = {}
-        for key, filename in file_map.items():
-            path = os.path.join(pieces_dir, filename)
-            if os.path.exists(path):
+        for key in PIECE_FILENAMES:
+            path = get_piece_asset_path(*key)
+            if path is not None:
                 handles[key] = Rsvg.Handle.new_from_file(path)
         return handles
 

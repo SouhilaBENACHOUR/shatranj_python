@@ -4,11 +4,41 @@ app.py - GTK application entry point
 Role: creates the GTK application and the main window.
 """
 
+import os
+
+def _apply_wslg_display_workaround(env: dict[str, str] | None = None) -> None:
+    """Force a safer GTK backend on WSLg sessions.
+
+    Some WSLg/Wayland setups crash GTK4 apps with a protocol error on complex
+    surface updates. Prefer XWayland when DISPLAY is available, and otherwise
+    keep a renderer fallback for pure Wayland sessions. Respect explicit user
+    settings when they already chose a backend or renderer.
+    """
+    if env is None:
+        env = os.environ
+
+    if "WAYLAND_DISPLAY" not in env:
+        return
+    if "WSL_DISTRO_NAME" not in env and "WSL_INTEROP" not in env:
+        return
+
+    if "GDK_BACKEND" not in env and "DISPLAY" in env:
+        env["GDK_BACKEND"] = "x11"
+        return
+
+    if "GSK_RENDERER" not in env:
+        env["GSK_RENDERER"] = "gl"
+
+
+_apply_wslg_display_workaround()
+
 import gi
-from gi.repository import Gtk, Gio
-from shatranj.presentation.gui.window import ShatranjWindow
 
 gi.require_version("Gtk", "4.0")
+
+from gi.repository import Gio, Gtk
+
+from shatranj.presentation.gui.window import ShatranjWindow
 
 
 class ShatranjApp(Gtk.Application):

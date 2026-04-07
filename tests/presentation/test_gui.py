@@ -24,7 +24,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from shatranj.utils.constants import BLACK, BOARD_SIZE, WHITE
+from shatranj.utils.constants import (
+    ALFIL,
+    BLACK,
+    BOARD_SIZE,
+    FERZ,
+    KNIGHT,
+    PAWN,
+    ROOK,
+    WHITE,
+)
 
 # ---------------------------------------------------------------------------
 # GTK mock — installed BEFORE any shatranj.presentation.gui import
@@ -340,6 +349,89 @@ class TestNewGameDialogConfig:
         assert config["base_seconds"] == 1800
 
 
+class TestNewGameDialogInit:
+    """Regression tests for dialog construction order."""
+
+    def test_default_mode_activation_does_not_crash(self):
+        import importlib
+        import sys
+
+        repo = sys.modules["gi.repository"]
+
+        class FakeCheckButton:
+            def __init__(self, label=None):
+                self.label = label
+                self._active = False
+                self._callbacks = []
+
+            def set_halign(self, *_args):
+                return None
+
+            def add_css_class(self, *_args):
+                return None
+
+            def set_group(self, *_args):
+                return None
+
+            def connect(self, signal_name, callback, *extra_args):
+                self._callbacks.append((signal_name, callback, extra_args))
+
+            def set_active(self, active):
+                self._active = active
+                for signal_name, callback, extra_args in self._callbacks:
+                    if signal_name == "toggled":
+                        callback(self, *extra_args)
+
+            def get_active(self):
+                return self._active
+
+            def set_hexpand(self, *_args):
+                return None
+
+        class FakeDialog:
+            def __init__(self, *args, **kwargs):
+                self._content_area = MagicMock()
+                self._response_widgets = {
+                    0: MagicMock(),
+                    1: MagicMock(),
+                }
+
+            def set_default_size(self, *_args):
+                return None
+
+            def set_resizable(self, *_args):
+                return None
+
+            def add_button(self, *_args):
+                return None
+
+            def set_default_response(self, *_args):
+                return None
+
+            def get_widget_for_response(self, response):
+                return self._response_widgets[response]
+
+            def get_content_area(self):
+                return self._content_area
+
+        original_dialog = repo.Gtk.Dialog
+        repo.Gtk.Dialog = FakeDialog
+
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        original_checkbutton = w.Gtk.CheckButton
+        try:
+            w.Gtk.CheckButton = FakeCheckButton
+            dialog = w.NewGameDialog(parent=MagicMock())
+        finally:
+            w.Gtk.CheckButton = original_checkbutton
+            repo.Gtk.Dialog = original_dialog
+
+        assert dialog._selected_mode == "hvh"
+
+
 # ---------------------------------------------------------------------------
 # Tests for ShatranjApp structure (app.py)
 # ---------------------------------------------------------------------------
@@ -369,6 +461,177 @@ class TestShatranjApp:
             assert callable(run_gui)
         except Exception as e:
             pytest.skip(f"GTK not available: {e}")
+
+    def test_wslg_display_workaround_prefers_x11_when_available(self):
+        import importlib
+
+        import shatranj.presentation.gui.app as app_module
+
+        importlib.reload(app_module)
+
+        env = {
+            "DISPLAY": ":0",
+            "WAYLAND_DISPLAY": "wayland-0",
+            "WSL_DISTRO_NAME": "Ubuntu",
+        }
+        app_module._apply_wslg_display_workaround(env)
+
+        assert env["GDK_BACKEND"] == "x11"
+
+    def test_wslg_display_workaround_keeps_renderer_fallback_without_x11(self):
+        import importlib
+
+        import shatranj.presentation.gui.app as app_module
+
+        importlib.reload(app_module)
+
+        env = {
+            "WAYLAND_DISPLAY": "wayland-0",
+            "WSL_INTEROP": "/run/WSL/123_interop",
+        }
+        app_module._apply_wslg_display_workaround(env)
+
+        assert env["GSK_RENDERER"] == "gl"
+
+    def test_wslg_display_workaround_respects_existing_backend(self):
+        import importlib
+
+        import shatranj.presentation.gui.app as app_module
+
+        importlib.reload(app_module)
+
+        env = {
+            "DISPLAY": ":0",
+            "WAYLAND_DISPLAY": "wayland-0",
+            "WSL_INTEROP": "/run/WSL/123_interop",
+            "GDK_BACKEND": "wayland",
+        }
+        app_module._apply_wslg_display_workaround(env)
+
+        assert env["GDK_BACKEND"] == "wayland"
+
+    def test_wslg_display_workaround_ignores_non_wsl_sessions(self):
+        import importlib
+
+        import shatranj.presentation.gui.app as app_module
+
+        importlib.reload(app_module)
+
+        env = {
+            "DISPLAY": ":0",
+            "WAYLAND_DISPLAY": "wayland-0",
+        }
+        app_module._apply_wslg_display_workaround(env)
+
+        assert "GSK_RENDERER" not in env
+
+
+class TestMenuAndShortcuts:
+    """Tests for GUI action and shortcut registration."""
+
+    def test_build_shortcuts_registers_expected_accels(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        fake_app = MagicMock()
+        fake_window = SimpleNamespace(get_application=lambda: fake_app)
+
+        w.ShatranjWindow._build_shortcuts(fake_window)
+
+        registered = {
+            call.args[0]: call.args[1]
+            for call in fake_app.set_accels_for_action.call_args_list
+        }
+
+        assert registered == {
+            "win.quit": ["<Ctrl>q"],
+            "win.new-game": ["<Ctrl>n"],
+            "win.load-game": ["<Ctrl>l"],
+            "win.save-game": ["<Ctrl>s"],
+            "win.info": ["<Ctrl>i"],
+            "win.help": ["F1"],
+            "win.undo": ["<Ctrl>u"],
+            "win.redo": ["<Ctrl>r"],
+            "win.pause": ["<Ctrl>p"],
+            "win.hint": ["<Ctrl>h"],
+        }
+
+    def test_build_menu_registers_actions_for_shortcuts(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        class FakeMenu:
+            def __init__(self):
+                self.items = []
+                self.submenus = []
+
+            def append(self, label, action):
+                self.items.append((label, action))
+
+            def append_submenu(self, label, submenu):
+                self.submenus.append((label, submenu))
+
+        class FakeAction:
+            def __init__(self, name):
+                self.name = name
+                self.signal = None
+                self.callback = None
+
+            def connect(self, signal, callback):
+                self.signal = signal
+                self.callback = callback
+
+        original_menu = w.Gio.Menu
+        original_simple_action = w.Gio.SimpleAction
+        try:
+            w.Gio.Menu = FakeMenu
+            w.Gio.SimpleAction = SimpleNamespace(
+                new=lambda name, _param: FakeAction(name)
+            )
+
+            added_actions = []
+            fake_app = MagicMock()
+            fake_window = SimpleNamespace(
+                _on_new_game=lambda *_args: None,
+                _on_load_game=lambda *_args: None,
+                _on_save_game=lambda *_args: None,
+                _on_info=lambda *_args: None,
+                _on_undo=lambda *_args: None,
+                _on_redo=lambda *_args: None,
+                _on_pause=lambda *_args: None,
+                _on_hint=lambda *_args: None,
+                _on_help=lambda *_args: None,
+                _on_quit=lambda *_args: None,
+                add_action=added_actions.append,
+                get_application=lambda: fake_app,
+                set_show_menubar=MagicMock(),
+            )
+
+            w.ShatranjWindow._build_menu(fake_window)
+        finally:
+            w.Gio.Menu = original_menu
+            w.Gio.SimpleAction = original_simple_action
+
+        assert sorted(action.name for action in added_actions) == [
+            "help",
+            "hint",
+            "info",
+            "load-game",
+            "new-game",
+            "pause",
+            "quit",
+            "redo",
+            "save-game",
+            "undo",
+        ]
+        fake_app.set_menubar.assert_called_once()
+        fake_window.set_show_menubar.assert_called_once_with(False)
 
 
 class TestHintCallback:
@@ -459,3 +722,98 @@ class TestClockHelpers:
 
         importlib.reload(w)
         assert w._display_color(BLACK) == "Black"
+
+
+class TestCapturedPiecesHelpers:
+    """Tests for captured-piece display helpers."""
+
+    def test_captured_pieces_for_display_prefers_history(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.move import Move
+        from shatranj.presentation.cli.game_state import GameState
+
+        importlib.reload(w)
+
+        state = GameState()
+        state._history = [
+            (Move(0, 1, ROOK, WHITE, captured_piece=PAWN), {}),
+            (Move(63, 62, ROOK, BLACK, captured_piece=FERZ), {}),
+            (Move(1, 2, ROOK, WHITE, captured_piece=ROOK), {}),
+            (Move(62, 61, ROOK, BLACK, captured_piece=ALFIL), {}),
+            (Move(2, 3, ROOK, WHITE, captured_piece=KNIGHT), {}),
+        ]
+
+        captured = w._captured_pieces_for_display(state)
+
+        assert captured[BLACK] == [ROOK, KNIGHT, PAWN]
+        assert captured[WHITE] == [ALFIL, FERZ]
+
+    def test_captured_pieces_for_display_falls_back_for_legacy_history(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.move import Move
+        from shatranj.presentation.cli.game_state import GameState
+
+        importlib.reload(w)
+
+        state = GameState()
+        state.board.remove_piece(56)  # black rook on a8
+        state.board.remove_piece(48)  # black pawn on a7
+        state._history = [
+            (Move(12, 21, PAWN, WHITE, captured_piece="unknown"), {}),
+        ]
+
+        captured = w._captured_pieces_for_display(state)
+
+        assert captured[BLACK] == [ROOK, PAWN]
+        assert captured[WHITE] == []
+
+    def test_update_captured_pieces_shows_opponent_pieces_on_each_side(self):
+        import importlib
+
+        import shatranj.presentation.gui.window as w
+        from shatranj.domain.core.move import Move
+        from shatranj.presentation.cli.game_state import GameState
+
+        importlib.reload(w)
+
+        class FakeStrip:
+            def __init__(self):
+                self.items = []
+
+            def append(self, item):
+                self.items.append(item)
+
+        state = GameState()
+        state._history = [
+            (Move(0, 1, ROOK, WHITE, captured_piece=PAWN), {}),
+            (Move(63, 62, ROOK, BLACK, captured_piece=FERZ), {}),
+            (Move(1, 2, ROOK, WHITE, captured_piece=ROOK), {}),
+            (Move(62, 61, ROOK, BLACK, captured_piece=ALFIL), {}),
+            (Move(2, 3, ROOK, WHITE, captured_piece=KNIGHT), {}),
+        ]
+
+        fake_window = SimpleNamespace(
+            _state=state,
+            _black_capture_strip=FakeStrip(),
+            _white_capture_strip=FakeStrip(),
+        )
+        fake_window._clear_box_children = lambda strip: strip.items.clear()
+        fake_window._make_captured_piece_widget = (
+            lambda piece, color: (piece, color)
+        )
+
+        w.ShatranjWindow._update_captured_pieces(fake_window)
+
+        assert fake_window._black_capture_strip.items == [
+            (ALFIL, WHITE),
+            (FERZ, WHITE),
+        ]
+        assert fake_window._white_capture_strip.items == [
+            (ROOK, BLACK),
+            (KNIGHT, BLACK),
+            (PAWN, BLACK),
+        ]

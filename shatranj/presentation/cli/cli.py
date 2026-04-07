@@ -22,10 +22,9 @@ import sys  # For sys.exit() and sys.stderr
 import time
 
 from shatranj.domain.core.move import Move
-from .display import print_board # Use your display.py
-from shatranj.domain.rules.BlitzClock import BlitzClock
+from .display import print_board
+from shatranj.persistence import ClockState, load_game_file, save_game_file, strip_save_comments
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.domain.rules.move_validator import MoveValidator
 from shatranj.domain.network.game_client import GameClient
 from shatranj.domain.network.discovery_client import DiscoveryClient
 from shatranj.domain.network.game_server import GameServer
@@ -93,7 +92,13 @@ class CLI:
     Interactive shell for playing Shatranj on the command line.
     """
 
-    def __init__(self, verbose: bool = False, debug: bool = False, blitz: bool = False, blitz_time_minutes: int = 30) -> None:
+    def __init__(
+        self,
+        verbose: bool = False,
+        debug: bool = False,
+        blitz: bool = False,
+        blitz_time_minutes: int = 30,
+    ) -> None:
         self._state: GameState | None = None  # No game at startup
         self._engine = RulesEngine()
         self._running = False
@@ -101,20 +106,18 @@ class CLI:
         self._verbose = verbose
         self._ai_players: dict[str, AIPlayer] = {}
         self._debug = debug
-        
-        # Blitz mode attributes
+
         self._blitz_enabled = blitz
-        self._blitz_time_minutes = blitz_time_minutes
-        self._clock: BlitzClock | None = None
-        self._clock_paused = False
-        self._blitz_enabled = False
-        self._blitz_minutes = 30
+        self._blitz_minutes = max(1, blitz_time_minutes)
+        self._increment_seconds = 2 if blitz else 0
+        self._time_control_name = "No active game"
         self._clock_seconds = {
             WHITE: 0.0,
             BLACK: 0.0,
         }
         self._turn_started_at: float | None = None
         self._timer_paused = False
+        self._reset_blitz_clock()
 
         # Configure readline for Tab completion (F18)
         readline.set_completer(self._completer)
@@ -124,6 +127,8 @@ class CLI:
         """Enable blitz mode for subsequent CLI games."""
         self._blitz_enabled = True
         self._blitz_minutes = max(1, minutes)
+        self._increment_seconds = 2
+        self._time_control_name = f"Blitz {self._blitz_minutes} min"
         self._reset_blitz_clock()
 
     def _reset_blitz_clock(self) -> None:
@@ -186,6 +191,89 @@ class CLI:
         self._turn_started_at = None
         self._timer_paused = False
 
+    def _get_display_time(
+        self,
+        color: str,
+        now: float | None = None,
+    ) -> float:
+        """Return the visible remaining time for one side."""
+
+        remaining = self._clock_seconds.get(color, 0.0)
+        if (
+            self._blitz_enabled
+            and self._state is not None
+            and not self._timer_paused
+            and self._state.current_color == color
+            and self._turn_started_at is not None
+        ):
+            if now is None:
+                now = time.monotonic()
+            remaining -= now - self._turn_started_at
+        return max(0.0, remaining)
+
+    def _finish_active_turn(self, moving_color: str) -> bool:
+        """Commit the elapsed time for the side that just moved."""
+
+        if not self._blitz_enabled or self._turn_started_at is None:
+            return True
+
+        remaining = self._get_display_time(moving_color)
+        self._turn_started_at = None
+
+        if remaining <= 0:
+            winner = BLACK if moving_color == WHITE else WHITE
+            self._clock_seconds[moving_color] = 0.0
+            print(_("Time out! {winner} wins!").format(winner=winner))
+            self._state = None
+            self._stop_turn_timer()
+            return False
+
+        self._clock_seconds[moving_color] = remaining + self._increment_seconds
+        return True
+
+    def _build_clock_state(self) -> ClockState:
+        """Return the current timed-game state for persistence."""
+
+        if not self._blitz_enabled or self._state is None:
+            return ClockState()
+
+        now = time.monotonic()
+        return ClockState(
+            mode="timed",
+            label=self._time_control_name,
+            base_seconds=float(self._blitz_minutes * 60),
+            increment_seconds=self._increment_seconds,
+            white_seconds=self._get_display_time(WHITE, now),
+            black_seconds=self._get_display_time(BLACK, now),
+            paused=self._timer_paused,
+        )
+
+    def _apply_loaded_clock_state(self, clock_state: ClockState) -> None:
+        """Restore clock data from a saved game."""
+
+        self._stop_turn_timer()
+        if clock_state.mode != "timed":
+            self._blitz_enabled = False
+            self._increment_seconds = 0
+            self._time_control_name = "No active game"
+            self._clock_seconds = {WHITE: 0.0, BLACK: 0.0}
+            return
+
+        base_seconds = max(
+            clock_state.base_seconds,
+            clock_state.white_seconds,
+            clock_state.black_seconds,
+        )
+        self._blitz_enabled = True
+        self._blitz_minutes = max(1, int((base_seconds + 59) // 60))
+        self._increment_seconds = clock_state.increment_seconds
+        self._time_control_name = clock_state.label
+        self._clock_seconds = {
+            WHITE: clock_state.white_seconds,
+            BLACK: clock_state.black_seconds,
+        }
+        self._timer_paused = clock_state.paused
+
     def _consume_turn_time(self) -> bool:
         """Deduct elapsed time from the active player and detect timeout."""
         if (
@@ -197,10 +285,9 @@ class CLI:
             return False
 
         now = time.monotonic()
-        elapsed = max(0.0, now - self._turn_started_at)
         current = self._state.current_color
-        remaining = self._clock_seconds[current] - elapsed
-        self._clock_seconds[current] = max(0.0, remaining)
+        remaining = self._get_display_time(current, now)
+        self._clock_seconds[current] = remaining
         self._turn_started_at = now
 
         if remaining > 0:
@@ -391,17 +478,11 @@ class CLI:
     def _do_play_move(self, text: str) -> None:
         """Play a move entered by the user."""
         if self._state is None:
-            self._error("Aucune partie en cours.")
+            self._error("No game in progress.")
             return
 
-        # 1. Vérification du temps avant de jouer
-        if self._clock is not None and not getattr(self, "_clock_paused", False):
-            if self._clock.is_flagged(self._state.current_color):
-                opponent = "BLACK" if self._state.current_color == "WHITE" else "WHITE"
-                print(f"\n!!! TEMPS ÉCOULÉ !!! {self._state.current_color} a perdu au temps.")
-                print(f"Échec et mat ! Les {opponent}s gagnent !")
-                self._state = None
-                return
+        if self._consume_turn_time():
+            return
 
         move = self._parse_move(text)
         if move is None:
@@ -409,7 +490,9 @@ class CLI:
 
         # 2. Vérifier la couleur
         if move.color != self._state.current_color:
-            self._error(f"C'est au tour des {self._state.current_color}s, pas des {move.color}s.")
+            self._error(
+                f"It's {self._state.current_color}'s turn, not {move.color}'s."
+            )
             return
 
         # 3. Sécurité réseau : tour du joueur
@@ -431,16 +514,15 @@ class CLI:
                 break
                 
         if real_move is None:
-            self._error(f"Coup illégal : {text}")
+            self._error(f"Illegal move: {text}")
             return
             
         move = real_move
 
-        # 5. Arrêter le chrono local
-        if self._clock is not None and not getattr(self, "_clock_paused", False):
-            self._clock.end_turn()
-        
-        # 6. Appliquer le coup
+        moving_color = self._state.current_color
+        if not self._finish_active_turn(moving_color):
+            return
+
         self._state.apply_move(move)
         self._saved = False
 
@@ -469,30 +551,12 @@ class CLI:
 
         print(f"Vous avez joué : {self._format_move_with_piece(move)}")
 
-        # 7. Affichage du plateau
         print_board(self._state.board)
         print(
             _("It's now {color}'s turn.").format(
                 color=self._state.current_color
             )
         )
-
-        # ---> SUPER CHECK AFFICHAGE TEMPS <---
-        # On vérifie l'attribut de la classe OU si l'horloge existe physiquement
-        is_blitz = getattr(self, "_blitz_enabled", False) or (self._clock is not None)
-        
-        if is_blitz:
-            # Si l'horloge manque mais que le mode est actif, on la répare
-            if self._clock is None:
-                self._reset_blitz_clock()
-            
-            if self._clock is not None:
-                w_time = self._clock.get_remaining_time("WHITE")
-                b_time = self._clock.get_remaining_time("BLACK")
-                # Affichage forcé
-                print(f"⏱️ Temps -> Blancs : {max(0, w_time):.1f}s | Noirs : {max(0, b_time):.1f}s")
-
-        # 9. Fin de tour
         if self._check_game_over():
             return
 
@@ -537,9 +601,9 @@ class CLI:
             self._state.board = new_board 
             
             if self._blitz_enabled:
+                self._increment_seconds = 2
+                self._time_control_name = f"Blitz {self._blitz_minutes} min"
                 self._reset_blitz_clock()
-                if self._clock is not None:
-                    self._clock.start_turn("WHITE")
                 self._start_turn_timer()
             
             print("\n" + "="*30)
@@ -565,24 +629,17 @@ class CLI:
                 move = self._parse_move(move_text)
                 
                 if move is not None:
-                    if getattr(self, "_blitz_enabled", False) and self._clock is not None and not getattr(self, "_clock_paused", False):
-                        self._clock.end_turn()
+                    if not self._finish_active_turn(self._state.current_color):
+                        return
 
                     self._state.apply_move(move)
                     self._saved = False
                     
-                    if getattr(self, "_blitz_enabled", False) and self._clock is not None and not getattr(self, "_clock_paused", False):
-                        self._clock.start_turn(self._state.current_color)
                     self._start_turn_timer()
                     
                     print(f"\n[+] L'adversaire a joué : {move_text}")
                     print_board(self._state.board)
                     print(f"\nC'est maintenant au tour des {self._state.current_color}s.")
-                    
-                    if getattr(self, "_blitz_enabled", False) and self._clock is not None:
-                        w_time = self._clock.get_remaining_time("WHITE")
-                        b_time = self._clock.get_remaining_time("BLACK")
-                        print(f"⏱️ Temps -> Blancs : {max(0, w_time):.1f}s | Noirs : {max(0, b_time):.1f}s")
 
                     print(f"\n{PROMPT}", end="", flush=True)
             return
@@ -810,14 +867,6 @@ class CLI:
         if self._state is None:
             return
 
-        if self._clock is not None and not self._clock_paused:
-            if self._clock.is_flagged(self._state.current_color):
-                opponent = BLACK if self._state.current_color == WHITE else WHITE
-                print(f"\n!!! TIME OUT !!! {self._state.current_color} lost on time.")
-                print(f"Checkmate! {opponent} wins!")
-                self._state = None
-                return
-
         ai_player = self._ai_players.get(self._state.current_color)
         if ai_player is None:
             return
@@ -828,9 +877,10 @@ class CLI:
             )
         )
 
+        search = getattr(ai_player, "_search", None)
         self._debug_print(
-            f"AI search starting: algo={ai_player.algorithm}, "
-            f"depth={getattr(ai_player._search, '_depth', '?')}, "
+            f"AI search starting: algo={getattr(ai_player, 'algorithm', '?')}, "
+            f"depth={getattr(search, '_depth', '?')}, "
             f"scoring={getattr(ai_player, 'scoring', '?')}, "
             f"color={self._state.current_color}"
         )
@@ -842,17 +892,16 @@ class CLI:
             f"AI search done in {_time.monotonic() - _t0:.3f}s"
         )
 
-        if self._consume_turn_time():
-            return
-
         if move is None:
             self._debug_print("AI found no legal move")
             self._check_game_over()
             return
 
-        self._debug_print(
-            f"AI chose: {self._format_move_with_piece(move)}"
-        )
+        moving_color = self._state.current_color
+        if not self._finish_active_turn(moving_color):
+            return
+
+        self._debug_print(f"AI chose: {self._format_move_with_piece(move)}")
 
         # display the move played by the AI in algebraic notation
         print(
@@ -933,11 +982,6 @@ class CLI:
                 print(_("New game cancelled."))
                 return
 
-        self._state = GameState()
-        self._saved = True
-        self._ai_players = {}  
-        self._clock_paused = False
-        
         if hasattr(self, "_network_client") and self._network_client and self._network_client.connected and args:
             if args[0].lower() not in ("ai", "ai-vs-ai"):
                 target_id = args[0]
@@ -954,14 +998,13 @@ class CLI:
                 self._network_client.invite_player(target_id + blitz_arg)
                 return
 
+        self._state = GameState()
+        self._saved = True
+        self._ai_players = {}
+        self._timer_paused = False
+
         if self._blitz_enabled:
-            self._clock = BlitzClock(
-                initial_time_seconds=self._blitz_time_minutes * 60,
-                increment=2  
-            )
-            print(f"Blitz mode: {self._blitz_time_minutes}m + 2s increment")
-        else:
-            self._clock = None
+            self._time_control_name = f"Blitz {self._blitz_minutes} min"
         self._reset_blitz_clock()
 
         if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
@@ -1255,19 +1298,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             print(_("Time display is only available in blitz mode "
                     "(use -b at startup)."))
             return
-        
-        w_time = self._clock.get_remaining_time(WHITE)
-        b_time = self._clock.get_remaining_time(BLACK)
-        status = "(PAUSED)" if self._clock_paused else ""
-        print(f"\nBlitz Time {status}")
-        print(f"  White: {max(0, w_time):.1f}s")
-        print(f"  Black: {max(0, b_time):.1f}s")
-        print()
 
         if self._state is None:
             self._error(_("No game in progress."))
             return
 
+        now = time.monotonic()
         status = (
             _("paused")
             if self._timer_paused
@@ -1279,12 +1315,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         )
         print(
             _("White: {time}").format(
-                time=self._format_clock(self._clock_seconds[WHITE])
+                time=self._format_clock(self._get_display_time(WHITE, now))
             )
         )
         print(
             _("Black: {time}").format(
-                time=self._format_clock(self._clock_seconds[BLACK])
+                time=self._format_clock(self._get_display_time(BLACK, now))
             )
         )
         print(_("Status: {status}").format(status=status))
@@ -1317,7 +1353,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         moves_to_undo = n * 2 if human_vs_ai else n
 
         undone = 0
-        for _ in range(moves_to_undo):
+        for _move_index in range(moves_to_undo):
             move = self._state.undo()
             if move is None:
                 actual = undone // 2 if human_vs_ai else undone
@@ -1362,7 +1398,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         moves_to_redo = n * 2 if human_vs_ai else n
 
         redone = 0
-        for _ in range(moves_to_redo):
+        for _move_index in range(moves_to_redo):
             move = self._state.redo()
             if move is None:
                 actual = redone // 2 if human_vs_ai else redone
@@ -1442,126 +1478,15 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         path = args[0]
 
         try:
-            with open(path, "r", encoding="ascii") as f:
-                raw = f.read()
-        except OSError as err:
-            self._error(f"Could not open '{path}': {err}")
-            return
-
-        lines = self._strip_comments(raw)
-
-        try:
-            idx_settings = lines.index("[settings]")
-            idx_game = lines.index("[game]")
-            idx_history = lines.index("[history]")
-
-            for line in lines[idx_settings + 1: idx_game]:
-                if "=" in line:
-                    key, _, val = line.partition("=")
-                    key = key.strip().lower()
-                    val = val.strip().lower()
-                    if key == "verbose":
-                        self._verbose = val in ("true", "1", "yes")
-                    if key == "debug":
-                        self._debug = val in ("true", "1", "yes")
-
-            game_lines = lines[idx_game + 1: idx_history]
-            color_letter = game_lines[0].strip().upper()
-            if color_letter not in ("W", "B"):
-                self._error(f"Invalid player color: '{color_letter}'")
-                return
-            current_color = WHITE if color_letter == "W" else BLACK
-
-            board_lines = game_lines[1:9]
-            if len(board_lines) != 8:
-                self._error("Invalid board format: expected 8 rows")
-                return
-
-            SYMBOL_MAP = {
-                "K": (SHAH, WHITE),
-                "F": (FERZ, WHITE),
-                "R": (ROOK, WHITE),
-                "A": (ALFIL, WHITE),
-                "N": (KNIGHT, WHITE),
-                "P": (PAWN, WHITE),
-                "k": (SHAH, BLACK),
-                "f": (FERZ, BLACK),
-                "r": (ROOK, BLACK),
-                "a": (ALFIL, BLACK),
-                "n": (KNIGHT, BLACK),
-                "p": (PAWN, BLACK),
-            }
-
-            new_board = Board(setup=False)
-
-            for rank_idx, board_line in enumerate(board_lines):
-                rank = 7 - rank_idx
-                symbols = board_line.split()
-                if len(symbols) != 8:
-                    self._error(
-                        f"Invalid board row {rank_idx + 1}: '{board_line}'"
-                    )
-                    return
-                for file_idx, symbol in enumerate(symbols):
-                    if symbol == "_":
-                        continue
-                    if symbol not in SYMBOL_MAP:
-                        self._error(
-                            f"Unknown piece symbol: '{symbol}'"
-                            f" at row {rank_idx + 1}"
-                        )
-                        return
-                    piece, color = SYMBOL_MAP[symbol]
-                    square = rank * 8 + file_idx
-                    new_board.place_piece(piece, color, square)
-
-            history_moves = []
-            for line in lines[idx_history + 1:]:
-                tokens = line.split()
-                i = 0
-                while i + 1 < len(tokens):
-                    color_tok = tokens[i].upper()
-                    move_tok = tokens[i + 1]
-                    i += 2
-
-                    color = WHITE if color_tok == "W" else BLACK
-
-                    if len(move_tok) != 5 or move_tok[2] not in ("-", "x"):
-                        self._error(f"Invalid move in history: '{move_tok}'")
-                        return
-
-                    try:
-                        from_sq = Board.algebraic_to_square(move_tok[0:2])
-                        to_sq = Board.algebraic_to_square(move_tok[3:5])
-                    except InvalidSquareError as err:
-                        self._error(f"Invalid square in history: {err}")
-                        return
-
-                    captured = None
-                    if move_tok[2] == "x":
-                        captured = "unknown"
-
-                    piece_info = new_board.get_piece_at(from_sq)
-                    if piece_info is not None:
-                        piece_type = piece_info[0]
-                    else:
-                        piece_type = PAWN 
-
-                    history_moves.append(
-                        Move(from_sq, to_sq, piece_type, color, captured)
-                    )
-
-            from shatranj.presentation.cli.game_state import GameState
-
-            new_state = GameState.__new__(GameState)
-            new_state.board = new_board
-            new_state.current_color = current_color
-            new_state._history = [(move, {}) for move in history_moves]
-            new_state._redo_stack = []
-
-            self._state = new_state
+            loaded = load_game_file(path)
+            self._state = loaded.state
             self._saved = True
+            self._verbose = loaded.verbose
+            self._debug = loaded.debug
             self._ai_players = {}
+            self._apply_loaded_clock_state(loaded.clock)
+            if self._state is not None and self._blitz_enabled and not self._timer_paused:
+                self._start_turn_timer()
 
             print(_("Game loaded from '{path}'.").format(path=path))
             print_board(self._state.board)
@@ -1573,7 +1498,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             )
 
         except LoadError as err:
-            self._error(f"Error parsing file '{path}': {err}")
+            self._error(str(err))
         except ShatranjError as err:
             self._error(f"Unexpected error loading '{path}': {err}")
         except Exception as err:
@@ -1599,76 +1524,19 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _save_to_file(self, path: str) -> bool:
         """Save the game to an ASCII text file (F20-F24)."""
-        SYMBOLS = {
-            (SHAH, WHITE): "K",
-            (FERZ, WHITE): "F",
-            (ROOK, WHITE): "R",
-            (ALFIL, WHITE): "A",
-            (KNIGHT, WHITE): "N",
-            (PAWN, WHITE): "P",
-            (SHAH, BLACK): "k",
-            (FERZ, BLACK): "f",
-            (ROOK, BLACK): "r",
-            (ALFIL, BLACK): "a",
-            (KNIGHT, BLACK): "n",
-            (PAWN, BLACK): "p",
-        }
-
         try:
-            with open(path, "w", encoding="ascii") as f:
-                f.write("[settings]\n")
-                f.write(f"verbose={str(self._verbose).lower()}\n")
-                f.write(f"debug={str(self._debug).lower()}\n")
-                f.write("\n")
-
-                f.write("[game]\n")
-                f.write(f"{self._state.current_color[0].upper()}\n")
-
-                for rank in range(7, -1, -1):
-                    row = []
-                    for file in range(8):
-                        sq = rank * 8 + file
-                        piece = self._state.board.get_piece_at(sq)
-                        if piece is None:
-                            row.append("_")
-                        else:
-                            row.append(SYMBOLS[piece])
-                    f.write(" ".join(row) + "\n")
-                f.write("\n")
-
-                f.write("[history]\n")
-                history = self._state.get_history()
-                i = 0
-                while i < len(history):
-                    line_parts = []
-                    move = history[i]
-                    color_letter = "W" if move.color == WHITE else "B"
-                    from_alg = Board.square_to_algebraic(move.from_square)
-                    to_alg = Board.square_to_algebraic(move.to_square)
-                    sep = "x" if move.captured_piece else "-"
-                    line_parts.append(
-                        f"{color_letter} {from_alg}{sep}{to_alg}"
-                    )
-                    i += 1
-
-                    if i < len(history):
-                        move = history[i]
-                        color_letter = "W" if move.color == WHITE else "B"
-                        from_alg = Board.square_to_algebraic(move.from_square)
-                        to_alg = Board.square_to_algebraic(move.to_square)
-                        sep = "x" if move.captured_piece else "-"
-                        line_parts.append(
-                            f"{color_letter} {from_alg}{sep}{to_alg}"
-                        )
-                        i += 1
-
-                    f.write(" ".join(line_parts) + "\n")
-
+            save_game_file(
+                path,
+                state=self._state,
+                verbose=self._verbose,
+                debug=self._debug,
+                clock=self._build_clock_state(),
+            )
             print(_("Game saved to '{path}'.").format(path=path))
             return True
 
-        except OSError as err:
-            self._error(f"Could not save to '{path}': {err}")
+        except ShatranjError as err:
+            self._error(str(err))
             return False
 
     def _do_pause(self, args: list[str]) -> None:
@@ -1676,10 +1544,6 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         if not self._blitz_enabled:
             print(_("Pause is only available in blitz mode."))
             return
-        
-        self._clock_paused = not self._clock_paused
-        status = "paused" if self._clock_paused else "resumed"
-        print(f"Blitz timer {status}.")
 
         if self._state is None:
             self._error(_("No game in progress."))
@@ -1736,41 +1600,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _strip_comments(self, text: str) -> list[str]:
         """Remove comments from a save file and return clean non-empty lines."""
-        result = []
-        i = 0
-        current_line: list[str] = []
-
-        while i < len(text):
-            ch = text[i]
-
-            if ch == "{":
-                i += 1
-                while i < len(text) and text[i] != "}":
-                    i += 1
-                i += 1
-                continue
-
-            if ch == "#":
-                while i < len(text) and text[i] != "\n":
-                    i += 1
-                continue
-
-            if ch == "\n":
-                line = "".join(current_line).strip()
-                if line:
-                    result.append(line)
-                current_line = []
-                i += 1
-                continue
-
-            current_line.append(ch)
-            i += 1
-
-        line = "".join(current_line).strip()
-        if line:
-            result.append(line)
-
-        return result
+        return strip_save_comments(text)
 
     # ------------------------------------------------------------------
     # Error display (F10 of the specification)

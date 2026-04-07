@@ -136,7 +136,12 @@ class TestMainBlitz:
                     mock_cli.run.return_value = 0
                     result = main.main()
                     assert result == 0
-                    mock_cli.enable_blitz.assert_called_once_with(15)
+                    MockCLI.assert_called_once_with(
+                        verbose=True,
+                        debug=True,
+                        blitz=True,
+                        blitz_time_minutes=15,
+                    )
 
     def test_main_blitz_without_time(self):
         """Run main with blitz mode default time."""
@@ -152,7 +157,12 @@ class TestMainBlitz:
                     mock_cli.run.return_value = 0
                     result = main.main()
                     assert result == 0
-                    mock_cli.enable_blitz.assert_called_once_with(30)
+                    MockCLI.assert_called_once_with(
+                        verbose=True,
+                        debug=True,
+                        blitz=True,
+                        blitz_time_minutes=30,
+                    )
 
     def test_main_time_without_blitz_warning(self):
         """Show warning when --time is used without --blitz."""
@@ -160,6 +170,7 @@ class TestMainBlitz:
             with patch("shatranj.main.ShatranjConfig") as MockConfig:
                 mock_config = MockConfig.return_value
                 mock_config.get_bool.return_value = False
+                mock_config.get_int.return_value = 30
                 with patch(
                     "sys.stderr", new_callable=StringIO
                 ) as mock_stderr:
@@ -304,6 +315,7 @@ class TestMainVerboseDebug:
         with patch("sys.argv", ["shatranj", "--verbose"]):
             with patch("shatranj.main.ShatranjConfig") as MockConfig:
                 mock_config = MockConfig.return_value
+                mock_config.get_int.return_value = 30
 
                 def get_bool_side_effect(key):
                     if key == "verbose":
@@ -319,7 +331,10 @@ class TestMainVerboseDebug:
                     result = main.main()
                     assert result == 0
                     MockCLI.assert_called_once_with(
-                        verbose=True, debug=False
+                        verbose=True,
+                        debug=False,
+                        blitz=False,
+                        blitz_time_minutes=30,
                     )
 
     def test_main_debug(self):
@@ -327,6 +342,7 @@ class TestMainVerboseDebug:
         with patch("sys.argv", ["shatranj", "--debug"]):
             with patch("shatranj.main.ShatranjConfig") as MockConfig:
                 mock_config = MockConfig.return_value
+                mock_config.get_int.return_value = 30
 
                 def get_bool_side_effect(key):
                     if key == "debug":
@@ -342,7 +358,10 @@ class TestMainVerboseDebug:
                     result = main.main()
                     assert result == 0
                     MockCLI.assert_called_once_with(
-                        verbose=False, debug=True
+                        verbose=False,
+                        debug=True,
+                        blitz=False,
+                        blitz_time_minutes=30,
                     )
 
     def test_main_verbose_debug(self):
@@ -350,6 +369,7 @@ class TestMainVerboseDebug:
         with patch("sys.argv", ["shatranj", "--verbose", "--debug"]):
             with patch("shatranj.main.ShatranjConfig") as MockConfig:
                 mock_config = MockConfig.return_value
+                mock_config.get_int.return_value = 30
 
                 def get_bool_side_effect(key):
                     if key in ("verbose", "debug"):
@@ -365,7 +385,10 @@ class TestMainVerboseDebug:
                     result = main.main()
                     assert result == 0
                     MockCLI.assert_called_once_with(
-                        verbose=True, debug=True
+                        verbose=True,
+                        debug=True,
+                        blitz=False,
+                        blitz_time_minutes=30,
                     )
 
 

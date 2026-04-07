@@ -16,6 +16,7 @@ Usage in other modules:
 """
 
 import gettext
+import locale
 import os
 import sys
 from pathlib import Path
@@ -47,6 +48,15 @@ def _detect_language() -> str:
             lang = value.split("_")[0].split(".")[0].lower()
             if lang in SUPPORTED_LANGUAGES:
                 return lang
+
+    try:
+        locale_name, _encoding = locale.getlocale()
+    except Exception:
+        locale_name = None
+    if locale_name:
+        lang = locale_name.split("_")[0].split(".")[0].lower()
+        if lang in SUPPORTED_LANGUAGES:
+            return lang
     return DEFAULT_LANGUAGE
 
 

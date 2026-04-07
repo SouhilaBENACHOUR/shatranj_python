@@ -21,9 +21,13 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from shatranj.domain.ai.ai_player import AIPlayer  # noqa: E402
 from shatranj.domain.ai.hinting import choose_hint_move  # noqa: E402
+from shatranj.persistence import ClockState, load_game_file, save_game_file  # noqa: E402
 from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
 from shatranj.presentation.cli.game_state import GameState  # noqa: E402
-from shatranj.presentation.gui.board_widget import BoardWidget  # noqa: E402
+from shatranj.presentation.gui.board_widget import (  # noqa: E402
+    BoardWidget,
+    get_piece_asset_path,
+)
 from shatranj.utils.constants import (  # noqa: E402
     ALFIL,
     BLACK,
@@ -133,6 +137,14 @@ PIECE_LABELS = {
     KNIGHT: "Knight",
     PAWN: "Pawn",
 }
+CAPTURE_DISPLAY_ORDER = (ROOK, KNIGHT, ALFIL, FERZ, PAWN)
+STARTING_PIECE_COUNTS = {
+    FERZ: 1,
+    ROOK: 2,
+    ALFIL: 2,
+    KNIGHT: 2,
+    PAWN: 8,
+}
 
 CLOCK_CSS = """
 .welcome-root,
@@ -194,6 +206,10 @@ CLOCK_CSS = """
   font-size: 12px;
   font-weight: 700;
   color: #705332;
+}
+
+.captured-strip {
+  min-height: 24px;
 }
 
 .welcome-action {
@@ -503,6 +519,79 @@ def _display_color(color: str | None) -> str:
     return "--"
 
 
+def _sort_captured_piece_types(piece_types: list[str]) -> list[str]:
+    """Keep captured pieces in a stable visual order."""
+    counts = {piece: 0 for piece in CAPTURE_DISPLAY_ORDER}
+    for piece in piece_types:
+        if piece in counts:
+            counts[piece] += 1
+
+    ordered = []
+    for piece in CAPTURE_DISPLAY_ORDER:
+        ordered.extend([piece] * counts[piece])
+    return ordered
+
+
+def _captured_pieces_from_history(history) -> dict[str, list[str]] | None:
+    """Derive captured pieces from move history when details are available."""
+    captured = {
+        WHITE: [],
+        BLACK: [],
+    }
+    for move in history:
+        if not move.captured_piece:
+            continue
+        if move.captured_piece not in STARTING_PIECE_COUNTS:
+            return None
+
+        captured_color = BLACK if move.color == WHITE else WHITE
+        captured[captured_color].append(move.captured_piece)
+
+    return {
+        color: _sort_captured_piece_types(captured[color])
+        for color in (WHITE, BLACK)
+    }
+
+
+def _captured_pieces_from_board(board) -> dict[str, list[str]]:
+    """Fallback capture view for legacy saves without capture detail."""
+    remaining = {
+        WHITE: {piece: 0 for piece in STARTING_PIECE_COUNTS},
+        BLACK: {piece: 0 for piece in STARTING_PIECE_COUNTS},
+    }
+    for square in range(64):
+        piece_info = board.get_piece_at(square)
+        if piece_info is None:
+            continue
+
+        piece, color = piece_info
+        if piece in STARTING_PIECE_COUNTS:
+            remaining[color][piece] += 1
+
+    captured = {
+        WHITE: [],
+        BLACK: [],
+    }
+    for color in (WHITE, BLACK):
+        for piece in CAPTURE_DISPLAY_ORDER:
+            missing = STARTING_PIECE_COUNTS[piece] - remaining[color][piece]
+            captured[color].extend([piece] * max(0, missing))
+    return captured
+
+
+def _captured_pieces_for_display(
+    state: GameState | None,
+) -> dict[str, list[str]]:
+    """Return captured pieces indexed by the color that was captured."""
+    if state is None:
+        return {WHITE: [], BLACK: []}
+
+    from_history = _captured_pieces_from_history(state.get_history())
+    if from_history is not None:
+        return from_history
+    return _captured_pieces_from_board(state.board)
+
+
 class NewGameDialog(Gtk.Dialog):
     """Dialog for choosing the player mode and time control."""
 
@@ -600,6 +689,7 @@ class NewGameDialog(Gtk.Dialog):
             spacing=8,
         )
         group_button = None
+        default_mode_button = None
         for label, mode in PLAYER_MODE_OPTIONS:
             button = Gtk.CheckButton(label=label)
             button.set_halign(Gtk.Align.START)
@@ -611,7 +701,7 @@ class NewGameDialog(Gtk.Dialog):
             button.connect("toggled", self._on_mode_changed, mode)
             mode_box.append(button)
             if mode == "hvh":
-                button.set_active(True)
+                default_mode_button = button
         mode_section.append(mode_box)
 
         self._mode_hint = Gtk.Label(label=MODE_HINTS[self._selected_mode])
@@ -650,6 +740,9 @@ class NewGameDialog(Gtk.Dialog):
         algorithm_hint.add_css_class("config-note")
         self._algorithm_section.append(algorithm_hint)
         box.append(self._algorithm_section)
+
+        if default_mode_button is not None:
+            default_mode_button.set_active(True)
 
         time_section = self._create_section(
             "Time Control",
@@ -1007,7 +1100,16 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        blitz: bool = False,
+        blitz_time_minutes: int = 30,
+        **kwargs,
+    ) -> None:
+
+        self._startup_blitz = blitz
+        self._startup_blitz_time_minutes = blitz_time_minutes
 
         # Initialize the parent Gtk.ApplicationWindow
 
@@ -1053,6 +1155,37 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._build_shortcuts()  # keyboard shortcuts
         self._reset_clock()
+
+        if self._startup_blitz:
+            self._start_game(self._build_startup_game_config())
+
+    def _build_startup_game_config(self) -> dict:
+        """Build the default GUI config used for --blitz startup."""
+
+        base_seconds = self._startup_blitz_time_minutes * 60
+        config = {
+            "mode": "hvh",
+            "ai_color": BLACK,
+            "algorithm": "alphabeta",
+            "speed_label": "Custom",
+            "time_control_label": f"{self._startup_blitz_time_minutes} min",
+            "base_seconds": base_seconds,
+            "increment_seconds": 0,
+        }
+
+        for speed_key in TIME_CONTROL_ORDER:
+            group = TIME_CONTROL_GROUPS[speed_key]
+            for preset in group["presets"]:
+                if (
+                    preset["base_seconds"] == base_seconds
+                    and preset["increment_seconds"] == 0
+                ):
+                    config["speed_label"] = group["label"]
+                    config["time_control_label"] = preset["label"]
+                    config["base_seconds"] = preset["base_seconds"]
+                    return config
+
+        return config
 
     def _install_css(self) -> None:
         """Install local CSS used by the custom clock widgets."""
@@ -1212,7 +1345,12 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         return root
 
-    def _build_royal_board_frame(self, board_widget: BoardWidget) -> Gtk.Box:
+    def _build_royal_board_frame(
+        self,
+        board_widget: BoardWidget,
+        *,
+        show_captures: bool = False,
+    ) -> Gtk.Box:
         """Wrap a board widget in the welcome screen's stylized frame."""
 
         board_frame = Gtk.Box(
@@ -1233,8 +1371,84 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         board_meta.add_css_class("welcome-meta")
         board_frame.append(board_meta)
 
+        if show_captures:
+            self._black_capture_strip = self._create_capture_strip()
+            board_frame.append(self._black_capture_strip)
+
         board_frame.append(board_widget)
+
+        if show_captures:
+            self._white_capture_strip = self._create_capture_strip()
+            board_frame.append(self._white_capture_strip)
+
         return board_frame
+
+    def _create_capture_strip(self) -> Gtk.Box:
+        """Create one horizontal strip for small captured-piece icons."""
+        strip = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=4,
+        )
+        strip.add_css_class("captured-strip")
+        strip.set_halign(Gtk.Align.START)
+        strip.set_hexpand(True)
+        strip.set_size_request(-1, 24)
+        return strip
+
+    @staticmethod
+    def _clear_box_children(box: Gtk.Box) -> None:
+        """Remove every child from a GTK box."""
+        while True:
+            child = box.get_first_child()
+            if child is None:
+                return
+            box.remove(child)
+
+    def _make_captured_piece_widget(self, piece: str, color: str):
+        """Build one small piece icon for the capture strips."""
+        path = get_piece_asset_path(piece, color)
+        if path is not None:
+            picture = Gtk.Picture.new_for_filename(path)
+            picture.set_size_request(20, 20)
+            if hasattr(picture, "set_can_shrink"):
+                picture.set_can_shrink(True)
+            if hasattr(picture, "set_keep_aspect_ratio"):
+                picture.set_keep_aspect_ratio(True)
+            picture.set_tooltip_text(PIECE_LABELS.get(piece, piece.title()))
+            return picture
+
+        label = Gtk.Label(label=piece[:1].upper())
+        label.set_halign(Gtk.Align.CENTER)
+        label.set_valign(Gtk.Align.CENTER)
+        label.set_tooltip_text(PIECE_LABELS.get(piece, piece.title()))
+        return label
+
+    def _update_captured_pieces(self) -> None:
+        """Refresh the captured-piece strips above and below the board."""
+        if not hasattr(self, "_black_capture_strip"):
+            return
+
+        captured = _captured_pieces_for_display(self._state)
+        for captured_color, strip in (
+            (WHITE, self._black_capture_strip),
+            (BLACK, self._white_capture_strip),
+        ):
+            self._clear_box_children(strip)
+            for piece in captured[captured_color]:
+                strip.append(
+                    self._make_captured_piece_widget(piece, captured_color)
+                )
+
+    def _refresh_game_view(self) -> None:
+        """Refresh board-adjacent widgets after any state change."""
+        if self._state is not None:
+            self._board_widget.set_board(
+                self._state.board,
+                self._state.current_color,
+            )
+        self._sync_board_interaction()
+        self._update_history()
+        self._update_captured_pieces()
 
     def _build_game_screen(self) -> Gtk.Box:
         """
@@ -1291,7 +1505,10 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._board_widget.on_move_played = self._on_move_played
 
-        board_frame = self._build_royal_board_frame(self._board_widget)
+        board_frame = self._build_royal_board_frame(
+            self._board_widget,
+            show_captures=True,
+        )
         board_shell.append(board_frame)
         hbox.append(board_shell)
 
@@ -1518,7 +1735,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._update_clock_labels()
 
     def _configure_loaded_game_clock(self) -> None:
-        """Prepare the untimed clock used for loaded games."""
+        """Prepare the fallback clock used for legacy saves."""
 
         self._clock_mode = "elapsed"
         self._time_control_name = "Loaded Game"
@@ -1528,6 +1745,74 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._elapsed_started_at = None
         self._game_paused = False
         self._update_clock_labels()
+
+    def _build_clock_state(self) -> ClockState:
+        """Serialize the current timed clock for save files."""
+
+        if self._clock_mode != "timed" or self._state is None:
+            return ClockState()
+
+        now = time.monotonic()
+        return ClockState(
+            mode="timed",
+            label=self._time_control_name,
+            base_seconds=max(self._remaining_time.values(), default=0.0),
+            increment_seconds=self._increment_seconds,
+            white_seconds=self._get_display_time(WHITE, now),
+            black_seconds=self._get_display_time(BLACK, now),
+            paused=self._game_paused,
+        )
+
+    def _apply_loaded_clock_state(self, clock_state: ClockState) -> None:
+        """Restore persisted clock data after loading a game."""
+
+        if clock_state.mode != "timed":
+            self._configure_loaded_game_clock()
+            return
+
+        self._clock_mode = "timed"
+        self._time_control_name = clock_state.label
+        self._increment_seconds = clock_state.increment_seconds
+        self._remaining_time = {
+            WHITE: clock_state.white_seconds,
+            BLACK: clock_state.black_seconds,
+        }
+        self._turn_started_at = None
+        self._elapsed_started_at = None
+        self._game_paused = clock_state.paused
+        self._update_clock_labels()
+
+    def _show_alert(self, title: str, detail: str) -> None:
+        """Display a simple GTK alert dialog."""
+
+        dialog = Gtk.AlertDialog()
+        dialog.set_message(title)
+        dialog.set_detail(detail)
+        dialog.show(self)
+
+    def _save_game_to_path(
+        self,
+        path: str,
+        *,
+        state: GameState | None = None,
+        clock_state: ClockState | None = None,
+    ) -> bool:
+        """Persist a game state to disk."""
+
+        if state is None:
+            state = self._state
+        if state is None:
+            return False
+
+        if clock_state is None:
+            clock_state = self._build_clock_state()
+
+        save_game_file(
+            path,
+            state=state,
+            clock=clock_state,
+        )
+        return True
 
     def _set_clock_card_state(
         self,
@@ -1857,6 +2142,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             "win.load-game": ["<Ctrl>l"],
             "win.save-game": ["<Ctrl>s"],
             "win.info": ["<Ctrl>i"],
+            "win.help": ["F1"],
             "win.undo": ["<Ctrl>u"],
             "win.redo": ["<Ctrl>r"],
             "win.pause": ["<Ctrl>p"],
@@ -1917,13 +2203,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         # Update board display and clear history
 
-        self._board_widget.set_board(
-            self._state.board,
-            self._state.current_color,
-        )
-        self._sync_board_interaction()
-
-        self._update_history()
+        self._refresh_game_view()
 
         self._configure_new_game_clock(config)
         self._start_timer()
@@ -2024,13 +2304,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._state.apply_move(move)
             self._saved = False
 
-            self._board_widget.set_board(
-                self._state.board,
-                self._state.current_color,
-            )
-            self._sync_board_interaction()
-
-            self._update_history()
+            self._refresh_game_view()
 
             if self._check_game_over():
                 return False
@@ -2114,46 +2388,22 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if file is None:
                 return
             path = file.get_path()
-
-            from shatranj.presentation.cli.cli import CLI
-            cli = CLI(verbose=False, debug=False)
-            cli._do_load([path])
-
-            if cli._state is not None:
-                self._state = cli._state
-                self._ai_players = {}
-                self._board_widget.set_board(
-                    self._state.board, self._state.current_color
-                )
-                self._sync_board_interaction()
-                self._update_history()
-                self._configure_loaded_game_clock()
-                self._start_timer()
-                self.set_show_menubar(True)
-                self._stack.set_visible_child_name("game")
-            else:
-                dialog_err = Gtk.AlertDialog()
-                dialog_err.set_message(_("Load Error"))
-                dialog_err.set_detail(
-                    _("Could not load game from '{path}'.").format(path=path)
-                )
-                dialog_err.show(self)
+            loaded = load_game_file(path)
+            self._state = loaded.state
+            self._saved = True
+            self._ai_players = {}
+            self._refresh_game_view()
+            self._apply_loaded_clock_state(loaded.clock)
+            self._start_timer()
+            self.set_show_menubar(True)
+            self._stack.set_visible_child_name("game")
 
         except LoadError as err:
-            dialog_err = Gtk.AlertDialog()
-            dialog_err.set_message(_("Load Error"))
-            dialog_err.set_detail(str(err))
-            dialog_err.show(self)
+            self._show_alert(_("Load Error"), str(err))
         except ShatranjError as err:
-            dialog_err = Gtk.AlertDialog()
-            dialog_err.set_message(_("Error"))
-            dialog_err.set_detail(str(err))
-            dialog_err.show(self)
+            self._show_alert(_("Error"), str(err))
         except Exception as err:
-            dialog_err = Gtk.AlertDialog()
-            dialog_err.set_message(_("Load Error"))
-            dialog_err.set_detail(str(err))
-            dialog_err.show(self)
+            self._show_alert(_("Load Error"), str(err))
 
     def _on_save_game(self, *_args) -> None:
 
@@ -2173,39 +2423,92 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if file is None:
                 return
             path = file.get_path()
-
-            from shatranj.presentation.cli.cli import CLI
-
-            cli = CLI(
-                verbose=False,
-                debug=False,
-            )
-            cli._state = self._state
-            success = cli._save_to_file(path)
-            if success:
+            if self._save_game_to_path(path):
                 self._saved = True
             else:
-                dialog_err = Gtk.AlertDialog()
-                dialog_err.set_message(_("Save Error"))
-                dialog_err.set_detail(
+                self._show_alert(
+                    _("Save Error"),
                     _("Could not write to '{path}'.").format(path=path)
                 )
-                dialog_err.show(self)
 
         except ShatranjError as err:
-            dialog_err = Gtk.AlertDialog()
-            dialog_err.set_message(_("Save Error"))
-            dialog_err.set_detail(str(err))
-            dialog_err.show(self)
+            self._show_alert(_("Save Error"), str(err))
         except Exception as err:
-            dialog_err = Gtk.AlertDialog()
-            dialog_err.set_message(_("Save Error"))
-            dialog_err.set_detail(str(err))
-            dialog_err.show(self)
+            self._show_alert(_("Save Error"), str(err))
 
     def _on_info(self, *_args) -> None:
-        """Show an About dialog with version and author information."""
-        dialog = Gtk.AboutDialog()
+        """Show a centered information dialog."""
+        dialog = Gtk.Dialog(
+            title=_("About Shatranj"),
+            transient_for=self,
+            modal=True,
+        )
+        dialog.set_default_size(420, 260)
+        dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
+
+        content = dialog.get_content_area()
+        content.set_spacing(0)
+        content.set_margin_top(0)
+        content.set_margin_bottom(0)
+        content.set_margin_start(0)
+        content.set_margin_end(0)
+
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=10,
+        )
+        box.set_margin_top(24)
+        box.set_margin_bottom(24)
+        box.set_margin_start(24)
+        box.set_margin_end(24)
+        content.append(box)
+
+        title = Gtk.Label(label="Shatranj")
+        title.set_halign(Gtk.Align.CENTER)
+        title.set_xalign(0.5)
+        title.add_css_class("config-title")
+        box.append(title)
+
+        version = Gtk.Label(label="Version 0.4.0")
+        version.set_halign(Gtk.Align.CENTER)
+        version.set_xalign(0.5)
+        box.append(version)
+
+        description = Gtk.Label(
+            label=_(
+                "Indian Chess - a faithful implementation of the ancient "
+                "game of Shatranj."
+            )
+        )
+        description.set_halign(Gtk.Align.CENTER)
+        description.set_xalign(0.5)
+        description.set_wrap(True)
+        description.set_justify(Gtk.Justification.CENTER)
+        box.append(description)
+
+        school = Gtk.Label(label=_("Universite de Bordeaux"))
+        school.set_halign(Gtk.Align.CENTER)
+        school.set_xalign(0.5)
+        box.append(school)
+
+        website = Gtk.Label(label="https://www.u-bordeaux.fr")
+        website.set_halign(Gtk.Align.CENTER)
+        website.set_xalign(0.5)
+        website.set_selectable(True)
+        box.append(website)
+
+        copyright_label = Gtk.Label(
+            label="(c) 2025-2026 Master Informatique - Universite de Bordeaux"
+        )
+        copyright_label.set_halign(Gtk.Align.CENTER)
+        copyright_label.set_xalign(0.5)
+        copyright_label.set_wrap(True)
+        copyright_label.set_justify(Gtk.Justification.CENTER)
+        box.append(copyright_label)
+
+        dialog.connect("response", lambda dlg, *_args: dlg.destroy())
+        dialog.present()
+        return
         dialog.set_transient_for(self)
         dialog.set_modal(True)
         dialog.set_program_name("Shatranj")
@@ -2232,13 +2535,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         self._state.undo()
 
-        self._board_widget.set_board(
-            self._state.board,
-            self._state.current_color,
-        )
-        self._sync_board_interaction()
-
-        self._update_history()
+        self._refresh_game_view()
         if self._clock_mode == "timed":
             self._turn_started_at = time.monotonic()
         self._update_clock_labels()
@@ -2253,13 +2550,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         if move is None:
             return
 
-        self._board_widget.set_board(
-            self._state.board,
-            self._state.current_color,
-        )
-        self._sync_board_interaction()
-
-        self._update_history()
+        self._refresh_game_view()
         if self._clock_mode == "timed":
             self._turn_started_at = time.monotonic()
         self._update_clock_labels()
@@ -2316,7 +2607,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             "  Ctrl+N  New game    Ctrl+U  Undo\n"
             "  Ctrl+S  Save        Ctrl+R  Redo\n"
             "  Ctrl+L  Load        Ctrl+H  Hint\n"
-            "  Ctrl+P  Pause       Ctrl+Q  Quit"
+            "  Ctrl+P  Pause       Ctrl+Q  Quit\n"
+            "  Ctrl+I  Info        F1      Help"
         )
         dialog = Gtk.AlertDialog()
         dialog.set_message(_("Shatranj — Help"))
@@ -2345,13 +2637,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._state.apply_move(move)
         self._saved = False
 
-        self._board_widget.set_board(
-            self._state.board,
-            self._state.current_color,
-        )
-        self._sync_board_interaction()
-
-        self._update_history()
+        self._refresh_game_view()
 
         if self._check_game_over():
 
@@ -2537,25 +2823,21 @@ class ShatranjWindow(Gtk.ApplicationWindow):
                     # User cancelled save — don't proceed
                     return
                 path = file.get_path()
-                from shatranj.presentation.cli.cli import CLI
-                cli = CLI(verbose=False, debug=False)
-                cli._state = self._state_to_save
-                success = cli._save_to_file(path)
+                success = self._save_game_to_path(
+                    path,
+                    state=self._state_to_save,
+                    clock_state=self._build_clock_state(),
+                )
                 if success:
                     self._saved = True
                 else:
-                    dialog_err = Gtk.AlertDialog()
-                    dialog_err.set_message(_("Save Error"))
-                    dialog_err.set_detail(
+                    self._show_alert(
+                        _("Save Error"),
                         _("Could not write to '{path}'.").format(path=path)
                     )
-                    dialog_err.show(self)
                     return
             except Exception as err:
-                dialog_err = Gtk.AlertDialog()
-                dialog_err.set_message(_("Save Error"))
-                dialog_err.set_detail(str(err))
-                dialog_err.show(self)
+                self._show_alert(_("Save Error"), str(err))
                 return
             finally:
                 self._state_to_save = None

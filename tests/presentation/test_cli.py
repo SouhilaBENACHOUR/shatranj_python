@@ -1223,6 +1223,24 @@ class TestDoSave:
         assert cli2._state is not None
         assert cli2._state.current_color == BLACK
 
+    def test_save_and_load_roundtrip_preserves_clock_state(self, tmp_path):
+        """Timed saves restore both remaining clocks and pause state."""
+        path = str(tmp_path / "timed_game.shj")
+        self.cli.enable_blitz(5)
+        self.cli._clock_seconds[WHITE] = 123.0
+        self.cli._clock_seconds[BLACK] = 278.0
+        self.cli._timer_paused = True
+
+        self.cli._do_save([path])
+
+        cli2 = CLI()
+        cli2._do_load([path])
+
+        assert cli2._blitz_enabled is True
+        assert cli2._timer_paused is True
+        assert cli2._clock_seconds[WHITE] == pytest.approx(123.0)
+        assert cli2._clock_seconds[BLACK] == pytest.approx(278.0)
+
 
 class TestDoSet:
     """Tests for configuration commands."""
