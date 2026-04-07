@@ -1293,6 +1293,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._network_my_color: str | None = None
         self._network_last_players: list[str] = []
         self._network_last_invite: str | None = None
+        self._network_lobby_dialog = None
+        self._network_invite_dialog = None
 
         # Build the interface in order
 
@@ -2842,6 +2844,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         """Disconnect from the online server and clear the GUI network state."""
 
         client = self._network_client
+        self._close_network_dialogs()
         self._network_client = None
         self._network_player_id = None
         self._network_player_name = None
@@ -2856,6 +2859,19 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             except Exception:
                 pass
 
+    def _close_network_dialogs(self) -> None:
+        """Destroy transient dialogs created by the online lobby flow."""
+
+        for attr in ("_network_lobby_dialog", "_network_invite_dialog"):
+            dialog = getattr(self, attr, None)
+            if dialog is None:
+                continue
+            try:
+                dialog.destroy()
+            except Exception:
+                pass
+            setattr(self, attr, None)
+
     def _show_online_lobby_dialog(self) -> None:
         """Show one simple lobby dialog with the connected players."""
 
@@ -2866,11 +2882,29 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             )
             return
 
+        if self._is_network_game_active():
+            return
+
+        if self._network_invite_dialog is not None:
+            try:
+                self._network_invite_dialog.destroy()
+            except Exception:
+                pass
+            self._network_invite_dialog = None
+
+        if self._network_lobby_dialog is not None:
+            try:
+                self._network_lobby_dialog.destroy()
+            except Exception:
+                pass
+            self._network_lobby_dialog = None
+
         dialog = Gtk.Dialog(
             title=_("Online Lobby"),
             transient_for=self,
             modal=True,
         )
+        self._network_lobby_dialog = dialog
         dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
         dialog.add_button(_("Invite"), Gtk.ResponseType.OK)
         dialog.set_default_response(Gtk.ResponseType.OK)
@@ -2946,6 +2980,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.get_content_area().append(box)
 
         def on_response(dlg, response):
+            self._network_lobby_dialog = None
             if response == Gtk.ResponseType.OK:
                 target_id = player_entry.get_text().strip()
                 blitz_value = int(blitz_spin.get_value())
@@ -2963,20 +2998,64 @@ class ShatranjWindow(Gtk.ApplicationWindow):
     def _show_network_invitation_dialog(self) -> None:
         """Show a direct accept/decline prompt for the latest invitation."""
 
-        dialog = Gtk.MessageDialog(
+        if self._network_lobby_dialog is not None:
+            try:
+                self._network_lobby_dialog.destroy()
+            except Exception:
+                pass
+            self._network_lobby_dialog = None
+
+        if self._network_invite_dialog is not None:
+            try:
+                self._network_invite_dialog.destroy()
+            except Exception:
+                pass
+            self._network_invite_dialog = None
+
+        dialog = Gtk.Dialog(
             transient_for=self,
             modal=True,
-            message_type=Gtk.MessageType.QUESTION,
-            buttons=Gtk.ButtonsType.NONE,
-            text=_("Invitation Received"),
+            title=_("Invitation Received"),
         )
-        dialog.format_secondary_text(
-            self._network_last_invite or _("Unknown player")
-        )
+        self._network_invite_dialog = dialog
         dialog.add_button(_("Decline"), Gtk.ResponseType.NO)
         dialog.add_button(_("Accept"), Gtk.ResponseType.YES)
 
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=10,
+        )
+        box.set_margin_top(18)
+        box.set_margin_bottom(18)
+        box.set_margin_start(18)
+        box.set_margin_end(18)
+
+        title = Gtk.Label(label=_("Invitation Received"))
+        title.set_halign(Gtk.Align.START)
+        title.set_xalign(0.0)
+        title.add_css_class("config-title")
+        box.append(title)
+
+        details = Gtk.Label(
+            label=self._network_last_invite or _("Unknown player")
+        )
+        details.set_halign(Gtk.Align.START)
+        details.set_xalign(0.0)
+        details.set_wrap(True)
+        box.append(details)
+
+        note = Gtk.Label(
+            label=_("Do you want to start the online game?")
+        )
+        note.set_halign(Gtk.Align.START)
+        note.set_xalign(0.0)
+        note.set_wrap(True)
+        box.append(note)
+
+        dialog.get_content_area().append(box)
+
         def on_response(dlg, response):
+            self._network_invite_dialog = None
             dlg.destroy()
             if response == Gtk.ResponseType.YES:
                 self._on_accept_invite()
@@ -3073,13 +3152,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._network_player_name = player_name
             self._network_server_address = address
             self._network_last_players = []
-            self._show_alert(
-                _("Network"),
-                _("Connected to {address} as {name}.").format(
-                    address=address,
-                    name=player_name,
-                ),
-            )
             client.get_players()
         except Exception as err:
             self._show_alert(_("Network Error"), str(err))
@@ -3320,6 +3392,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
                 self._show_alert(_("Network Error"), str(err))
                 return False
 
+            self._close_network_dialogs()
             self._state = GameState()
             self._state.board = start_info["board"]
             self._saved = False
