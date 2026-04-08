@@ -3369,7 +3369,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._state = GameState()
             self._state.board = start_info["board"]
             self._saved = False
-            self._ai_players = loaded.ai_players
+            self._ai_players = {}
             self._network_my_color = start_info["my_color"]
             self._refresh_game_view()
 
