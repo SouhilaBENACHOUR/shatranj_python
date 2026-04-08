@@ -55,7 +55,10 @@ from shatranj.domain.network.protocol import (
     GAME_PORT_DEFAULT,
 )
 from shatranj.domain.network.discovery_server import DiscoveryServer
-from shatranj.domain.network.discovery_client import DiscoveryClient, ServerInfo
+from shatranj.domain.network.discovery_client import (
+    DiscoveryClient,
+    ServerInfo,
+)
 from shatranj.domain.network.game_server import GameServer, GameSession
 from shatranj.domain.network.game_client import GameClient
 from shatranj.domain.network.player_connection import PlayerConnection
@@ -79,4 +82,5 @@ __all__ = [
     "GameServer",
     "GameSession",
     "GameClient",
-    "PlayerConnection",]
+    "PlayerConnection",
+]

@@ -51,9 +51,7 @@ SYMBOL_TO_PIECE = {v: k for k, v in PIECE_TO_SYMBOL.items()}
 
 class Board:
     def __init__(self, setup: bool = True) -> None:
-        self._boards = {
-            (piece, color): 0 for piece in PIECES for color in COLORS
-        }
+        self._boards = {(piece, color): 0 for piece in PIECES for color in COLORS}
         if setup:
             self.setup_starting_position()
 
@@ -79,9 +77,7 @@ class Board:
             self.set_piece(piece, WHITE, file_idx)
             self.set_piece(PAWN, WHITE, file_idx + BOARD_SIZE)
             self.set_piece(piece, BLACK, file_idx + (NUM_SQUARES - BOARD_SIZE))
-            self.set_piece(
-                PAWN, BLACK, file_idx + (NUM_SQUARES - 2 * BOARD_SIZE)
-            )
+            self.set_piece(PAWN, BLACK, file_idx + (NUM_SQUARES - 2 * BOARD_SIZE))
 
     def set_piece(self, piece: str, color: str, square: int) -> None:
         self.clear_piece(square)
@@ -106,15 +102,11 @@ class Board:
 
     def move_piece(self, from_square: int, to_square: int) -> None:
         if from_square == to_square:
-            raise InvalidMoveError(
-                f"Cannot move to the same square ({from_square})"
-            )
+            raise InvalidMoveError(f"Cannot move to the same square ({from_square})")
 
         found = self.get_piece_at(from_square)
         if found is None:
-            raise NoPieceError(
-                f"No piece on square {from_square}"
-            )
+            raise NoPieceError(f"No piece on square {from_square}")
 
         piece, color = found
         self.clear_piece(from_square)
@@ -172,8 +164,7 @@ class Board:
     def algebraic_to_square(pos: str) -> int:
         if len(pos) != 2 or pos[0] not in FILES or pos[1] not in RANKS:
             raise InvalidSquareError(
-                f"Invalid algebraic notation '{pos}':"
-                f"expected format like 'e4'"
+                f"Invalid algebraic notation '{pos}':" f"expected format like 'e4'"
             )
         return FILES.index(pos[0]) + BOARD_SIZE * RANKS.index(pos[1])
 
@@ -184,9 +175,7 @@ class Board:
         """
         bitboard = self._boards[(SHAH, color)]
         if bitboard == 0:
-            raise MissingShahError(
-                f"No Shah found for {color} on the board"
-            )
+            raise MissingShahError(f"No Shah found for {color} on the board")
         return get_lsb(bitboard)
 
     def apply_move(self, move: Move) -> tuple[str, str] | None:
@@ -230,10 +219,10 @@ class Board:
         """
         board = cls(setup=False)  # Don't setup default position
         pieces = fen.split(",")
-        
+
         if len(pieces) != 64:
             raise ValueError(f"Invalid FEN: expected 64 pieces, got {len(pieces)}")
-        
+
         for i, piece_symbol in enumerate(pieces):
             if piece_symbol == ".":
                 continue

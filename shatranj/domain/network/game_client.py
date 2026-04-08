@@ -7,6 +7,7 @@ from shatranj.domain.network.protocol import Message, Command, Response
 
 logger = logging.getLogger(__name__)
 
+
 class GameClient:
     # Fix: Ensure the arguments match what the CLI sends
     def __init__(self, address: str, callback):
@@ -31,7 +32,7 @@ class GameClient:
         """Check if the TCP connection is alive."""
         return self.connected
 
-    # Rename connect to match your CLI's usage if necessary, 
+    # Rename connect to match your CLI's usage if necessary,
     # but usually, we call this inside the CLI
     def start_connection(self, player_name: str = "Player") -> bool:
         try:
@@ -42,7 +43,7 @@ class GameClient:
             # F39: Start a thread to listen for server messages while user types
             self.thread = threading.Thread(target=self._receive_loop, daemon=True)
             self.thread.start()
-            
+
             # F38: Send initial connection/auth message
             return self.send(Message.build(Command.CONN, player_name))
         except Exception as e:
@@ -51,12 +52,13 @@ class GameClient:
 
     def send(self, message: str) -> bool:
         """F38: Send ASCII message followed by newline."""
-        if not self.connected or not self.socket: return False
+        if not self.connected or not self.socket:
+            return False
         try:
             # Ensure message ends with \n as per specs
             if not message.endswith("\n"):
                 message += "\n"
-            self.socket.sendall(message.encode('utf-8'))
+            self.socket.sendall(message.encode("utf-8"))
             return True
         except:
             self.connected = False
@@ -92,7 +94,8 @@ class GameClient:
         if self.connected:
             self.send(Message.build(Command.QUIT))
         self.connected = False
-        if self.socket: self.socket.close()
+        if self.socket:
+            self.socket.close()
 
     def _receive_loop(self):
         buffer = ""
@@ -100,9 +103,10 @@ class GameClient:
             try:
                 self.socket.settimeout(1)
                 data = self.socket.recv(1024)
-                if not data: break
-                
-                buffer += data.decode('utf-8')
+                if not data:
+                    break
+
+                buffer += data.decode("utf-8")
                 while "\n" in buffer:
                     line, buffer = buffer.split("\n", 1)
                     if line.strip():

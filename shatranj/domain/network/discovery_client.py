@@ -10,9 +10,7 @@ import time
 from typing import Optional, Dict, Tuple
 import logging
 
-from shatranj.domain.network.protocol import (
-    DISCOVERY_PORT, SERVER_TIMEOUT
-)
+from shatranj.domain.network.protocol import DISCOVERY_PORT, SERVER_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +95,7 @@ class DiscoveryClient:
                     self.socket.settimeout(2)
 
                     data, addr = self.socket.recvfrom(1024)
-                    message = data.decode('utf-8').strip()
+                    message = data.decode("utf-8").strip()
 
                     if message.startswith("SERVER_ANNOUNCE|"):
                         self._process_announcement(message, addr[0])

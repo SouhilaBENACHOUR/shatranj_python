@@ -147,9 +147,8 @@ class ShatranjConfig:
         # Integer flags
         if getattr(args, "time", None) is not None:
             # Only override if -t was explicitly given with blitz enabled
-            if (
-                ("--time" in sys.argv or "-t" in sys.argv)
-                and getattr(args, "blitz", False)
+            if ("--time" in sys.argv or "-t" in sys.argv) and getattr(
+                args, "blitz", False
             ):
                 self._values["timeout"] = str(args.time)
 

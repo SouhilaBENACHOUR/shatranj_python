@@ -23,12 +23,26 @@ import time
 
 from shatranj.domain.core.move import Move
 from .display import print_board
-from shatranj.persistence import ClockState, load_game_file, save_game_file, strip_save_comments
+from shatranj.persistence import (
+    ClockState,
+    load_game_file,
+    save_game_file,
+    strip_save_comments,
+)
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.domain.network.game_client import GameClient
 from shatranj.domain.network.discovery_client import DiscoveryClient
 from shatranj.domain.network.game_server import GameServer
-from shatranj.utils.constants import WHITE, BLACK, SHAH, FERZ, ROOK, ALFIL, KNIGHT, PAWN
+from shatranj.utils.constants import (
+    WHITE,
+    BLACK,
+    SHAH,
+    FERZ,
+    ROOK,
+    ALFIL,
+    KNIGHT,
+    PAWN,
+)
 from shatranj.utils.exceptions import (
     InvalidSquareError,
     LoadError,
@@ -68,8 +82,19 @@ COMMANDS = [
     "show time",
     "show configuration",
     "set",
-    "server list", "server start", "server stop", "server status", "join", 
-    "ping", "players", "scoreboard", "accept", "decline", "cancel", "away", "back"
+    "server list",
+    "server start",
+    "server stop",
+    "server status",
+    "join",
+    "ping",
+    "players",
+    "scoreboard",
+    "accept",
+    "decline",
+    "cancel",
+    "away",
+    "back",
 ]
 
 PIECE_LABELS = {
@@ -153,7 +178,7 @@ class CLI:
             self._turn_started_at = time.monotonic()
         else:
             self._turn_started_at = None
-            
+
     def _do_decline(self, args: list[str]) -> None:
         """F40: Decline an incoming game invitation."""
         if hasattr(self, "_network_client") and self._network_client:
@@ -169,7 +194,7 @@ class CLI:
             print(_("Invitation canceled."))
         else:
             print(_("No active network connection."))
-            
+
     def _do_away(self, args: list[str]) -> None:
         """F40: Change status to 'away' to block invitations."""
         if hasattr(self, "_network_client") and self._network_client:
@@ -352,22 +377,31 @@ class CLI:
 
         cmd = parts[0].lower()
         args = parts[1:]  # Arguments after the command
-        
+
         # F38 & F39: Server Management
         if cmd == "server":
             sub = args[0].lower() if args else ""
-            if sub == "list": self._do_server_list()
-            elif sub == "start": self._do_server_start(args[1:])
-            elif sub == "stop": self._do_server_stop()
-            elif sub == "status": self._do_server_status()
+            if sub == "list":
+                self._do_server_list()
+            elif sub == "start":
+                self._do_server_start(args[1:])
+            elif sub == "stop":
+                self._do_server_stop()
+            elif sub == "status":
+                self._do_server_status()
             return
 
         # F38 & F40: Network Actions
         network_handlers = {
-            "join": self._do_join, "ping": self._do_ping, "players": self._do_players,
-            "scoreboard": self._do_scoreboard, "accept": self._do_accept,
-            "decline": self._do_decline, "cancel": self._do_cancel,
-            "away": self._do_away, "back": self._do_back,
+            "join": self._do_join,
+            "ping": self._do_ping,
+            "players": self._do_players,
+            "scoreboard": self._do_scoreboard,
+            "accept": self._do_accept,
+            "decline": self._do_decline,
+            "cancel": self._do_cancel,
+            "away": self._do_away,
+            "back": self._do_back,
         }
 
         if cmd in network_handlers:
@@ -414,8 +448,7 @@ class CLI:
             return
 
         self._error(
-            f"Unknown command: '{raw}'."
-            "Type 'help' for the list of commands."
+            f"Unknown command: '{raw}'." "Type 'help' for the list of commands."
         )
 
     # ------------------------------------------------------------------
@@ -438,12 +471,10 @@ class CLI:
             text = text[1:]
 
         if len(text) != 5 or text[2] not in ("-", "x"):
-            self._error(
-                f"Invalid move format: '{text}'." "Expected format: e2-e4"
-            )
+            self._error(f"Invalid move format: '{text}'." "Expected format: e2-e4")
             return None
 
-        from_str = text[0:2] 
+        from_str = text[0:2]
         to_str = text[3:5]
 
         try:
@@ -490,33 +521,40 @@ class CLI:
 
         # 2. Vérifier la couleur
         if move.color != self._state.current_color:
-            self._error(
-                f"It's {self._state.current_color}'s turn, not {move.color}'s."
-            )
+            self._error(f"It's {self._state.current_color}'s turn, not {move.color}'s.")
             return
 
         # 3. Sécurité réseau : tour du joueur
-        if hasattr(self, "_network_client") and self._network_client and self._network_client.connected:
+        if (
+            hasattr(self, "_network_client")
+            and self._network_client
+            and self._network_client.connected
+        ):
             if hasattr(self, "_my_color") and self._my_color:
                 if self._state.current_color != self._my_color:
-                    self._error(f"Patience ! C'est au tour de {self._state.current_color} de jouer.")
+                    self._error(
+                        f"Patience ! C'est au tour de {self._state.current_color} de jouer."
+                    )
                     return
 
         # 4. Validation du coup
         legal_moves = self._engine.generate_legal_moves(
             self._state.board, self._state.current_color
         )
-        
+
         real_move = None
         for valid_move in legal_moves:
-            if valid_move.from_square == move.from_square and valid_move.to_square == move.to_square:
+            if (
+                valid_move.from_square == move.from_square
+                and valid_move.to_square == move.to_square
+            ):
                 real_move = valid_move
                 break
-                
+
         if real_move is None:
             self._error(f"Illegal move: {text}")
             return
-            
+
         move = real_move
 
         moving_color = self._state.current_color
@@ -526,37 +564,19 @@ class CLI:
         self._state.apply_move(move)
         self._saved = False
 
-        print(
-            _("You played: {move}").format(
-                move=self._format_move_with_piece(move)
-            )
-        )
+        print(_("You played: {move}").format(move=self._format_move_with_piece(move)))
 
         if self._verbose:
-            from_alg = self._state.board.square_to_algebraic(
-                move.from_square
-            )
+            from_alg = self._state.board.square_to_algebraic(move.from_square)
             to_alg = self._state.board.square_to_algebraic(move.to_square)
-            captured = (
-                f" x {move.captured_piece}" if move.captured_piece else ""
-            )
-            print(
-                f"[verbose] {move.piece_type} "
-                f"{from_alg} -> {to_alg}{captured}"
-            )
-            print(
-                f"[verbose] history length: "
-                f"{len(self._state.get_history())}"
-            )
+            captured = f" x {move.captured_piece}" if move.captured_piece else ""
+            print(f"[verbose] {move.piece_type} " f"{from_alg} -> {to_alg}{captured}")
+            print(f"[verbose] history length: " f"{len(self._state.get_history())}")
 
         print(f"Vous avez joué : {self._format_move_with_piece(move)}")
 
         print_board(self._state.board)
-        print(
-            _("It's now {color}'s turn.").format(
-                color=self._state.current_color
-            )
-        )
+        print(_("It's now {color}'s turn.").format(color=self._state.current_color))
         if self._check_game_over():
             return
 
@@ -565,16 +585,16 @@ class CLI:
 
     def _on_message(self, msg) -> None:
         """Background listener for server data."""
-        cmd = str(getattr(msg, 'command', msg)).upper()
-        args = getattr(msg, 'args', [])
-        
+        cmd = str(getattr(msg, "command", msg)).upper()
+        args = getattr(msg, "args", [])
+
         # --- F39 : DÉBUT DE PARTIE ---
         if "GAME_START" in cmd:
-            new_board = Board(setup=False) 
+            new_board = Board(setup=False)
             board_data = ""
-            self._my_color = None 
-            self._blitz_enabled = False 
-            
+            self._my_color = None
+            self._blitz_enabled = False
+
             for arg in args:
                 if arg.startswith("board="):
                     board_data = arg.split("=", 1)[1]
@@ -588,7 +608,7 @@ class CLI:
                         self._blitz_minutes = int(arg.split("=")[1])
                     except:
                         self._blitz_minutes = 30
-            
+
             if board_data:
                 pieces_list = board_data.split(",")
                 for i, char in enumerate(pieces_list):
@@ -598,48 +618,50 @@ class CLI:
                         new_board.place_piece(p_type, p_color, real_square)
 
             self._state = GameState()
-            self._state.board = new_board 
-            
+            self._state.board = new_board
+
             if self._blitz_enabled:
                 self._increment_seconds = 2
                 self._time_control_name = f"Blitz {self._blitz_minutes} min"
                 self._reset_blitz_clock()
                 self._start_turn_timer()
-            
-            print("\n" + "="*30)
+
+            print("\n" + "=" * 30)
             print(" LE MATCH COMMENCE ! ")
-            
+
             if self._blitz_enabled:
                 print(f" (MODE BLITZ : {self._blitz_minutes} minutes)")
-            
+
             if self._my_color:
                 print(f" >>> VOUS JOUEZ LES {self._my_color}S <<<")
                 if self._my_color == "BLACK":
                     print(" (Les Blancs commencent. Veuillez patienter...)")
-            print("="*30)
-            
+            print("=" * 30)
+
             self._do_show_board()
             print(f"\n{PROMPT}", end="", flush=True)
-            return 
+            return
 
         # --- F39 : RÉCEPTION DU COUP DE L'ADVERSAIRE ---
         if "MOVE" in cmd or "OPPONENT_MOVE" in cmd:
             if self._state is not None:
                 move_text = args[0]
                 move = self._parse_move(move_text)
-                
+
                 if move is not None:
                     if not self._finish_active_turn(self._state.current_color):
                         return
 
                     self._state.apply_move(move)
                     self._saved = False
-                    
+
                     self._start_turn_timer()
-                    
+
                     print(f"\n[+] L'adversaire a joué : {move_text}")
                     print_board(self._state.board)
-                    print(f"\nC'est maintenant au tour des {self._state.current_color}s.")
+                    print(
+                        f"\nC'est maintenant au tour des {self._state.current_color}s."
+                    )
 
                     print(f"\n{PROMPT}", end="", flush=True)
             return
@@ -669,17 +691,20 @@ class CLI:
             print("----------------------")
             print(f"\n{PROMPT}", end="", flush=True)
             return
-        
+
         if "ERROR" in cmd:
             msg_text = args[0] if args else "Erreur réseau."
-            if any(word in msg_text.lower() for word in ["quitt", "quit", "left", "aucune", "fantôme"]):
+            if any(
+                word in msg_text.lower()
+                for word in ["quitt", "quit", "left", "aucune", "fantôme"]
+            ):
                 if self._state is not None:
                     self._state.undo()
                     print_board(self._state.board)
                     print(f"\n[!] SERVEUR: {msg_text}")
                 else:
                     print(f"\n[!] SERVEUR: {msg_text}")
-                self._state = None 
+                self._state = None
             else:
                 print(f"\n[!] SERVEUR: {msg_text}")
             print(f"\n{PROMPT}", end="", flush=True)
@@ -690,14 +715,18 @@ class CLI:
         color = WHITE if char.isupper() else BLACK
         c = char.lower()
         mapping = {
-            'k': SHAH, 'f': FERZ, 'r': ROOK, 
-            'a': ALFIL, 'n': KNIGHT, 'p': PAWN
+            "k": SHAH,
+            "f": FERZ,
+            "r": ROOK,
+            "a": ALFIL,
+            "n": KNIGHT,
+            "p": PAWN,
         }
         return mapping.get(c, PAWN), color
 
     def _check_game_over(self) -> bool:
         """Check if the game is over after a move.
-        
+
         Possible outcomes in Shatranj:
           - Checkmate  -> current player is in check with no legal moves
           - Stalemate  -> not in check but no legal moves (opponent wins)
@@ -709,9 +738,9 @@ class CLI:
                 return True
 
             current = self._state.current_color
-            
+
             # We keep your mate's debug print here!
-            if hasattr(self, '_debug_print'):
+            if hasattr(self, "_debug_print"):
                 self._debug_print(f"checking game over for {current}")
 
             if self._engine.is_checkmate(self._state.board, current):
@@ -756,20 +785,21 @@ class CLI:
     def _do_server_list(self) -> None:
         """F38: List servers found via UDP broadcast."""
         discovery = DiscoveryClient()
-        servers = discovery.scan() 
+        servers = discovery.scan()
         if not servers:
             print("No servers found.")
         else:
-            for s in servers: print(f" - {s.name} at {s.ip}:{s.port}")
+            for s in servers:
+                print(f" - {s.name} at {s.ip}:{s.port}")
 
     def _on_network_message(self, msg):
         """Handles messages from the GameServer."""
-        if msg.command == "OPPONENT_MOVE": # F39
+        if msg.command == "OPPONENT_MOVE":  # F39
             move = self._parse_move(msg.args[0])
             if move and self._state:
                 self._state.board.move_piece(move.from_square, move.to_square)
                 print(_("\nOpponent played: {move}").format(move=msg.args[0]))
-                print_board(self._state.board) 
+                print_board(self._state.board)
                 print(f"\nIt's now {self._state.current_color}'s turn.")
 
     def _do_join(self, args: list[str]) -> None:
@@ -779,23 +809,28 @@ class CLI:
             self._network_client = GameClient(address, callback=self._on_message)
             if self._network_client.start_connection(player_name=name):
                 print(_("Connected! Waiting for server..."))
-                
+
                 # ---> TURN ON THE BACKGROUND CLOCK <---
                 import threading
+
                 threading.Thread(target=self._auto_refresh_players, daemon=True).start()
-                
+
             else:
                 self._error("Connection failed.")
         except Exception as e:
             self._error(str(e))
 
     def _auto_refresh_players(self):
-            """Timer in the background that asks for the player list every minute."""
-            import time
-            # Keep looping as long as the game is running and we are connected
-            while self._running and hasattr(self, "_network_client") and getattr(self._network_client, 'connected', False):
-                time.sleep(60) # Wait 60 seconds
-                
+        """Timer in the background that asks for the player list every minute."""
+        import time
+
+        # Keep looping as long as the game is running and we are connected
+        while (
+            self._running
+            and hasattr(self, "_network_client")
+            and getattr(self._network_client, "connected", False)
+        ):
+            time.sleep(60)  # Wait 60 seconds
 
     def _do_ping(self, args: list[str]) -> None:
         """F38: Send PING to server."""
@@ -807,7 +842,7 @@ class CLI:
     def _do_players(self, args: list[str]) -> None:
         """F39/F40: Request the list of connected players"""
         if hasattr(self, "_network_client") and self._network_client:
-            self._network_client.get_players() 
+            self._network_client.get_players()
         else:
             print(_("Not connected to a server."))
 
@@ -828,7 +863,7 @@ class CLI:
         target_signature = tuple(sorted(self._state.board._boards.items()))
         expected_snapshot_size = len(self._state.board._boards)
 
-        repetitions = 1 
+        repetitions = 1
         color_at_state = target_color
 
         for _, snapshot_before_move in reversed(self._state._history):
@@ -886,11 +921,10 @@ class CLI:
         )
 
         import time as _time
+
         _t0 = _time.monotonic()
         move = ai_player.choose_move(self._state.board)
-        self._debug_print(
-            f"AI search done in {_time.monotonic() - _t0:.3f}s"
-        )
+        self._debug_print(f"AI search done in {_time.monotonic() - _t0:.3f}s")
 
         if move is None:
             self._debug_print("AI found no legal move")
@@ -904,39 +938,24 @@ class CLI:
         self._debug_print(f"AI chose: {self._format_move_with_piece(move)}")
 
         # display the move played by the AI in algebraic notation
-        print(
-            _("AI plays: {move}").format(
-                move=self._format_move_with_piece(move)
-            )
-        )
+        print(_("AI plays: {move}").format(move=self._format_move_with_piece(move)))
 
         self._state.apply_move(move)
         self._saved = False
 
         if self._verbose:
-            from_alg = self._state.board.square_to_algebraic(
-                move.from_square
-            )
+            from_alg = self._state.board.square_to_algebraic(move.from_square)
             to_alg = self._state.board.square_to_algebraic(move.to_square)
-            captured = (
-                f" x {move.captured_piece}" if move.captured_piece else ""
-            )
+            captured = f" x {move.captured_piece}" if move.captured_piece else ""
             print(
-                f"[verbose] AI: {move.piece_type} "
-                f"{from_alg} -> {to_alg}{captured}"
+                f"[verbose] AI: {move.piece_type} " f"{from_alg} -> {to_alg}{captured}"
             )
-            print(
-                f"[verbose] history length: "
-                f"{len(self._state.get_history())}"
-            )
+            print(f"[verbose] history length: " f"{len(self._state.get_history())}")
 
         # display the updated board
         print_board(self._state.board)
         print(
-            "\n"
-            + _("It's now {color}'s turn.").format(
-                color=self._state.current_color
-            )
+            "\n" + _("It's now {color}'s turn.").format(color=self._state.current_color)
         )
         # check if the game is over after the AI's move
         if self._check_game_over():
@@ -944,9 +963,7 @@ class CLI:
 
         self._start_turn_timer()
 
-    def _auto_play_ai_turns(
-        self, max_plies: int = AUTO_PLAY_MAX_PLIES
-    ) -> None:
+    def _auto_play_ai_turns(self, max_plies: int = AUTO_PLAY_MAX_PLIES) -> None:
         """
         Chain AI turns as long as the current player is controlled by an AI.
 
@@ -955,10 +972,7 @@ class CLI:
           - AI vs AI: automatically run through the entire game
         """
         plies = 0
-        while (
-            self._state is not None
-            and self._state.current_color in self._ai_players
-        ):
+        while self._state is not None and self._state.current_color in self._ai_players:
             if plies >= max_plies:
                 print(
                     "\n"
@@ -982,18 +996,23 @@ class CLI:
                 print(_("New game cancelled."))
                 return
 
-        if hasattr(self, "_network_client") and self._network_client and self._network_client.connected and args:
+        if (
+            hasattr(self, "_network_client")
+            and self._network_client
+            and self._network_client.connected
+            and args
+        ):
             if args[0].lower() not in ("ai", "ai-vs-ai"):
                 target_id = args[0]
-                
+
                 # ---> NEW: Check if the player typed -b <---
                 blitz_arg = ""
                 if len(args) > 1 and args[1] == "-b":
                     mins = args[2] if len(args) > 2 else "30"
-                    blitz_arg = f" blitz={mins}" # We attach this to the target ID!
-                
+                    blitz_arg = f" blitz={mins}"  # We attach this to the target ID!
+
                 print(f"Sending network invitation to {target_id}...")
-                
+
                 # We sneak the blitz argument into the invite message!
                 self._network_client.invite_player(target_id + blitz_arg)
                 return
@@ -1032,8 +1051,7 @@ class CLI:
                         return
                 except ValueError:
                     self._error(
-                        f"Invalid depth: '{args[3]}'. "
-                        "Expected a positive integer."
+                        f"Invalid depth: '{args[3]}'. " "Expected a positive integer."
                     )
                     return
             else:
@@ -1082,9 +1100,7 @@ class CLI:
                     ).format(algo=algo, depth=depth, scoring=scoring)
                 )
             else:
-                self._error(
-                    f"Unknown color: '{args[1]}'." "Use 'black' or 'white'."
-                )
+                self._error(f"Unknown color: '{args[1]}'." "Use 'black' or 'white'.")
                 return
 
         else:
@@ -1092,9 +1108,9 @@ class CLI:
 
         if self._blitz_enabled:
             print(
-                _(
-                    "Blitz mode enabled: {minutes} minute(s) per player."
-                ).format(minutes=self._blitz_minutes)
+                _("Blitz mode enabled: {minutes} minute(s) per player.").format(
+                    minutes=self._blitz_minutes
+                )
             )
 
         print()
@@ -1157,26 +1173,30 @@ class CLI:
                             .lower()
                         )
                         if answer2 in ("y", "yes"):
-                            path2 = input(
-                                _("Enter file path to save: ")
-                            ).strip()
+                            path2 = input(_("Enter file path to save: ")).strip()
                             self._save_to_file(path2)
                 else:
                     print(_("No path given, quitting without saving."))
 
         # ---> FIX: WAIT BEFORE UNPLUGGING <---
-        if hasattr(self, "_network_client") and self._network_client and self._network_client.connected:
+        if (
+            hasattr(self, "_network_client")
+            and self._network_client
+            and self._network_client.connected
+        ):
             try:
                 # 1. Package the official quit message
                 from shatranj.domain.network.protocol import Message, Command
+
                 self._network_client.send(Message.build(Command.QUIT))
             except:
                 pass
-            
+
             # 2. Wait a full second so the computer actually sends it!
             import time
+
             time.sleep(1.0)
-            
+
             # 3. Pull the plug safely
             try:
                 self._network_client.disconnect()
@@ -1224,23 +1244,19 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 "Args: 'ai white', 'ai black', 'ai-vs-ai'."
             ),
             "quit": (
-                "quit  -  Quit the program. You'll be asked to "
-                "save if needed."
+                "quit  -  Quit the program. You'll be asked to " "save if needed."
             ),
             "help": "help [CMD]  -  Show help. With CMD: show help for that "
             "command.",
             "load": (
-                "load FILE  -  Load a saved game from FILE "
-                "(.shatranj format)."
+                "load FILE  -  Load a saved game from FILE " "(.shatranj format)."
             ),
             "save": "save FILE  -  Save the current game to FILE.",
             "hint": "hint  -  Get a move suggestion from the engine.",
             "undo": "undo [N]  -  Undo the last N moves (default 1).",
             "redo": "redo [N]  -  Redo the last N undone moves (default 1).",
             "pause": "pause  -  Pause/resume the blitz timer.",
-            "set": (
-                "set PARAM=VALUE  -  Change a setting. E.g.:" " set debug=true"
-            ),
+            "set": ("set PARAM=VALUE  -  Change a setting. E.g.:" " set debug=true"),
         }
         if cmd in help_texts:
             print(help_texts[cmd])
@@ -1295,8 +1311,12 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
     def _do_show_time(self) -> None:
         """Display remaining time (blitz mode only)."""
         if not self._blitz_enabled:
-            print(_("Time display is only available in blitz mode "
-                    "(use -b at startup)."))
+            print(
+                _(
+                    "Time display is only available in blitz mode "
+                    "(use -b at startup)."
+                )
+            )
             return
 
         if self._state is None:
@@ -1308,9 +1328,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             _("paused")
             if self._timer_paused
             else (
-                _("running ({color} to move)").format(
-                    color=self._state.current_color
-                )
+                _("running ({color} to move)").format(color=self._state.current_color)
             )
         )
         print(
@@ -1357,11 +1375,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             move = self._state.undo()
             if move is None:
                 actual = undone // 2 if human_vs_ai else undone
-                print(
-                    _("Nothing more to undo (undid {n} move(s)).").format(
-                        n=actual
-                    )
-                )
+                print(_("Nothing more to undo (undid {n} move(s)).").format(n=actual))
                 break
             undone += 1
 
@@ -1371,9 +1385,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             print_board(self._state.board)
             print(
                 "\n"
-                + _("It's now {color}'s turn.").format(
-                    color=self._state.current_color
-                )
+                + _("It's now {color}'s turn.").format(color=self._state.current_color)
             )
             self._saved = False
 
@@ -1402,11 +1414,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             move = self._state.redo()
             if move is None:
                 actual = redone // 2 if human_vs_ai else redone
-                print(
-                    _("Nothing more to redo (redid {n} move(s)).").format(
-                        n=actual
-                    )
-                )
+                print(_("Nothing more to redo (redid {n} move(s)).").format(n=actual))
                 break
             redone += 1
 
@@ -1416,9 +1424,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             print_board(self._state.board)
             print(
                 "\n"
-                + _("It's now {color}'s turn.").format(
-                    color=self._state.current_color
-                )
+                + _("It's now {color}'s turn.").format(color=self._state.current_color)
             )
             self._saved = False
 
@@ -1439,11 +1445,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             print(_("No legal moves available."))
             return
 
-        print(
-            _("Hint: {move}").format(
-                move=self._format_move_with_piece(suggested)
-            )
-        )
+        print(_("Hint: {move}").format(move=self._format_move_with_piece(suggested)))
 
     def _format_move_with_piece(self, move: Move) -> str:
         """Return a human-readable move: 'pawn e2-e3' or 'rook a1xa8'."""
@@ -1483,18 +1485,19 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             self._saved = True
             self._verbose = loaded.verbose
             self._debug = loaded.debug
-            self._ai_players = {}
+            self._ai_players = loaded.ai_players
             self._apply_loaded_clock_state(loaded.clock)
-            if self._state is not None and self._blitz_enabled and not self._timer_paused:
+            if (
+                self._state is not None
+                and self._blitz_enabled
+                and not self._timer_paused
+            ):
                 self._start_turn_timer()
 
             print(_("Game loaded from '{path}'.").format(path=path))
             print_board(self._state.board)
             print(
-                "\n"
-                + _("It's {color}'s turn.").format(
-                    color=self._state.current_color
-                )
+                "\n" + _("It's {color}'s turn.").format(color=self._state.current_color)
             )
 
         except LoadError as err:
@@ -1503,7 +1506,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             self._error(f"Unexpected error loading '{path}': {err}")
         except Exception as err:
             self._error(f"Unexpected error loading '{path}': {err}")
-            
+
     def _do_scoreboard(self, args: list[str]) -> None:
         """F39: Show the win/loss records of players."""
         print(_("Scoreboard feature not yet implemented!"))
@@ -1531,6 +1534,7 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
                 verbose=self._verbose,
                 debug=self._debug,
                 clock=self._build_clock_state(),
+                ai_players=self._ai_players,
             )
             print(_("Game saved to '{path}'.").format(path=path))
             return True
@@ -1614,10 +1618,11 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
         """Print a debug message only if --debug is active."""
         if self._debug:
             print(f"[DEBUG] {message}", file=sys.stderr)
-            
+
+
 if __name__ == "__main__":
     # 1. Create the interface object (F14)
     shell = CLI()
-    
+
     # 2. Start the interactive loop (F14)
     shell.run()

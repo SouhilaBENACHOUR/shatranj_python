@@ -25,7 +25,11 @@ from shatranj.domain.ai.hinting import choose_hint_move  # noqa: E402
 from shatranj.domain.core.board import Board  # noqa: E402
 from shatranj.domain.core.move import Move  # noqa: E402
 from shatranj.domain.network.game_client import GameClient  # noqa: E402
-from shatranj.persistence import ClockState, load_game_file, save_game_file  # noqa: E402
+from shatranj.persistence import (
+    ClockState,
+    load_game_file,
+    save_game_file,
+)  # noqa: E402
 from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
 from shatranj.presentation.cli.game_state import GameState  # noqa: E402
 from shatranj.presentation.gui.board_widget import (  # noqa: E402
@@ -651,10 +655,7 @@ def _can_interact_with_board(
         return False
     if state.current_color in ai_players:
         return False
-    if (
-        network_player_color is not None
-        and state.current_color != network_player_color
-    ):
+    if network_player_color is not None and state.current_color != network_player_color:
         return False
     return True
 
@@ -688,8 +689,7 @@ def _captured_pieces_from_history(history) -> dict[str, list[str]] | None:
         captured[captured_color].append(move.captured_piece)
 
     return {
-        color: _sort_captured_piece_types(captured[color])
-        for color in (WHITE, BLACK)
+        color: _sort_captured_piece_types(captured[color]) for color in (WHITE, BLACK)
     }
 
 
@@ -746,9 +746,7 @@ class NewGameDialog(Gtk.Dialog):
         self.add_button(_("Start Match"), Gtk.ResponseType.OK)
         self.set_default_response(Gtk.ResponseType.OK)
 
-        self._cancel_button = self.get_widget_for_response(
-            Gtk.ResponseType.CANCEL
-        )
+        self._cancel_button = self.get_widget_for_response(Gtk.ResponseType.CANCEL)
         self._start_button = self.get_widget_for_response(Gtk.ResponseType.OK)
         if self._cancel_button is not None:
             self._cancel_button.add_css_class("config-action")
@@ -926,9 +924,7 @@ class NewGameDialog(Gtk.Dialog):
         )
         time_section.append(self._preset_box)
 
-        self._time_summary = Gtk.Label(
-            label="Choose a speed to unlock its presets."
-        )
+        self._time_summary = Gtk.Label(label="Choose a speed to unlock its presets.")
         self._time_summary.set_halign(Gtk.Align.START)
         self._time_summary.set_xalign(0.0)
         self._time_summary.set_wrap(True)
@@ -1168,18 +1164,14 @@ class NewGameDialog(Gtk.Dialog):
         self._selected_preset = preset
         self._start_button.set_sensitive(True)
         speed_label = TIME_CONTROL_GROUPS[self._selected_speed]["label"]
-        self._time_summary.set_label(
-            f"Selected: {speed_label} {preset['label']}"
-        )
+        self._time_summary.set_label(f"Selected: {speed_label} {preset['label']}")
 
     def _build_custom_preset(self) -> dict:
         """Return the current custom time selection."""
 
         minutes = int(self._custom_minutes_spin.get_value())
         increment = int(self._custom_increment_spin.get_value())
-        label = (
-            f"{minutes} | {increment}" if increment > 0 else f"{minutes} min"
-        )
+        label = f"{minutes} | {increment}" if increment > 0 else f"{minutes} min"
         return {
             "label": label,
             "base_seconds": minutes * 60,
@@ -1589,9 +1581,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         ):
             self._clear_box_children(strip)
             for piece in captured[captured_color]:
-                strip.append(
-                    self._make_captured_piece_widget(piece, captured_color)
-                )
+                strip.append(self._make_captured_piece_widget(piece, captured_color))
 
     def _refresh_game_view(self) -> None:
         """Refresh board-adjacent widgets after any state change."""
@@ -1970,6 +1960,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             path,
             state=state,
             clock=clock_state,
+            ai_players=self._ai_players,
         )
         return True
 
@@ -2133,15 +2124,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._remaining_time[moving_color] = 0.0
             self._update_clock_labels()
             self._show_game_over_dialog(
-                _("Time out! {color} wins!").format(
-                    color=_display_color(winner)
-                )
+                _("Time out! {color} wins!").format(color=_display_color(winner))
             )
             return False
 
-        self._remaining_time[moving_color] = (
-            remaining + self._increment_seconds
-        )
+        self._remaining_time[moving_color] = remaining + self._increment_seconds
         self._update_clock_labels()
         return True
 
@@ -2209,9 +2196,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             return
 
         current_color = self._state.current_color
-        self._remaining_time[current_color] = self._get_display_time(
-            current_color
-        )
+        self._remaining_time[current_color] = self._get_display_time(current_color)
         self._turn_started_at = None
         self._game_paused = True
         self._sync_board_interaction()
@@ -2571,9 +2556,12 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if self._is_network_connected():
                 self._close_network_connection()
             loaded = load_game_file(path)
+            import sys
+
+            print(f"DEBUG ai_players={loaded.ai_players}", file=sys.stderr)
             self._state = loaded.state
             self._saved = True
-            self._ai_players = {}
+            self._ai_players = loaded.ai_players
             self._refresh_game_view()
             self._apply_loaded_clock_state(loaded.clock)
             self._start_timer()
@@ -2610,7 +2598,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             else:
                 self._show_alert(
                     _("Save Error"),
-                    _("Could not write to '{path}'.").format(path=path)
+                    _("Could not write to '{path}'.").format(path=path),
                 )
 
         except ShatranjError as err:
@@ -2819,11 +2807,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
     def _default_network_player_name(self) -> str:
         """Return the default name proposed in the join-server dialog."""
 
-        return (
-            os.environ.get("USERNAME")
-            or os.environ.get("USER")
-            or "Player"
-        )
+        return os.environ.get("USERNAME") or os.environ.get("USER") or "Player"
 
     def _is_network_connected(self) -> bool:
         """Return True when the GUI holds an active TCP client."""
@@ -2929,9 +2913,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         summary.set_wrap(True)
         box.append(summary)
 
-        players = Gtk.Label(
-            label=_format_network_players(self._network_last_players)
-        )
+        players = Gtk.Label(label=_format_network_players(self._network_last_players))
         players.set_halign(Gtk.Align.START)
         players.set_xalign(0.0)
         players.set_wrap(True)
@@ -2967,9 +2949,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         box.append(blitz_spin)
 
         note = Gtk.Label(
-            label=_(
-                "Copy an ID from the list above, paste it here, then click Invite."
-            )
+            label=_("Copy an ID from the list above, paste it here, then click Invite.")
         )
         note.set_halign(Gtk.Align.START)
         note.set_xalign(0.0)
@@ -3036,17 +3016,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         title.add_css_class("config-title")
         box.append(title)
 
-        details = Gtk.Label(
-            label=self._network_last_invite or _("Unknown player")
-        )
+        details = Gtk.Label(label=self._network_last_invite or _("Unknown player"))
         details.set_halign(Gtk.Align.START)
         details.set_xalign(0.0)
         details.set_wrap(True)
         box.append(details)
 
-        note = Gtk.Label(
-            label=_("Do you want to start the online game?")
-        )
+        note = Gtk.Label(label=_("Do you want to start the online game?"))
         note.set_halign(Gtk.Align.START)
         note.set_xalign(0.0)
         note.set_wrap(True)
@@ -3123,8 +3099,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if response == Gtk.ResponseType.OK:
                 address = address_entry.get_text().strip() or "localhost:12345"
                 name = (
-                    name_entry.get_text().strip()
-                    or self._default_network_player_name()
+                    name_entry.get_text().strip() or self._default_network_player_name()
                 )
                 dlg.destroy()
                 self._connect_to_network_server(address, name)
@@ -3142,9 +3117,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if not client.start_connection(player_name=player_name):
                 self._show_alert(
                     _("Network"),
-                    _("Could not connect to {address}.").format(
-                        address=address
-                    ),
+                    _("Could not connect to {address}.").format(address=address),
                 )
                 return
 
@@ -3344,7 +3317,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._close_network_connection()
             self._show_alert(
                 _("Network"),
-                "\n".join(args) if args else _("Connection refused by the server."),
+                ("\n".join(args) if args else _("Connection refused by the server.")),
             )
             return False
 
@@ -3396,13 +3369,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._state = GameState()
             self._state.board = start_info["board"]
             self._saved = False
-            self._ai_players = {}
+            self._ai_players = loaded.ai_players
             self._network_my_color = start_info["my_color"]
             self._refresh_game_view()
 
-            clock_config = _build_network_clock_config(
-                start_info["blitz_minutes"]
-            )
+            clock_config = _build_network_clock_config(start_info["blitz_minutes"])
             if clock_config is not None:
                 self._configure_new_game_clock(clock_config)
             else:
@@ -3422,9 +3393,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if move is None:
                 self._show_alert(
                     _("Network Error"),
-                    _("Could not parse the opponent move: {move}").format(
-                        move=args[0]
-                    ),
+                    _("Could not parse the opponent move: {move}").format(move=args[0]),
                 )
                 return False
 
@@ -3449,7 +3418,13 @@ class ShatranjWindow(Gtk.ApplicationWindow):
                 lowered = message.lower()
                 if any(
                     token in lowered
-                    for token in ("quit", "quitt", "left", "disconnect", "fant")
+                    for token in (
+                        "quit",
+                        "quitt",
+                        "left",
+                        "disconnect",
+                        "fant",
+                    )
                 ):
                     self._close_network_connection()
                     self._show_game_over_dialog(message)
@@ -3490,9 +3465,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             move_text = _move_to_network_text(move)
             if client is None or not client.play_move(move_text):
                 self._close_network_connection()
-                self._show_game_over_dialog(
-                    _("Connection to the server was lost.")
-                )
+                self._show_game_over_dialog(_("Connection to the server was lost."))
                 return
 
         self._state.apply_move(move)
@@ -3695,7 +3668,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
                 else:
                     self._show_alert(
                         _("Save Error"),
-                        _("Could not write to '{path}'.").format(path=path)
+                        _("Could not write to '{path}'.").format(path=path),
                     )
                     return
             except Exception as err:

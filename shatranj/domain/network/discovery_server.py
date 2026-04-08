@@ -12,7 +12,9 @@ from typing import Optional
 import logging
 
 from shatranj.domain.network.protocol import (
-    DISCOVERY_PORT, BROADCAST_ADDRESS, BROADCAST_INTERVAL
+    DISCOVERY_PORT,
+    BROADCAST_ADDRESS,
+    BROADCAST_INTERVAL,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,9 @@ class DiscoveryServer:
         self.running = True
         self.thread = threading.Thread(target=self._broadcast_loop, daemon=True)
         self.thread.start()
-        logger.info(f"Discovery server started for '{self.server_name}' on port {self.game_port}")
+        logger.info(
+            f"Discovery server started for '{self.server_name}' on port {self.game_port}"
+        )
 
     def stop(self) -> None:
         """Stop the discovery server."""
@@ -73,11 +77,11 @@ class DiscoveryServer:
                 try:
                     # Format: SERVER_ANNOUNCE|name|port|version
                     message = f"SERVER_ANNOUNCE|{self.server_name}|{self.game_port}|{self.version}\n"
-                    
+
                     # Send to broadcast address
                     self.socket.sendto(
-                        message.encode('utf-8'),
-                        (BROADCAST_ADDRESS, DISCOVERY_PORT)
+                        message.encode("utf-8"),
+                        (BROADCAST_ADDRESS, DISCOVERY_PORT),
                     )
                     logger.debug(f"Broadcast announcement: {message.strip()}")
 

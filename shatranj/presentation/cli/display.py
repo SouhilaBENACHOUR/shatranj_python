@@ -110,9 +110,7 @@ def board_to_string(board: Board, use_color: bool = False) -> str:
                 row_squares.append(".")
             else:
                 symbol = PIECE_SYMBOLS[piece]
-                row_squares.append(
-                    _colorize_piece(symbol, piece[1], use_color)
-                )
+                row_squares.append(_colorize_piece(symbol, piece[1], use_color))
 
         # Format: "8  r n a f k a n r"
         lines.append(f"  {row_label}  " + " ".join(row_squares))

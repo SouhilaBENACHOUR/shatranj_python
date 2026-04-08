@@ -168,9 +168,7 @@ class Minimax:
         key            -> current Zobrist hash key
         """
         # --- Transposition Table lookup ---
-        tt_score, should_use = self._tt.get(
-            key, depth, float("-inf"), float("+inf")
-        )
+        tt_score, should_use = self._tt.get(key, depth, float("-inf"), float("+inf"))
         if should_use:
             return tt_score
 

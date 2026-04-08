@@ -6,6 +6,7 @@ Usage: python3 play_network.py [nom_joueur]
 
 import sys
 import os
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 from shatranj.domain.network import GameClient
@@ -13,10 +14,13 @@ from shatranj.domain.core.board import Board
 from shatranj.presentation.cli.display import print_board
 from shatranj.domain.network.protocol import Response
 
+
 class NetworkGame:
     def __init__(self, player_name="Joueur"):
         self.player_name = player_name
-        self.board = Board(setup=False)  # Start with empty board, will be updated by server
+        self.board = Board(
+            setup=False
+        )  # Start with empty board, will be updated by server
         self.my_color = None
         self.current_turn = "WHITE"  # Les blancs commencent
         self.client = None
@@ -94,19 +98,19 @@ class NetworkGame:
 
     def display_board(self):
         """Affiche le plateau avec des informations de jeu"""
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print(f"Plateau actuel - Tour des {self.current_turn}")
         if self.my_color:
             print(f"Vous jouez les {self.my_color}")
         print_board(self.board)
-        print("="*50 + "\n")
+        print("=" * 50 + "\n")
 
     def connect_and_play(self):
         """Se connecter et jouer"""
         print(f"🎯 Connexion au serveur Shatranj en tant que '{self.player_name}'...")
         print("💡 Entrez vos coups au format 'e2-e4' ou 'QUIT' pour quitter")
 
-        self.client = GameClient('127.0.0.1', 12345, self.on_message)
+        self.client = GameClient("127.0.0.1", 12345, self.on_message)
 
         if not self.client.connect(self.player_name):
             print("❌ Échec de connexion au serveur")
@@ -128,10 +132,12 @@ class NetworkGame:
                     else:
                         # Attendre passivement les messages jusqu'à ce que le serveur indique que c'est notre tour
                         import time
+
                         time.sleep(0.1)
                         continue
                 else:
                     import time
+
                     time.sleep(0.1)
                     continue
         except KeyboardInterrupt:
@@ -140,11 +146,13 @@ class NetworkGame:
             if self.client:
                 self.client.disconnect()
 
+
 def main():
     player_name = sys.argv[1] if len(sys.argv) > 1 else "Joueur"
 
     game = NetworkGame(player_name)
     game.connect_and_play()
+
 
 if __name__ == "__main__":
     main()

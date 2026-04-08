@@ -9,14 +9,22 @@ import logging
 from shatranj.domain.core.board import Board
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.domain.core.move import Move
-from shatranj.domain.network.protocol import Command, Response, Message, GAME_PORT_DEFAULT
+from shatranj.domain.network.protocol import (
+    Command,
+    Response,
+    Message,
+    GAME_PORT_DEFAULT,
+)
 from shatranj.domain.network.player_connection import PlayerConnection
 from shatranj.utils.constants import WHITE, BLACK
 
 logger = logging.getLogger(__name__)
 
+
 class GameSession:
-    def __init__(self, session_id: str, white: PlayerConnection, black: PlayerConnection):
+    def __init__(
+        self, session_id: str, white: PlayerConnection, black: PlayerConnection
+    ):
         self.session_id = session_id
         self.white = white
         self.black = black
@@ -25,14 +33,19 @@ class GameSession:
         self.current_color = WHITE
 
     def get_opponent(self, player: PlayerConnection) -> Optional[PlayerConnection]:
-        if player == self.white: return self.black
-        if player == self.black: return self.white
+        if player == self.white:
+            return self.black
+        if player == self.black:
+            return self.white
         return None
 
     def get_player_color(self, player: PlayerConnection) -> Optional[str]:
-        if player == self.white: return WHITE
-        if player == self.black: return BLACK
+        if player == self.white:
+            return WHITE
+        if player == self.black:
+            return BLACK
         return None
+
 
 class GameServer:
     def __init__(self, name: str, port: int = GAME_PORT_DEFAULT):
@@ -52,14 +65,15 @@ class GameServer:
 
     def stop(self):
         self.running = False
-        if self.server_socket: self.server_socket.close()
+        if self.server_socket:
+            self.server_socket.close()
 
     def _server_loop(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(("0.0.0.0", self.port))
         self.server_socket.listen(5)
-        
+
         while self.running:
             try:
                 self.server_socket.settimeout(1)
@@ -92,11 +106,11 @@ class GameServer:
         player_name = message.args[0] if message.args else "Joueur"
         player_id = str(uuid.uuid4())[:8]
         connection.player_id = player_id
-        
+
         self.players[player_id] = {
             "conn": connection,
             "name": player_name,
-            "status": "idle"
+            "status": "idle",
         }
         connection.send(Message.build(Response.CONN_OK, f"id={player_id}"))
 
@@ -115,76 +129,126 @@ class GameServer:
         connection.send(Message.build(Response.PLAYERS_LIST, *lines))
 
     def _handle_invite(self, connection: PlayerConnection, message: Message):
-        if not message.args: return
-        
+        if not message.args:
+            return
+
         # ---> FIX: Use scissors to cut the string into parts! <---
         raw_target = message.args[0]
-        parts = raw_target.split() # This splits the text wherever there is a space
-        
-        target_id = parts[0] # The first part is the real ID
+        parts = raw_target.split()  # This splits the text wherever there is a space
+
+        target_id = parts[0]  # The first part is the real ID
         sender_id = connection.player_id
-        
+
         blitz_setting = ""
         # The second part (if it exists) is our secret blitz note!
         if len(parts) > 1 and parts[1].startswith("blitz="):
             blitz_setting = parts[1]
 
         if target_id == sender_id:
-            connection.send(Message.build(Response.ERROR, "Vous ne pouvez pas vous inviter vous-même !"))
+            connection.send(
+                Message.build(
+                    Response.ERROR,
+                    "Vous ne pouvez pas vous inviter vous-même !",
+                )
+            )
             return
-            
+
         if target_id not in self.players or self.players[target_id]["status"] != "idle":
             connection.send(Message.build(Response.ERROR, "Joueur non disponible"))
             return
-            
+
         self.players[sender_id]["status"] = "waitgame"
         self.players[target_id]["status"] = "waitgame"
-        
+
         # Save the blitz setting in the server's memory
-        self.invitations[sender_id] = {"to": target_id, "time": time.time(), "blitz": blitz_setting}
-        
+        self.invitations[sender_id] = {
+            "to": target_id,
+            "time": time.time(),
+            "blitz": blitz_setting,
+        }
+
         target_conn = self.players[target_id]["conn"]
-        
+
         # Tell the receiver if it is a blitz game!
         invite_msg = f"FROM={self.players[sender_id]['name']}"
         if blitz_setting:
             invite_msg += f" ({blitz_setting})"
-            
-        target_conn.send(Message.build(Response.INVITE_RECV, invite_msg, "EXPIRES=300s"))
-        connection.send(Message.build(Response.INVITE_SENT, f"PLAYER={self.players[target_id]['name']}", "TIMEOUT=300s"))
+
+        target_conn.send(
+            Message.build(Response.INVITE_RECV, invite_msg, "EXPIRES=300s")
+        )
+        connection.send(
+            Message.build(
+                Response.INVITE_SENT,
+                f"PLAYER={self.players[target_id]['name']}",
+                "TIMEOUT=300s",
+            )
+        )
 
     def _handle_accept(self, connection: PlayerConnection):
         target_id = connection.player_id
         sender_id = None
         blitz_setting = ""
-        
+
         for sid, inv in self.invitations.items():
             if inv["to"] == target_id:
                 sender_id = sid
-                blitz_setting = inv.get("blitz", "") # ---> NEW: Get the secret note out of memory
+                blitz_setting = inv.get(
+                    "blitz", ""
+                )  # ---> NEW: Get the secret note out of memory
                 break
-                
+
         if sender_id:
             del self.invitations[sender_id]
             self.players[sender_id]["status"] = "ingame"
             self.players[target_id]["status"] = "ingame"
-            
+
             session_id = str(uuid.uuid4())[:8]
             white_conn = self.players[sender_id]["conn"]
             black_conn = connection
             session = GameSession(session_id, white_conn, black_conn)
             self.active_sessions[session_id] = session
-            
+
             fen = session.board.to_fen()
-            
+
             # ---> NEW: Send the blitz setting to BOTH players so they turn on their clocks! <---
             if blitz_setting:
-                white_conn.send(Message.build(Response.GAME_START, "white=You", "black=Opponent", f"board={fen}", blitz_setting))
-                black_conn.send(Message.build(Response.GAME_START, "white=Opponent", "black=You", f"board={fen}", blitz_setting))
+                white_conn.send(
+                    Message.build(
+                        Response.GAME_START,
+                        "white=You",
+                        "black=Opponent",
+                        f"board={fen}",
+                        blitz_setting,
+                    )
+                )
+                black_conn.send(
+                    Message.build(
+                        Response.GAME_START,
+                        "white=Opponent",
+                        "black=You",
+                        f"board={fen}",
+                        blitz_setting,
+                    )
+                )
             else:
-                white_conn.send(Message.build(Response.GAME_START, "white=You", "black=Opponent", f"board={fen}"))
-                black_conn.send(Message.build(Response.GAME_START, "white=Opponent", "black=You", f"board={fen}"))
-    
+                white_conn.send(
+                    Message.build(
+                        Response.GAME_START,
+                        "white=You",
+                        "black=Opponent",
+                        f"board={fen}",
+                    )
+                )
+                black_conn.send(
+                    Message.build(
+                        Response.GAME_START,
+                        "white=Opponent",
+                        "black=You",
+                        f"board={fen}",
+                    )
+                )
+
     def _handle_quit(self, connection: PlayerConnection):
         try:
             # 1. Tell the opponent and destroy the game session
@@ -192,18 +256,24 @@ class GameServer:
                 if ses.white == connection or ses.black == connection:
                     opponent = ses.get_opponent(connection)
                     if opponent:
-                        opponent.send(Message.build(Response.ERROR, "L'adversaire a quitté la partie !"))
+                        opponent.send(
+                            Message.build(
+                                Response.ERROR,
+                                "L'adversaire a quitté la partie !",
+                            )
+                        )
                     del self.active_sessions[sid]
                     break
 
             # 2. Remove the player from the lobby
-            pid = getattr(connection, 'player_id', None)
+            pid = getattr(connection, "player_id", None)
             if pid and pid in self.players:
                 del self.players[pid]
-                
+
             connection.running = False
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).error(f"Erreur de quit: {e}")
 
     def _handle_decline(self, connection: PlayerConnection):
@@ -217,47 +287,56 @@ class GameServer:
                 break
 
     def _handle_move(self, connection: PlayerConnection, message: Message):
-            try:
-                if not message.args: return
-                move_str = message.args[0]
-                
-                # 1. Find the active game session
-                session = None
-                session_id = None
-                for sid, ses in self.active_sessions.items():
-                    if ses.white == connection or ses.black == connection:
-                        session = ses
-                        session_id = sid
-                        break
-                        
-                if not session:
-                    connection.send(Message.build(Response.ERROR, "Aucune partie en cours"))
+        try:
+            if not message.args:
+                return
+            move_str = message.args[0]
+
+            # 1. Find the active game session
+            session = None
+            session_id = None
+            for sid, ses in self.active_sessions.items():
+                if ses.white == connection or ses.black == connection:
+                    session = ses
+                    session_id = sid
+                    break
+
+            if not session:
+                connection.send(Message.build(Response.ERROR, "Aucune partie en cours"))
+                return
+
+            # 2. Verify it is actually this player's turn
+            player_color = session.get_player_color(connection)
+            if player_color != session.current_color:
+                connection.send(
+                    Message.build(Response.INVALID, "Ce n'est pas ton tour !")
+                )
+                return
+
+            # 3. RELAY THE MOVE AND CHECK FOR ZOMBIES!
+            opponent = session.get_opponent(connection)
+            if opponent:
+                success = opponent.send(Message.build(Response.OPPONENT_MOVE, move_str))
+
+                # THE FIX: If sending failed, the opponent pulled the plug without telling us!
+                if success is False:
+                    connection.send(
+                        Message.build(
+                            Response.ERROR,
+                            "L'adversaire s'est déconnecté (Fantôme) !",
+                        )
+                    )
+                    del self.active_sessions[session_id]
                     return
 
-                # 2. Verify it is actually this player's turn
-                player_color = session.get_player_color(connection)
-                if player_color != session.current_color:
-                    connection.send(Message.build(Response.INVALID, "Ce n'est pas ton tour !"))
-                    return
+            # 4. Flip the turn only if the opponent is actually alive
+            session.current_color = BLACK if player_color == WHITE else WHITE
 
-                # 3. RELAY THE MOVE AND CHECK FOR ZOMBIES! 
-                opponent = session.get_opponent(connection)
-                if opponent:
-                    success = opponent.send(Message.build(Response.OPPONENT_MOVE, move_str))
-                    
-                    # THE FIX: If sending failed, the opponent pulled the plug without telling us!
-                    if success is False:
-                        connection.send(Message.build(Response.ERROR, "L'adversaire s'est déconnecté (Fantôme) !"))
-                        del self.active_sessions[session_id]
-                        return
+        except Exception as e:
+            import logging
 
-                # 4. Flip the turn only if the opponent is actually alive
-                session.current_color = BLACK if player_color == WHITE else WHITE
-
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Erreur coup: {e}")
-                connection.send(Message.build(Response.INVALID, f"Erreur technique: {e}"))
+            logging.getLogger(__name__).error(f"Erreur coup: {e}")
+            connection.send(Message.build(Response.INVALID, f"Erreur technique: {e}"))
 
     def _handle_quit(self, connection: PlayerConnection):
         pid = connection.player_id

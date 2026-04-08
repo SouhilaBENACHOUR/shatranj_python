@@ -7,12 +7,13 @@ from typing import Optional
 DISCOVERY_PORT = 12346
 BROADCAST_ADDRESS = "255.255.255.255"
 BROADCAST_INTERVAL = 10
-SERVER_TIMEOUT = 30 
+SERVER_TIMEOUT = 30
 
 # ============================================================================
 # TCP Game Protocol
 # ============================================================================
 GAME_PORT_DEFAULT = 12345
+
 
 class Command:
     CONN = "CONN"
@@ -34,6 +35,7 @@ class Command:
     CANCEL = "CANCEL"
     AWAY = "AWAY"
     BACK = "BACK"
+
 
 class Response:
     OK = "OK"
@@ -63,6 +65,7 @@ class Response:
     INVITE_ACCEPTED = "INVITE_ACCEPTED"
     INVITE_DECLINED = "INVITE_DECLINED"
 
+
 class InvalidReason:
     NOT_YOUR_TURN = "not_your_turn"
     ILLEGAL_MOVE = "illegal_move"
@@ -70,6 +73,7 @@ class InvalidReason:
     INVALID_FORMAT = "invalid_format"
     NO_PIECE = "no_piece"
     WRONG_COLOR = "wrong_color"
+
 
 @dataclass
 class Message:

@@ -40,9 +40,7 @@ PIECE_TYPE_TO_TOKEN = {
     KNIGHT: "N",
     PAWN: "P",
 }
-TOKEN_TO_PIECE_TYPE = {
-    token: piece for piece, token in PIECE_TYPE_TO_TOKEN.items()
-}
+TOKEN_TO_PIECE_TYPE = {token: piece for piece, token in PIECE_TYPE_TO_TOKEN.items()}
 
 
 @dataclass(slots=True)
@@ -66,6 +64,7 @@ class LoadedGame:
     verbose: bool = False
     debug: bool = False
     clock: ClockState = field(default_factory=ClockState)
+    ai_players: dict = field(default_factory=dict)
 
 
 def strip_save_comments(text: str) -> list[str]:
@@ -123,10 +122,10 @@ def load_game_file(path: str) -> LoadedGame:
     except ValueError as err:
         raise LoadError("Invalid save format: missing section.", path=path) from err
 
-    settings = _parse_settings(lines[idx_settings + 1: idx_game])
+    settings = _parse_settings(lines[idx_settings + 1 : idx_game])
     state = _parse_game_state(
-        game_lines=lines[idx_game + 1: idx_history],
-        history_lines=lines[idx_history + 1:],
+        game_lines=lines[idx_game + 1 : idx_history],
+        history_lines=lines[idx_history + 1 :],
         path=path,
     )
     return LoadedGame(
@@ -134,6 +133,7 @@ def load_game_file(path: str) -> LoadedGame:
         verbose=_parse_bool(settings.get("verbose"), False),
         debug=_parse_bool(settings.get("debug"), False),
         clock=_parse_clock_state(settings),
+        ai_players=_parse_ai_players(settings),
     )
 
 
@@ -144,8 +144,11 @@ def save_game_file(
     verbose: bool = False,
     debug: bool = False,
     clock: ClockState | None = None,
+    ai_players: dict | None = None,
 ) -> None:
     """Save a game to disk."""
+    if ai_players is None:
+        ai_players = {}
 
     if state is None:
         raise SaveError("No game in progress.")
@@ -155,6 +158,13 @@ def save_game_file(
             handle.write("[settings]\n")
             handle.write(f"verbose={str(verbose).lower()}\n")
             handle.write(f"debug={str(debug).lower()}\n")
+            for color, ai in ai_players.items():
+                color_key = "white" if color == WHITE else "black"
+                handle.write(f"ai-color={color_key}\n")
+                handle.write(f"ai-mode={getattr(ai, 'algorithm', 'alphabeta')}\n")
+                depth = getattr(getattr(ai, "_search", None), "_depth", 3)
+                handle.write(f"ai-depth={depth}\n")
+                handle.write(f"ai-scoring={getattr(ai, 'scoring', 'advanced')}\n")
             if clock is not None and clock.mode == "timed":
                 base_seconds = max(
                     0.0,
@@ -404,3 +414,26 @@ def _parse_float(value: str | None, default: float) -> float:
         return float(value)
     except ValueError:
         return default
+
+
+def _parse_ai_players(settings: dict[str, str]) -> dict:
+    """Reconstruct AI players from saved settings."""
+    from shatranj.domain.ai.ai_player import AIPlayer
+
+    color_str = settings.get("ai-color", "").strip().lower()
+    if not color_str:
+        return {}
+
+    color = WHITE if color_str == "white" else BLACK
+    algo = settings.get("ai-mode", "alphabeta").strip().lower()
+    depth = _parse_int(settings.get("ai-depth"), 3)
+    scoring = settings.get("ai-scoring", "advanced").strip().lower()
+
+    return {
+        color: AIPlayer(
+            color=color,
+            depth=depth,
+            algorithm=algo,
+            scoring=scoring,
+        )
+    }

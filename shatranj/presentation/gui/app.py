@@ -6,6 +6,7 @@ Role: creates the GTK application and the main window.
 
 import os
 
+
 def _apply_wslg_display_workaround(env: dict[str, str] | None = None) -> None:
     """Force a safer GTK backend on WSLg sessions.
 
@@ -57,7 +58,7 @@ class ShatranjApp(Gtk.Application):
         win = ShatranjWindow(
             application=self,
             blitz=self._blitz,
-            blitz_time_minutes=self._blitz_time_minutes
+            blitz_time_minutes=self._blitz_time_minutes,
         )
         win.present()
 

@@ -7,6 +7,7 @@ Usage: python3 start_server.py
 from shatranj.domain.network import GameServer, DiscoveryServer
 import time
 
+
 def main():
     print("🚀 Démarrage du serveur Shatranj...")
     print("📡 Port TCP: 12345, Port UDP: 12346")
@@ -31,6 +32,7 @@ def main():
         server.stop()
         discovery.stop()
         print("✅ Serveur arrêté")
+
 
 if __name__ == "__main__":
     main()

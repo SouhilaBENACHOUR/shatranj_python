@@ -13,9 +13,13 @@ from shatranj.domain.rules.piece_validator import (
     ShahValidator,
 )
 
+
 class BlitzClock:
     def __init__(self, initial_time_seconds: int, increment: int = 0):
-        self.times = {"white": float(initial_time_seconds), "black": float(initial_time_seconds)}
+        self.times = {
+            "white": float(initial_time_seconds),
+            "black": float(initial_time_seconds),
+        }
         self.increment = increment
         self.last_update = None
         self.active_color = "white"
@@ -27,7 +31,7 @@ class BlitzClock:
     def end_turn(self):
         if self.last_update is None:
             return
-        
+
         elapsed = time.time() - self.last_update
         self.times[self.active_color] -= elapsed
         self.times[self.active_color] += self.increment

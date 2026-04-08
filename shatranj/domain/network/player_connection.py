@@ -25,7 +25,9 @@ class PlayerConnection:
             on_message: Callback function(PlayerConnection, Message) called on received messages
         """
         self.socket = socket
-        self.socket.setsockopt(6, 1, 1)  # Disable Nagle algorithm (IPPROTO_TCP=6, TCP_NODELAY=1)
+        self.socket.setsockopt(
+            6, 1, 1
+        )  # Disable Nagle algorithm (IPPROTO_TCP=6, TCP_NODELAY=1)
         self.addr = addr
         self.player_id: Optional[str] = None
         self.color: Optional[str] = None
@@ -51,9 +53,10 @@ class PlayerConnection:
             self.socket.close()
         except:
             pass
-            
+
         # THE FIX: Check if we are inside the thread before trying to join it!
         import threading
+
         if self.thread and self.thread != threading.current_thread():
             try:
                 self.thread.join(timeout=1)
@@ -63,12 +66,16 @@ class PlayerConnection:
     def send(self, message):
         if not self.running:
             return False
-            
+
         try:
             # Send the message over the socket
-            data = message.encode() if hasattr(message, 'encode') else str(message).encode('utf-8')
-            if not data.endswith(b'\n'):
-                data += b'\n'
+            data = (
+                message.encode()
+                if hasattr(message, "encode")
+                else str(message).encode("utf-8")
+            )
+            if not data.endswith(b"\n"):
+                data += b"\n"
             self.socket.sendall(data)
             return True
         except Exception as e:
@@ -85,14 +92,16 @@ class PlayerConnection:
                 try:
                     self.socket.settimeout(2)
                     data = self.socket.recv(1024)
-                    logger.info(f"[RECV] {self.addr} - Got {len(data) if data else 0} bytes: {repr(data[:100]) if data else 'EMPTY'}")
+                    logger.info(
+                        f"[RECV] {self.addr} - Got {len(data) if data else 0} bytes: {repr(data[:100]) if data else 'EMPTY'}"
+                    )
 
                     if not data:
                         logger.info(f"Player {self.addr} disconnected")
                         self.running = False
                         break
 
-                    buffer += data.decode('utf-8')
+                    buffer += data.decode("utf-8")
 
                     # Process complete messages (terminated by \n)
                     while "\n" in buffer:
@@ -100,10 +109,14 @@ class PlayerConnection:
                         if line.strip():
                             try:
                                 message = Message.parse(line)
-                                logger.debug(f"[RECV] {self.addr} - Parsed: {message.command}")
+                                logger.debug(
+                                    f"[RECV] {self.addr} - Parsed: {message.command}"
+                                )
                                 self.on_message(self, message)
                             except Exception as e:
-                                logger.error(f"Error processing message from {self.addr}: {e}")
+                                logger.error(
+                                    f"Error processing message from {self.addr}: {e}"
+                                )
 
                 except socket.timeout:
                     # Timeout is expected, just continue
