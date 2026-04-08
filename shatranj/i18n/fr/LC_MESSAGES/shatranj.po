@@ -83,7 +83,7 @@ msgid "Draw by fifty-move rule."
 msgstr "Nulle par la règle des cinquante coups."
 
 msgid "Draw by move limit ({max_plies} plies)."
-msgstr "Nulle par limite de coups ({max_plies}) demi-coups)."
+msgstr "Nulle par limite de coups ({max_plies} demi-coups)."
 
 msgid "Time out! {winner} wins!"
 msgstr "Temps écoulé ! {winner} gagne !"
@@ -197,6 +197,46 @@ msgstr "Partie chargée depuis '{path}'."
 
 msgid "Game saved to '{path}'."
 msgstr "Partie sauvegardée dans '{path}'."
+
+# ---------------------------------------------------------------------------
+# CLI - network
+# ---------------------------------------------------------------------------
+
+msgid "Type 'accept' to play or 'decline' to refuse."
+msgstr "Tapez 'accept' pour jouer ou 'decline' pour refuser."
+
+msgid "No servers found."
+msgstr "Aucun serveur trouvé."
+
+msgid "Connection failed."
+msgstr "Connexion échouée."
+
+msgid "Sending network invitation to {target_id}..."
+msgstr "Envoi d'une invitation réseau à {target_id}..."
+
+msgid "Invitation declined."
+msgstr "Invitation refusée."
+
+msgid "No active network connection."
+msgstr "Aucune connexion réseau active."
+
+msgid "Invitation canceled."
+msgstr "Invitation annulée."
+
+msgid "Status set to AWAY."
+msgstr "Statut défini sur ABSENT."
+
+msgid "Status set to BACK (idle)."
+msgstr "Statut défini sur DISPONIBLE."
+
+msgid "Connected! Waiting for server..."
+msgstr "Connecté ! En attente du serveur..."
+
+msgid "Not connected to a server."
+msgstr "Non connecté à un serveur."
+
+msgid "Accepting invitation..."
+msgstr "Acceptation de l'invitation..."
 
 # ---------------------------------------------------------------------------
 # GUI - main window buttons
@@ -343,3 +383,139 @@ msgstr "Erreur"
 
 msgid "Save Error"
 msgstr "Erreur de sauvegarde"
+
+# ---------------------------------------------------------------------------
+# GUI - network alerts
+# ---------------------------------------------------------------------------
+
+msgid "Network"
+msgstr "Réseau"
+
+msgid "Network Error"
+msgstr "Erreur réseau"
+
+msgid "Join a server before opening the online lobby."
+msgstr "Rejoignez un serveur avant d'ouvrir le lobby en ligne."
+
+msgid "Finish the current game or return to the menu before joining a server."
+msgstr "Terminez la partie ou revenez au menu avant de rejoindre un serveur."
+
+msgid "Could not connect to {address}."
+msgstr "Impossible de se connecter à {address}."
+
+msgid "Join a server before requesting the online players."
+msgstr "Rejoignez un serveur avant de demander la liste des joueurs."
+
+msgid "Could not request the online players."
+msgstr "Impossible d'obtenir la liste des joueurs."
+
+msgid "Join a server before inviting another player."
+msgstr "Rejoignez un serveur avant d'inviter un joueur."
+
+msgid "A target player ID is required."
+msgstr "Un identifiant de joueur est requis."
+
+msgid "Could not send the invitation."
+msgstr "Impossible d'envoyer l'invitation."
+
+msgid "Join a server before accepting invitations."
+msgstr "Rejoignez un serveur avant d'accepter les invitations."
+
+msgid "Could not accept the invitation."
+msgstr "Impossible d'accepter l'invitation."
+
+msgid "Join a server before declining invitations."
+msgstr "Rejoignez un serveur avant de refuser les invitations."
+
+msgid "Could not decline the invitation."
+msgstr "Impossible de refuser l'invitation."
+
+msgid "Connection refused by the server."
+msgstr "Connexion refusée par le serveur."
+
+msgid "Online Players"
+msgstr "Joueurs en ligne"
+
+msgid "Invitation Sent"
+msgstr "Invitation envoyée"
+
+msgid "Waiting for the opponent."
+msgstr "En attente de l'adversaire."
+
+msgid "Invitation Declined"
+msgstr "Invitation refusée"
+
+msgid "The opponent declined."
+msgstr "L'adversaire a refusé."
+
+msgid "Invitation Received"
+msgstr "Invitation reçue"
+
+msgid "Do you want to start the online game?"
+msgstr "Voulez-vous démarrer la partie en ligne ?"
+
+msgid "Could not parse the opponent move: {move}"
+msgstr "Impossible de lire le coup adverse : {move}"
+
+msgid "Connection to the server was lost."
+msgstr "La connexion au serveur a été perdue."
+
+msgid "Undo is not available during an online game."
+msgstr "L'annulation n'est pas disponible en partie en ligne."
+
+msgid "Redo is not available during an online game."
+msgstr "Le rétablissement n'est pas disponible en partie en ligne."
+
+msgid "Pause is not available during an online game."
+msgstr "La pause n'est pas disponible en partie en ligne."
+
+msgid "Online Lobby"
+msgstr "Lobby en ligne"
+
+msgid "Connected as {name} ({pid})"
+msgstr "Connecté en tant que {name} ({pid})"
+
+msgid "Target Player ID"
+msgstr "Identifiant du joueur cible"
+
+msgid "Blitz Minutes (0 = untimed)"
+msgstr "Minutes blitz (0 = sans limite)"
+
+msgid "Copy an ID from the list above, paste it here, then click Invite."
+msgstr "Copiez un identifiant de la liste ci-dessus, collez-le ici, puis cliquez sur Inviter."
+
+msgid "Accept"
+msgstr "Accepter"
+
+msgid "Decline"
+msgstr "Refuser"
+
+msgid "Join Server"
+msgstr "Rejoindre un serveur"
+
+msgid "Connect"
+msgstr "Connecter"
+
+msgid "Server Address"
+msgstr "Adresse du serveur"
+
+msgid "Player Name"
+msgstr "Nom du joueur"
+
+msgid "Invite Player"
+msgstr "Inviter un joueur"
+
+msgid "Known players:\n{players}"
+msgstr "Joueurs connus :\n{players}"
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Server reached."
+msgstr "Serveur atteint."
+
+msgid "Close"
+msgstr "Fermer"
+
+msgid "Invite"
+msgstr "Inviter"

@@ -670,7 +670,7 @@ class CLI:
         if "INVITE_RECV" in cmd or "INVITATION_RECEIVED" in cmd:
             from_user = args[0] if args else "Inconnu"
             print(f"\n[!] INVITATION REÇUE de : {from_user}")
-            print("Tapez 'accept' pour jouer ou 'decline' pour refuser.")
+            print(_("Type 'accept' to play or 'decline' to refuse."))
             print(f"\n{PROMPT}", end="", flush=True)
             return
 
@@ -787,7 +787,7 @@ class CLI:
         discovery = DiscoveryClient()
         servers = discovery.scan()
         if not servers:
-            print("No servers found.")
+            print(_("No servers found."))
         else:
             for s in servers:
                 print(f" - {s.name} at {s.ip}:{s.port}")
@@ -816,7 +816,7 @@ class CLI:
                 threading.Thread(target=self._auto_refresh_players, daemon=True).start()
 
             else:
-                self._error("Connection failed.")
+                self._error(_("Connection failed."))
         except Exception as e:
             self._error(str(e))
 
@@ -837,7 +837,7 @@ class CLI:
         if hasattr(self, "_network_client") and self._network_client:
             self._network_client.ping()
         else:
-            self._error("Not connected to a server.")
+            self._error(_("Not connected to a server."))
 
     def _do_players(self, args: list[str]) -> None:
         """F39/F40: Request the list of connected players"""
@@ -1011,7 +1011,7 @@ class CLI:
                     mins = args[2] if len(args) > 2 else "30"
                     blitz_arg = f" blitz={mins}"  # We attach this to the target ID!
 
-                print(f"Sending network invitation to {target_id}...")
+                print(_("Sending network invitation to {target_id}...").format(target_id=target_id))
 
                 # We sneak the blitz argument into the invite message!
                 self._network_client.invite_player(target_id + blitz_arg)

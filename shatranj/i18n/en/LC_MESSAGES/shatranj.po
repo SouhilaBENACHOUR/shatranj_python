@@ -198,6 +198,46 @@ msgid "Game saved to '{path}'."
 msgstr "Game saved to '{path}'."
 
 # ---------------------------------------------------------------------------
+# CLI - network
+# ---------------------------------------------------------------------------
+
+msgid "Type 'accept' to play or 'decline' to refuse."
+msgstr "Type 'accept' to play or 'decline' to refuse."
+
+msgid "No servers found."
+msgstr "No servers found."
+
+msgid "Connection failed."
+msgstr "Connection failed."
+
+msgid "Sending network invitation to {target_id}..."
+msgstr "Sending network invitation to {target_id}..."
+
+msgid "Invitation declined."
+msgstr "Invitation declined."
+
+msgid "No active network connection."
+msgstr "No active network connection."
+
+msgid "Invitation canceled."
+msgstr "Invitation canceled."
+
+msgid "Status set to AWAY."
+msgstr "Status set to AWAY."
+
+msgid "Status set to BACK (idle)."
+msgstr "Status set to BACK (idle)."
+
+msgid "Connected! Waiting for server..."
+msgstr "Connected! Waiting for server..."
+
+msgid "Not connected to a server."
+msgstr "Not connected to a server."
+
+msgid "Accepting invitation..."
+msgstr "Accepting invitation..."
+
+# ---------------------------------------------------------------------------
 # GUI - main window buttons
 # ---------------------------------------------------------------------------
 
@@ -342,3 +382,142 @@ msgstr "Error"
 
 msgid "Save Error"
 msgstr "Save Error"
+
+# ---------------------------------------------------------------------------
+# GUI - network alerts
+# ---------------------------------------------------------------------------
+
+msgid "Network"
+msgstr "Network"
+
+msgid "Network Error"
+msgstr "Network Error"
+
+msgid "Join a server before opening the online lobby."
+msgstr "Join a server before opening the online lobby."
+
+msgid "Finish the current game or return to the menu before joining a server."
+msgstr "Finish the current game or return to the menu before joining a server."
+
+msgid "Could not connect to {address}."
+msgstr "Could not connect to {address}."
+
+msgid "Join a server before requesting the online players."
+msgstr "Join a server before requesting the online players."
+
+msgid "Could not request the online players."
+msgstr "Could not request the online players."
+
+msgid "Join a server before inviting another player."
+msgstr "Join a server before inviting another player."
+
+msgid "A target player ID is required."
+msgstr "A target player ID is required."
+
+msgid "Could not send the invitation."
+msgstr "Could not send the invitation."
+
+msgid "Join a server before accepting invitations."
+msgstr "Join a server before accepting invitations."
+
+msgid "Could not accept the invitation."
+msgstr "Could not accept the invitation."
+
+msgid "Join a server before declining invitations."
+msgstr "Join a server before declining invitations."
+
+msgid "Could not decline the invitation."
+msgstr "Could not decline the invitation."
+
+msgid "Connection refused by the server."
+msgstr "Connection refused by the server."
+
+msgid "Online Players"
+msgstr "Online Players"
+
+msgid "Invitation Sent"
+msgstr "Invitation Sent"
+
+msgid "Waiting for the opponent."
+msgstr "Waiting for the opponent."
+
+msgid "Invitation Declined"
+msgstr "Invitation Declined"
+
+msgid "The opponent declined."
+msgstr "The opponent declined."
+
+msgid "Invitation Received"
+msgstr "Invitation Received"
+
+msgid "Do you want to start the online game?"
+msgstr "Do you want to start the online game?"
+
+msgid "Could not parse the opponent move: {move}"
+msgstr "Could not parse the opponent move: {move}"
+
+msgid "Connection to the server was lost."
+msgstr "Connection to the server was lost."
+
+msgid "Undo is not available during an online game."
+msgstr "Undo is not available during an online game."
+
+msgid "Redo is not available during an online game."
+msgstr "Redo is not available during an online game."
+
+msgid "Pause is not available during an online game."
+msgstr "Pause is not available during an online game."
+
+msgid "Online Lobby"
+msgstr "Online Lobby"
+
+msgid "Connected as {name} ({pid})"
+msgstr "Connected as {name} ({pid})"
+
+msgid "Target Player ID"
+msgstr "Target Player ID"
+
+msgid "Blitz Minutes (0 = untimed)"
+msgstr "Blitz Minutes (0 = untimed)"
+
+msgid "Copy an ID from the list above, paste it here, then click Invite."
+msgstr "Copy an ID from the list above, paste it here, then click Invite."
+
+msgid "Do you want to start the online game?"
+msgstr "Do you want to start the online game?"
+
+msgid "Accept"
+msgstr "Accept"
+
+msgid "Decline"
+msgstr "Decline"
+
+msgid "Join Server"
+msgstr "Join Server"
+
+msgid "Connect"
+msgstr "Connect"
+
+msgid "Server Address"
+msgstr "Server Address"
+
+msgid "Player Name"
+msgstr "Player Name"
+
+msgid "Invite Player"
+msgstr "Invite Player"
+
+msgid "Known players:\n{players}"
+msgstr "Known players:\n{players}"
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Server reached."
+msgstr "Server reached."
+
+msgid "Close"
+msgstr "Close"
+
+msgid "Invite"
+msgstr "Invite"
