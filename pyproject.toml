@@ -44,9 +44,43 @@ where = ["."]
 include = ["shatranj*"]
 
 [tool.pytest.ini_options]
+testpaths = [
+  "tests",
+]
+norecursedirs = [
+  ".git",
+  ".pytest_cache",
+  ".venv",
+  ".venv-*",
+  ".venv-linux",
+  "env",
+  "htmlcov",
+  ".tmp_pytest*",
+  "tmp_pytest*",
+]
 addopts = [
   "--cov=shatranj",
   "--cov-report=html",
   "--cov-report=term",
   "--cov-branch",
+]
+
+[tool.coverage.run]
+omit = [
+  "shatranj/presentation/gui/app.py",
+  "shatranj/presentation/gui/board_widget.py",
+  "shatranj/presentation/gui/window.py",
+  "shatranj/domain/network/discovery_client.py",
+  "shatranj/domain/network/discovery_server.py",
+  "shatranj/domain/network/game_client.py",
+  "shatranj/domain/network/game_server.py",
+  "shatranj/domain/network/player_connection.py",
+  "shatranj/domain/network/test_*.py",
+]
+
+[tool.coverage.report]
+fail_under = 85
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
 ]

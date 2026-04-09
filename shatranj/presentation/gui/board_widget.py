@@ -61,6 +61,37 @@ def _board_geometry(width: int, height: int) -> tuple[float, float, float]:
     return square_size, offset_x, offset_y
 
 
+def _square_to_display_indices(
+    square: int,
+    flipped: bool = False,
+) -> tuple[int, int]:
+    """Map one board square to display file/row indices."""
+
+    rank, file = divmod(square, BOARD_SIZE)
+    if flipped:
+        return BOARD_SIZE - 1 - file, rank
+    return file, BOARD_SIZE - 1 - rank
+
+
+def _display_indices_to_square(
+    file: int,
+    row: int,
+    flipped: bool = False,
+) -> int | None:
+    """Map one display file/row pair back to a board square."""
+
+    if not (0 <= file < BOARD_SIZE and 0 <= row < BOARD_SIZE):
+        return None
+
+    if flipped:
+        board_file = BOARD_SIZE - 1 - file
+        board_rank = row
+    else:
+        board_file = file
+        board_rank = BOARD_SIZE - 1 - row
+    return board_rank * BOARD_SIZE + board_file
+
+
 def get_piece_asset_path(piece: str, color: str) -> str | None:
     """Return the SVG file path for one GUI piece, if available."""
     filename = PIECE_FILENAMES.get((piece, color))
@@ -101,6 +132,7 @@ class BoardWidget(Gtk.DrawingArea):
         self._board: Board | None = None
         self._current_color: str = WHITE
         self._interaction_enabled: bool = True
+        self._flipped: bool = False
 
         # Click-to-move state
         self._selected_square: int | None = None
@@ -145,6 +177,15 @@ class BoardWidget(Gtk.DrawingArea):
         self._valid_moves = []
         self._dragging = False
         self._drag_square = None
+        self.queue_draw()
+
+    def set_flipped(self, flipped: bool) -> None:
+        """Rotate the board so the selected side is shown at the bottom."""
+
+        flipped = bool(flipped)
+        if self._flipped == flipped:
+            return
+        self._flipped = flipped
         self.queue_draw()
 
     def clear_selection(self) -> None:
@@ -201,18 +242,22 @@ class BoardWidget(Gtk.DrawingArea):
         offset_y: float,
     ) -> None:
         """Draw the 64 squares."""
-        for rank in range(BOARD_SIZE):
-            for file in range(BOARD_SIZE):
-                x = offset_x + file * sq
-                y = offset_y + (BOARD_SIZE - 1 - rank) * sq
+        for square in range(BOARD_SIZE * BOARD_SIZE):
+            rank, file = divmod(square, BOARD_SIZE)
+            display_file, display_row = _square_to_display_indices(
+                square,
+                bool(getattr(self, "_flipped", False)),
+            )
+            x = offset_x + display_file * sq
+            y = offset_y + display_row * sq
 
-                if (rank + file) % 2 == 0:
-                    cr.set_source_rgb(*LIGHT_SQUARE)
-                else:
-                    cr.set_source_rgb(*DARK_SQUARE)
+            if (rank + file) % 2 == 0:
+                cr.set_source_rgb(*LIGHT_SQUARE)
+            else:
+                cr.set_source_rgb(*DARK_SQUARE)
 
-                cr.rectangle(x, y, sq, sq)
-                cr.fill()
+            cr.rectangle(x, y, sq, sq)
+            cr.fill()
 
     def _draw_highlights(
         self,
@@ -229,17 +274,23 @@ class BoardWidget(Gtk.DrawingArea):
         if selected is None:
             return
 
-        rank, file = divmod(selected, BOARD_SIZE)
-        x = offset_x + file * sq
-        y = offset_y + (BOARD_SIZE - 1 - rank) * sq
+        display_file, display_row = _square_to_display_indices(
+            selected,
+            bool(getattr(self, "_flipped", False)),
+        )
+        x = offset_x + display_file * sq
+        y = offset_y + display_row * sq
         cr.set_source_rgba(*HIGHLIGHT)
         cr.rectangle(x, y, sq, sq)
         cr.fill()
 
         for move in self._valid_moves:
-            rank, file = divmod(move.to_square, BOARD_SIZE)
-            x = offset_x + file * sq
-            y = offset_y + (BOARD_SIZE - 1 - rank) * sq
+            display_file, display_row = _square_to_display_indices(
+                move.to_square,
+                bool(getattr(self, "_flipped", False)),
+            )
+            x = offset_x + display_file * sq
+            y = offset_y + display_row * sq
             cr.set_source_rgba(*HINT_COLOR)
             cr.rectangle(x, y, sq, sq)
             cr.fill()
@@ -252,36 +303,37 @@ class BoardWidget(Gtk.DrawingArea):
         offset_y: float,
     ) -> None:
         """Draw each piece using its SVG image."""
-        for rank in range(BOARD_SIZE):
-            for file in range(BOARD_SIZE):
-                square = rank * BOARD_SIZE + file
+        for square in range(BOARD_SIZE * BOARD_SIZE):
+            # Skip the piece being dragged (drawn separately at end)
+            if self._dragging and square == self._drag_square:
+                continue
 
-                # Skip the piece being dragged (drawn separately at end)
-                if self._dragging and square == self._drag_square:
-                    continue
+            piece = self._board.get_piece_at(square)
+            if piece is None:
+                continue
 
-                piece = self._board.get_piece_at(square)
-                if piece is None:
-                    continue
+            handle = self._pieces.get(piece)
+            if handle is None:
+                continue
 
-                handle = self._pieces.get(piece)
-                if handle is None:
-                    continue
+            display_file, display_row = _square_to_display_indices(
+                square,
+                bool(getattr(self, "_flipped", False)),
+            )
+            x = offset_x + display_file * sq
+            y = offset_y + display_row * sq
 
-                x = offset_x + file * sq
-                y = offset_y + (BOARD_SIZE - 1 - rank) * sq
+            has_size, svg_w, svg_h = handle.get_intrinsic_size_in_pixels()
+            if not has_size or svg_w == 0 or svg_h == 0:
+                svg_w, svg_h = 45.0, 45.0
 
-                has_size, svg_w, svg_h = handle.get_intrinsic_size_in_pixels()
-                if not has_size or svg_w == 0 or svg_h == 0:
-                    svg_w, svg_h = 45.0, 45.0
+            scale = sq / max(svg_w, svg_h)
 
-                scale = sq / max(svg_w, svg_h)
-
-                cr.save()
-                cr.translate(x, y)
-                cr.scale(scale, scale)
-                handle.render_cairo(cr)
-                cr.restore()
+            cr.save()
+            cr.translate(x, y)
+            cr.scale(scale, scale)
+            handle.render_cairo(cr)
+            cr.restore()
 
         # Draw the dragged piece on top at mouse position
         if self._dragging and self._drag_square is not None:
@@ -310,19 +362,30 @@ class BoardWidget(Gtk.DrawingArea):
         """Draw rank numbers and file letters around the board."""
         cr.set_font_size(sq * 0.18)
 
-        for i in range(BOARD_SIZE):
+        for row in range(BOARD_SIZE):
             cr.set_source_rgb(0.3, 0.3, 0.3)
+            rank_label = (
+                row + 1
+                if bool(getattr(self, "_flipped", False))
+                else BOARD_SIZE - row
+            )
             cr.move_to(
                 offset_x + 2,
-                offset_y + (BOARD_SIZE - 1 - i) * sq + sq * 0.25,
+                offset_y + row * sq + sq * 0.25,
             )
-            cr.show_text(str(i + 1))
+            cr.show_text(str(rank_label))
 
+        for file in range(BOARD_SIZE):
+            file_index = (
+                BOARD_SIZE - 1 - file
+                if bool(getattr(self, "_flipped", False))
+                else file
+            )
             cr.move_to(
-                offset_x + i * sq + sq * 0.8,
+                offset_x + file * sq + sq * 0.8,
                 offset_y + BOARD_SIZE * sq - 2,
             )
-            cr.show_text(chr(ord("a") + i))
+            cr.show_text(chr(ord("a") + file_index))
 
     # ------------------------------------------------------------------
     # Click-to-move handling
@@ -343,12 +406,14 @@ class BoardWidget(Gtk.DrawingArea):
             return
 
         file = int(board_x / sq_size)
-        rank = BOARD_SIZE - 1 - int(board_y / sq_size)
-
-        if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
+        row = int(board_y / sq_size)
+        clicked_square = _display_indices_to_square(
+            file,
+            row,
+            bool(getattr(self, "_flipped", False)),
+        )
+        if clicked_square is None:
             return
-
-        clicked_square = rank * BOARD_SIZE + file
 
         # Case 1: a valid destination is clicked → play the move
         for move in self._valid_moves:
@@ -398,12 +463,14 @@ class BoardWidget(Gtk.DrawingArea):
             return
 
         file = int(board_x / sq_size)
-        rank = BOARD_SIZE - 1 - int(board_y / sq_size)
-
-        if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
+        row = int(board_y / sq_size)
+        square = _display_indices_to_square(
+            file,
+            row,
+            bool(getattr(self, "_flipped", False)),
+        )
+        if square is None:
             return
-
-        square = rank * BOARD_SIZE + file
         piece = self._board.get_piece_at(square)
 
         if piece is None or piece[1] != self._current_color:
@@ -456,9 +523,6 @@ class BoardWidget(Gtk.DrawingArea):
         board_x = end_x - offset_x
         board_y = end_y - offset_y
 
-        file = int(end_x / sq_size)
-        rank = BOARD_SIZE - 1 - int(end_y / sq_size)
-
         self._dragging = False
         self._drag_square = None
 
@@ -468,14 +532,16 @@ class BoardWidget(Gtk.DrawingArea):
             return
 
         file = int(board_x / sq_size)
-        rank = BOARD_SIZE - 1 - int(board_y / sq_size)
-
-        if not (0 <= file < BOARD_SIZE and 0 <= rank < BOARD_SIZE):
+        row = int(board_y / sq_size)
+        target_square = _display_indices_to_square(
+            file,
+            row,
+            bool(getattr(self, "_flipped", False)),
+        )
+        if target_square is None:
             self._valid_moves = []
             self.queue_draw()
             return
-
-        target_square = rank * BOARD_SIZE + file
 
         for move in self._valid_moves:
             if move.to_square == target_square:

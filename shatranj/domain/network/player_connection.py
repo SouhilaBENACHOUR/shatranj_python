@@ -2,10 +2,10 @@
 Player Connection - Manages TCP communication with a single connected player.
 """
 
+import logging
 import socket
 import threading
-from typing import Optional, Callable
-import logging
+from typing import Callable, Optional
 
 from shatranj.domain.network.protocol import Message
 
@@ -22,7 +22,7 @@ class PlayerConnection:
         Args:
             socket: Connected TCP socket
             addr: Address tuple (ip, port)
-            on_message: Callback function(PlayerConnection, Message) called on received messages
+            on_message: Callback function(PlayerConnection, Message).
         """
         self.socket = socket
         self.socket.setsockopt(
@@ -34,7 +34,6 @@ class PlayerConnection:
         self.on_message = on_message
         self.running = False
         self.thread: Optional[threading.Thread] = None
-        self._lock = threading.Lock()
 
     def start(self) -> None:
         """Start listening for messages from this player."""
@@ -47,28 +46,24 @@ class PlayerConnection:
         self.thread.start()
         logger.info(f"Player connection started: {self.addr}")
 
-    def stop(self):
+    def stop(self) -> None:
         self.running = False
         try:
             self.socket.close()
-        except:
+        except OSError:
             pass
-
-        # THE FIX: Check if we are inside the thread before trying to join it!
-        import threading
 
         if self.thread and self.thread != threading.current_thread():
             try:
                 self.thread.join(timeout=1)
-            except:
+            except RuntimeError:
                 pass
 
-    def send(self, message):
+    def send(self, message) -> bool:
         if not self.running:
             return False
 
         try:
-            # Send the message over the socket
             data = (
                 message.encode()
                 if hasattr(message, "encode")
@@ -78,8 +73,7 @@ class PlayerConnection:
                 data += b"\n"
             self.socket.sendall(data)
             return True
-        except Exception as e:
-            # THE FIX: If the wire is cut, just silently shut down this connection instead of crashing
+        except OSError:
             self.running = False
             return False
 
@@ -103,34 +97,35 @@ class PlayerConnection:
 
                     buffer += data.decode("utf-8")
 
-                    # Process complete messages (terminated by \n)
                     while "\n" in buffer:
                         line, buffer = buffer.split("\n", 1)
-                        if line.strip():
-                            try:
-                                message = Message.parse(line)
-                                logger.debug(
-                                    f"[RECV] {self.addr} - Parsed: {message.command}"
-                                )
-                                self.on_message(self, message)
-                            except Exception as e:
-                                logger.error(
-                                    f"Error processing message from {self.addr}: {e}"
-                                )
+                        if not line.strip():
+                            continue
+                        try:
+                            message = Message.parse(line)
+                            logger.debug(
+                                f"[RECV] {self.addr} - Parsed: {message.command}"
+                            )
+                            self.on_message(self, message)
+                        except Exception as err:
+                            logger.error(
+                                "Error processing message from %s: %s",
+                                self.addr,
+                                err,
+                            )
 
                 except socket.timeout:
-                    # Timeout is expected, just continue
-                    pass
-                except Exception as e:
+                    continue
+                except OSError as err:
                     if self.running:
-                        logger.error(f"Error receiving from {self.addr}: {e}")
+                        logger.error("Error receiving from %s: %s", self.addr, err)
 
-        except Exception as e:
-            logger.error(f"Receive loop error for {self.addr}: {e}")
+        except OSError as err:
+            logger.error("Receive loop error for %s: %s", self.addr, err)
         finally:
             self.running = False
             try:
                 self.socket.close()
-            except:
+            except OSError:
                 pass
             logger.info(f"[RECV] {self.addr} - Receive loop ended")
