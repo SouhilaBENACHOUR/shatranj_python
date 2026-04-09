@@ -6,8 +6,17 @@ Tests the main entry point and command-line argument parsing.
 
 import pytest
 from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 from shatranj import main
+
+
+def workspace_save_file(name: str, content: str) -> Path:
+    path = Path(".tmp_main_tests")
+    path.mkdir(exist_ok=True)
+    save_file = path / name
+    save_file.write_text(content, encoding="ascii")
+    return save_file
 
 
 class TestMainEntryPoint:
@@ -136,6 +145,32 @@ class TestMainEntryPoint:
                 assert result == 1
                 assert "requires a position file" in mock_stderr.getvalue()
 
+    def test_main_contest_mode_forwards_cli_arguments_without_tmp_path(self):
+        save_file = workspace_save_file(
+            "contest_position.shj",
+            "[settings]\n[game]\nW\n_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n_ _ _ _ _ _ _ _\n_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n_ _ _ _ _ _ _ _\n_ _ _ _ _ _ _ _\n"
+            "_ _ _ _ _ _ _ _\n[history]\n",
+        )
+
+        with (
+            patch("sys.argv", ["shatranj", "--contest", str(save_file)]),
+            patch("shatranj.presentation.cli.cli.CLI") as MockCLI,
+        ):
+            MockCLI.return_value._do_contest.return_value = 0
+            result = main.main()
+
+        assert result == 0
+        MockCLI.assert_called_once_with(verbose=False, debug=False)
+        MockCLI.return_value._do_contest.assert_called_once_with(
+            path=str(save_file),
+            algo="alphabeta",
+            depth=3,
+            scoring="advanced",
+        )
+        save_file.unlink(missing_ok=True)
+
     def test_main_invalid_ai_color(self):
         """Run main with invalid AI color."""
         with patch("sys.argv", ["shatranj", "--ai", "X"]):
@@ -143,6 +178,30 @@ class TestMainEntryPoint:
                 result = main.main()
                 assert result == 1
                 assert "invalid color" in mock_stderr.getvalue()
+
+    def test_main_ai_all_players_sets_ai_vs_ai(self):
+        with patch(
+            "sys.argv",
+            ["shatranj", "--ai", "A", "--ai-mode", "mcts", "--ai-depth", "12"],
+        ):
+            with patch("shatranj.main.ShatranjConfig") as MockConfig:
+                mock_config = MockConfig.return_value
+                mock_config.get_bool.return_value = False
+                mock_config.get_int.return_value = 12
+                mock_config.get_str.side_effect = lambda key: {
+                    "ai-mode": "mcts",
+                    "ai-scoring": "advanced",
+                }.get(key, "advanced")
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
+                    result = main.main()
+
+        assert result == 0
+        assert MockCLI.return_value._pending_new == [
+            "ai-vs-ai",
+            "mcts",
+            "12",
+            "advanced",
+        ]
 
     def test_main_invalid_ai_algorithm(self):
         """Run main with invalid AI algorithm."""
@@ -175,6 +234,15 @@ class TestMainHelp:
                     main.main()
                 assert exc.value.code == 0
                 assert "usage:" in mock_stdout.getvalue()
+
+    def test_help_mentions_extended_ai_options(self):
+        parser = main.build_argument_parser()
+        help_text = parser.format_help()
+
+        assert "--ai-time" in help_text
+        assert "--ai-minimax-depth" in help_text
+        assert "--ai-minimax-scoring" in help_text
+        assert "--ai-mcts-selection" in help_text
 
 
 class TestMainBlitz:
@@ -363,6 +431,54 @@ class TestMainAI:
                     assert result == 0
                     expected = ["ai", "black", "alphabeta", "4", "material"]
                     assert mock_cli._pending_new == expected
+
+    def test_main_ai_iterative_uses_configured_depth(self):
+        with patch(
+            "sys.argv", ["shatranj", "--ai", "W", "--ai-mode", "iterative"]
+        ):
+            with patch("shatranj.main.ShatranjConfig") as MockConfig:
+                mock_config = MockConfig.return_value
+                mock_config.get_bool.return_value = False
+                mock_config.get_int.return_value = 7
+                mock_config.get_str.side_effect = lambda key: {
+                    "ai-mode": "iterative",
+                    "ai-scoring": "advanced",
+                }.get(key, "advanced")
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
+                    result = main.main()
+
+        assert result == 0
+        assert MockCLI.return_value._pending_new == [
+            "ai",
+            "white",
+            "iterative",
+            "7",
+            "advanced",
+        ]
+
+    def test_main_ai_minimax_uses_configured_depth(self):
+        with patch(
+            "sys.argv", ["shatranj", "--ai", "B", "--ai-mode", "minimax"]
+        ):
+            with patch("shatranj.main.ShatranjConfig") as MockConfig:
+                mock_config = MockConfig.return_value
+                mock_config.get_bool.return_value = False
+                mock_config.get_int.return_value = 2
+                mock_config.get_str.side_effect = lambda key: {
+                    "ai-mode": "minimax",
+                    "ai-scoring": "advanced",
+                }.get(key, "advanced")
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
+                    result = main.main()
+
+        assert result == 0
+        assert MockCLI.return_value._pending_new == [
+            "ai",
+            "black",
+            "minimax",
+            "2",
+            "advanced",
+        ]
 
 
 class TestMainVerboseDebug:

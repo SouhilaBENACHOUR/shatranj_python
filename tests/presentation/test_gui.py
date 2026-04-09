@@ -315,6 +315,43 @@ class TestBoardCoordinateMath:
         assert ox == 0
         assert oy == 0
 
+    def test_flipped_display_indices_roundtrip(self):
+        import importlib
+        import shatranj.presentation.gui.board_widget as bw
+
+        importlib.reload(bw)
+
+        for square in range(64):
+            file, row = bw._square_to_display_indices(square, flipped=True)
+            assert (
+                bw._display_indices_to_square(file, row, flipped=True)
+                == square
+            )
+
+    def test_flipped_top_left_is_h1(self):
+        import importlib
+        import shatranj.presentation.gui.board_widget as bw
+
+        importlib.reload(bw)
+
+        assert bw._display_indices_to_square(0, 0, flipped=True) == 7
+
+    def test_flipped_bottom_left_is_h8(self):
+        import importlib
+        import shatranj.presentation.gui.board_widget as bw
+
+        importlib.reload(bw)
+
+        assert bw._display_indices_to_square(0, 7, flipped=True) == 63
+
+    def test_flipped_bottom_right_is_a8(self):
+        import importlib
+        import shatranj.presentation.gui.board_widget as bw
+
+        importlib.reload(bw)
+
+        assert bw._display_indices_to_square(7, 7, flipped=True) == 56
+
 
 # ---------------------------------------------------------------------------
 # Tests for _get_clock_status_text
@@ -2242,6 +2279,39 @@ class TestOnInfoAndHelp:
         dialog.set_detail.assert_called_once()
         dialog.show.assert_called_once()
 
+    def test_on_configuration_uses_alert_helper(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        ns = _make_window_ns(_time_control_name="Blitz 5+0")
+        w.ShatranjWindow._on_configuration(ns)
+
+        ns._show_alert.assert_called_once()
+        args = ns._show_alert.call_args[0]
+        assert args[0] == "Configuration"
+        assert "configuration" in args[1]
+        assert "Blitz 5+0" in args[1]
+
+
+class TestBuildShortcuts:
+    def test_configuration_shortcut_is_registered(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        app = MagicMock()
+        ns = _make_window_ns(get_application=lambda: app)
+
+        w.ShatranjWindow._build_shortcuts(ns)
+
+        app.set_accels_for_action.assert_any_call(
+            "win.configuration",
+            ["<Ctrl>comma"],
+        )
+
 
 # ---------------------------------------------------------------------------
 # Tests for _start_game
@@ -2370,3 +2440,134 @@ def _get_newgame_method(name):
                 return method
     # Fallback: get from MRO excluding Mock bases
     raise AttributeError(f"NewGameDialog has no method {name!r}")
+
+
+# ---------------------------------------------------------------------------
+# Tests for online board orientation
+# ---------------------------------------------------------------------------
+
+
+class TestOnlineBoardOrientation:
+    def test_should_flip_board_only_for_black(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        assert w._should_flip_board(BLACK) is True
+        assert w._should_flip_board(WHITE) is False
+        assert w._should_flip_board(None) is False
+
+    def test_refresh_game_view_flips_board_for_online_black(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        state = _make_game_state(BLACK)
+        board_widget = MagicMock()
+        ns = _make_window_ns(
+            _state=state,
+            _board_widget=board_widget,
+            _network_my_color=BLACK,
+        )
+        ns._sync_board_interaction = MagicMock()
+        ns._update_history = MagicMock()
+        ns._update_captured_pieces = MagicMock()
+
+        w.ShatranjWindow._refresh_game_view(ns)
+
+        board_widget.set_flipped.assert_called_once_with(True)
+        board_widget.set_board.assert_called_once_with(
+            state.board,
+            state.current_color,
+        )
+
+
+class _FakeBox:
+    def __init__(self, children=None):
+        self.children = list(children or [])
+
+    def append(self, child):
+        self.children.append(child)
+
+    def remove(self, child):
+        self.children.remove(child)
+
+
+class _FakeStrip:
+    def __init__(self, children=None):
+        self.children = list(children or [])
+
+    def get_first_child(self):
+        if self.children:
+            return self.children[0]
+        return None
+
+    def remove(self, child):
+        self.children.remove(child)
+
+    def append(self, child):
+        self.children.append(child)
+
+
+class TestOnlineSideLayout:
+    def test_display_side_order_flips_top_and_bottom_for_black(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        assert w._display_side_order(None) == (BLACK, WHITE)
+        assert w._display_side_order(WHITE) == (BLACK, WHITE)
+        assert w._display_side_order(BLACK) == (WHITE, BLACK)
+
+    def test_sync_clock_card_order_puts_black_clock_at_bottom(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        black_card = object()
+        white_card = object()
+        clock_box = _FakeBox([black_card, white_card])
+        ns = _make_window_ns(
+            _network_my_color=BLACK,
+            _clock_cards_box=clock_box,
+            _black_clock_card=black_card,
+            _white_clock_card=white_card,
+        )
+
+        w.ShatranjWindow._sync_clock_card_order(ns)
+
+        assert clock_box.children == [white_card, black_card]
+
+    def test_update_captured_pieces_follows_black_view(self):
+        import importlib
+        import shatranj.presentation.gui.window as w
+
+        importlib.reload(w)
+
+        top_strip = _FakeStrip()
+        bottom_strip = _FakeStrip()
+        ns = _make_window_ns(
+            _network_my_color=BLACK,
+            _black_capture_strip=top_strip,
+            _white_capture_strip=bottom_strip,
+        )
+        ns._make_captured_piece_widget = (
+            lambda piece, color: f"{color}:{piece}"
+        )
+        ns._clear_box_children = (
+            lambda box: w.ShatranjWindow._clear_box_children(box)
+        )
+
+        with patch.object(
+            w,
+            "_captured_pieces_for_display",
+            return_value={WHITE: [PAWN], BLACK: [ROOK]},
+        ):
+            w.ShatranjWindow._update_captured_pieces(ns)
+
+        assert top_strip.children == [f"{BLACK}:{ROOK}"]
+        assert bottom_strip.children == [f"{WHITE}:{PAWN}"]

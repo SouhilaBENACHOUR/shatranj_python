@@ -46,7 +46,11 @@ from shatranj.utils.constants import (  # noqa: E402
     SHAH,
     WHITE,
 )
-from shatranj.utils.exceptions import LoadError, ShatranjError  # noqa: E402
+from shatranj.utils.exceptions import (  # noqa: E402
+    InvalidSquareError,
+    LoadError,
+    ShatranjError,
+)
 
 _ = builtins.__dict__.get("_", lambda x: x)
 
@@ -60,6 +64,7 @@ ALGORITHM_OPTIONS = (
     ("Alpha-Beta", "alphabeta"),
     ("Minimax", "minimax"),
     ("MCTS", "mcts"),
+    ("Iterative Deepening", "iterative"),
 )
 
 TIME_CONTROL_GROUPS = {
@@ -130,6 +135,20 @@ TIME_CONTROL_GROUPS = {
 }
 
 TIME_CONTROL_ORDER = ("bullet", "blitz", "rapid", "custom")
+
+WINDOW_SHORTCUTS = {
+    "win.quit": ["<Ctrl>q"],
+    "win.new-game": ["<Ctrl>n"],
+    "win.load-game": ["<Ctrl>l"],
+    "win.save-game": ["<Ctrl>s"],
+    "win.configuration": ["<Ctrl>comma"],
+    "win.info": ["<Ctrl>i"],
+    "win.help": ["F1"],
+    "win.undo": ["<Ctrl>u"],
+    "win.redo": ["<Ctrl>r"],
+    "win.pause": ["<Ctrl>p"],
+    "win.hint": ["<Ctrl>h"],
+}
 
 MODE_HINTS = {
     "hvh": "Two human players on the same board.",
@@ -548,7 +567,7 @@ def _move_from_network_text(board: Board, text: str) -> Move | None:
     try:
         from_square = Board.algebraic_to_square(parts[0])
         to_square = Board.algebraic_to_square(parts[1])
-    except Exception:
+    except InvalidSquareError:
         return None
 
     piece_info = board.get_piece_at(from_square)
@@ -658,6 +677,33 @@ def _can_interact_with_board(
     if network_player_color is not None and state.current_color != network_player_color:
         return False
     return True
+
+
+def _should_flip_board(network_player_color: str | None) -> bool:
+    """Show black at the bottom only for the online black player."""
+
+    return network_player_color == BLACK
+
+
+def _display_side_order(
+    network_player_color: str | None,
+) -> tuple[str, str]:
+    """Return which side colors are shown at the top and bottom."""
+
+    if _should_flip_board(network_player_color):
+        return WHITE, BLACK
+    return BLACK, WHITE
+
+
+def _captured_piece_colors_for_display(
+    network_player_color: str | None,
+) -> tuple[str, str]:
+    """Return captured-piece colors shown above and below the board."""
+
+    top_side, bottom_side = _display_side_order(network_player_color)
+    top_captured_color = WHITE if top_side == BLACK else BLACK
+    bottom_captured_color = WHITE if bottom_side == BLACK else BLACK
+    return top_captured_color, bottom_captured_color
 
 
 def _sort_captured_piece_types(piece_types: list[str]) -> list[str]:
@@ -1575,17 +1621,48 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             return
 
         captured = _captured_pieces_for_display(self._state)
+        top_color, bottom_color = _captured_piece_colors_for_display(
+            self._network_my_color
+        )
         for captured_color, strip in (
-            (WHITE, self._black_capture_strip),
-            (BLACK, self._white_capture_strip),
+            (top_color, self._black_capture_strip),
+            (bottom_color, self._white_capture_strip),
         ):
             self._clear_box_children(strip)
             for piece in captured[captured_color]:
                 strip.append(self._make_captured_piece_widget(piece, captured_color))
 
+    def _sync_clock_card_order(self) -> None:
+        """Keep top and bottom clocks aligned with the board orientation."""
+
+        clock_box = getattr(self, "_clock_cards_box", None)
+        black_card = getattr(self, "_black_clock_card", None)
+        white_card = getattr(self, "_white_clock_card", None)
+        if clock_box is None or black_card is None or white_card is None:
+            return
+
+        cards = {
+            BLACK: black_card,
+            WHITE: white_card,
+        }
+        top_color, bottom_color = _display_side_order(self._network_my_color)
+
+        for card in (black_card, white_card):
+            try:
+                clock_box.remove(card)
+            except Exception:
+                pass
+
+        clock_box.append(cards[top_color])
+        clock_box.append(cards[bottom_color])
+
     def _refresh_game_view(self) -> None:
         """Refresh board-adjacent widgets after any state change."""
+        ShatranjWindow._sync_clock_card_order(self)
         if self._state is not None:
+            self._board_widget.set_flipped(
+                _should_flip_board(self._network_my_color)
+            )
             self._board_widget.set_board(
                 self._state.board,
                 self._state.current_color,
@@ -1697,13 +1774,19 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         self._time_control_label.add_css_class("time-control-pill")
         clock_panel.append(self._time_control_label)
 
+        self._clock_cards_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=10,
+        )
+        clock_panel.append(self._clock_cards_box)
+
         (
             self._black_clock_card,
             self._black_clock_side_label,
             self._black_timer_label,
             self._black_timer_status_label,
         ) = self._create_clock_card("Black", "clock-card-black")
-        clock_panel.append(self._black_clock_card)
+        self._clock_cards_box.append(self._black_clock_card)
 
         (
             self._white_clock_card,
@@ -1711,7 +1794,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._white_timer_label,
             self._white_timer_status_label,
         ) = self._create_clock_card("White", "clock-card-white")
-        clock_panel.append(self._white_clock_card)
+        self._clock_cards_box.append(self._white_clock_card)
+        self._sync_clock_card_order()
 
         # "Move History" label aligned to the left
 
@@ -2221,6 +2305,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         file_menu.append("Save Game", "win.save-game")
 
+        file_menu.append("Configuration", "win.configuration")
+
         file_menu.append("Info", "win.info")
 
         file_menu.append("Quit", "win.quit")
@@ -2259,6 +2345,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             "new-game": self._on_new_game,
             "load-game": self._on_load_game,
             "save-game": self._on_save_game,
+            "configuration": self._on_configuration,
             "info": self._on_info,
             "undo": self._on_undo,
             "redo": self._on_redo,
@@ -2296,20 +2383,7 @@ class ShatranjWindow(Gtk.ApplicationWindow):
 
         app = self.get_application()
 
-        shortcuts = {
-            "win.quit": ["<Ctrl>q"],
-            "win.new-game": ["<Ctrl>n"],
-            "win.load-game": ["<Ctrl>l"],
-            "win.save-game": ["<Ctrl>s"],
-            "win.info": ["<Ctrl>i"],
-            "win.help": ["F1"],
-            "win.undo": ["<Ctrl>u"],
-            "win.redo": ["<Ctrl>r"],
-            "win.pause": ["<Ctrl>p"],
-            "win.hint": ["<Ctrl>h"],
-        }
-
-        for action, accels in shortcuts.items():
+        for action, accels in WINDOW_SHORTCUTS.items():
 
             app.set_accels_for_action(action, accels)
 
@@ -2556,9 +2630,6 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if self._is_network_connected():
                 self._close_network_connection()
             loaded = load_game_file(path)
-            import sys
-
-            print(f"DEBUG ai_players={loaded.ai_players}", file=sys.stderr)
             self._state = loaded.state
             self._saved = True
             self._ai_players = loaded.ai_players
@@ -2679,23 +2750,31 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.connect("response", lambda dlg, *_args: dlg.destroy())
         dialog.present()
         return
-        dialog.set_transient_for(self)
-        dialog.set_modal(True)
-        dialog.set_program_name("Shatranj")
-        dialog.set_version("0.4.0")
-        dialog.set_comments(
-            _(
+        """
                 "Indian Chess — a faithful implementation of"
                 "the ancient game of Shatranj."
             )
         )
-        dialog.set_license_type(Gtk.License.UNKNOWN)
-        dialog.set_website("https://www.u-bordeaux.fr")
         dialog.set_website_label(_("Université de Bordeaux"))
         dialog.set_copyright(
             "© 2025–2026 Master Informatique" " — Université de Bordeaux"
         )
-        dialog.present()
+
+        """
+
+    def _on_configuration(self, *_args) -> None:
+        """Show the active GUI configuration and keyboard shortcuts."""
+        shortcut_lines = []
+        for action, accels in WINDOW_SHORTCUTS.items():
+            label = action.replace("win.", "").replace("-", " ")
+            shortcut_lines.append(f"  {label:<14} {' / '.join(accels)}")
+
+        detail = (
+            _("Current mode: {mode}\n").format(mode=self._time_control_name)
+            + _("Keyboard shortcuts:\n")
+            + "\n".join(shortcut_lines)
+        )
+        self._show_alert(_("Configuration"), detail)
 
     def _on_undo(self, *_args) -> None:
         if self._is_network_game_active():
@@ -2796,8 +2875,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             "  Ctrl+N  New game    Ctrl+U  Undo\n"
             "  Ctrl+S  Save        Ctrl+R  Redo\n"
             "  Ctrl+L  Load        Ctrl+H  Hint\n"
+            "  Ctrl+,  Config      Ctrl+I  Info\n"
             "  Ctrl+P  Pause       Ctrl+Q  Quit\n"
-            "  Ctrl+I  Info        F1      Help"
+            "  F1      Help"
         )
         dialog = Gtk.AlertDialog()
         dialog.set_message(_("Shatranj — Help"))

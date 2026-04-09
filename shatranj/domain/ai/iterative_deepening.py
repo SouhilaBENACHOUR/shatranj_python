@@ -83,28 +83,9 @@ class IterativeDeepening:
             if move is not None:
                 best_move = move  # update best move
 
-            # log progress
-            elapsed = time.time() - start_time
-            print(
-                f"  depth={current_depth} "
-                f"best={self._format_move(move)} "
-                f"time={elapsed:.3f}s"
-            )
-
             # check time limit after finishing a depth
             if self._time_limit is not None:
                 if time.time() - start_time >= self._time_limit:
                     break
 
         return best_move
-
-    def _format_move(self, move: Move | None) -> str:
-        """Format a move for display."""
-        if move is None:
-            return "none"
-        from shatranj.domain.core.board import Board
-
-        from_alg = Board.square_to_algebraic(move.from_square)
-        to_alg = Board.square_to_algebraic(move.to_square)
-        sep = "x" if move.captured_piece else "-"
-        return f"{from_alg}{sep}{to_alg}"

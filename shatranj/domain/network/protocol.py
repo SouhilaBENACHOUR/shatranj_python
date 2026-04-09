@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 # ============================================================================
 # UDP Discovery Protocol (Port 12346)
@@ -35,6 +34,7 @@ class Command:
     CANCEL = "CANCEL"
     AWAY = "AWAY"
     BACK = "BACK"
+    SCOREBOARD = "SCOREBOARD"
 
 
 class Response:
@@ -64,6 +64,7 @@ class Response:
     INVITE_RECV = "INVITE_RECV"
     INVITE_ACCEPTED = "INVITE_ACCEPTED"
     INVITE_DECLINED = "INVITE_DECLINED"
+    SCOREBOARD = "SCOREBOARD"
 
 
 class InvalidReason:

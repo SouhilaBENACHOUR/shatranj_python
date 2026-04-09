@@ -20,10 +20,12 @@ import os
 from unittest.mock import patch, MagicMock
 from shatranj.domain.core.move import Move
 from io import StringIO
+from types import SimpleNamespace
+from shatranj.domain.core.board import Board
 from shatranj.presentation.cli.cli import CLI
 from shatranj.presentation.cli.game_state import GameState
 from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN, FERZ
-from shatranj.utils.exceptions import InvalidSquareError
+from shatranj.utils.exceptions import InvalidSquareError, SaveError
 
 
 class TestGameState:
@@ -1578,3 +1580,383 @@ class TestDoPauseEdgeCases:
         self.cli._do_pause([])
         out = capsys.readouterr().out
         assert "only available in blitz mode" in out
+
+
+class TestNetworkShellCommands:
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_decline_with_connection_calls_client(self, capsys):
+        self.cli._network_client = MagicMock()
+
+        self.cli._do_decline([])
+
+        self.cli._network_client.decline_invite.assert_called_once()
+        assert "Invitation declined." in capsys.readouterr().out
+
+    def test_decline_without_connection_prints_message(self, capsys):
+        self.cli._network_client = None
+
+        self.cli._do_decline([])
+
+        assert "No active network connection." in capsys.readouterr().out
+
+    def test_cancel_with_connection_sends_cancel(self, capsys):
+        self.cli._network_client = MagicMock()
+
+        self.cli._do_cancel([])
+
+        self.cli._network_client.cancel_invite.assert_called_once()
+        assert "Invitation canceled." in capsys.readouterr().out
+
+    def test_away_and_back_send_status_messages(self, capsys):
+        self.cli._network_client = MagicMock()
+
+        self.cli._do_away([])
+        self.cli._do_back([])
+
+        self.cli._network_client.set_away.assert_called_once()
+        self.cli._network_client.set_back.assert_called_once()
+        out = capsys.readouterr().out
+        assert "Status set to AWAY." in out
+        assert "Status set to BACK (idle)." in out
+
+    def test_ping_players_and_accept_use_network_client(self, capsys):
+        self.cli._network_client = MagicMock()
+
+        self.cli._do_ping([])
+        self.cli._do_players([])
+        self.cli._do_accept([])
+
+        self.cli._network_client.ping.assert_called_once()
+        self.cli._network_client.get_players.assert_called_once()
+        self.cli._network_client.accept_invite.assert_called_once()
+        assert "Accepting invitation..." in capsys.readouterr().out
+
+    def test_ping_and_accept_without_connection_report_errors(self):
+        stderr = StringIO()
+        self.cli._network_client = None
+
+        with patch("sys.stderr", stderr):
+            self.cli._do_ping([])
+            self.cli._do_accept([])
+
+        assert "Not connected to a server." in stderr.getvalue()
+
+    def test_players_without_connection_prints_message(self, capsys):
+        self.cli._network_client = None
+
+        self.cli._do_players([])
+
+        assert "Not connected to a server." in capsys.readouterr().out
+
+    def test_server_list_prints_discovered_servers(self, capsys):
+        servers = [
+            SimpleNamespace(name="Alpha", ip="127.0.0.1", port=12345),
+            SimpleNamespace(name="Beta", ip="10.0.0.2", port=23456),
+        ]
+
+        with patch("shatranj.presentation.cli.cli.DiscoveryClient") as MockDiscovery:
+            MockDiscovery.return_value.scan.return_value = servers
+            self.cli._do_server_list()
+
+        out = capsys.readouterr().out
+        assert "Alpha at 127.0.0.1:12345" in out
+        assert "Beta at 10.0.0.2:23456" in out
+
+    def test_server_list_without_servers_prints_notice(self, capsys):
+        with patch("shatranj.presentation.cli.cli.DiscoveryClient") as MockDiscovery:
+            MockDiscovery.return_value.scan.return_value = []
+            self.cli._do_server_list()
+
+        assert "No servers found." in capsys.readouterr().out
+
+    def test_server_start_stop_and_status_manage_local_server(self, capsys):
+        with (
+            patch("shatranj.presentation.cli.cli.GameServer") as MockServer,
+            patch("shatranj.presentation.cli.cli.DiscoveryServer") as MockDiscovery,
+        ):
+            MockServer.return_value.running = True
+            MockServer.return_value.get_status.return_value = {
+                "name": "ShatranjServer",
+                "port": 12345,
+                "running": True,
+                "players": 2,
+                "sessions": 1,
+                "pending_invitations": 0,
+            }
+
+            self.cli._do_server_start([])
+            self.cli._do_server_status()
+            self.cli._do_server_stop()
+
+        out = capsys.readouterr().out
+        assert "Local server started" in out
+        assert "Connected players: 2" in out
+        assert "Local server stopped." in out
+        MockServer.return_value.start.assert_called_once()
+        MockServer.return_value.stop.assert_called_once()
+        MockDiscovery.return_value.start.assert_called_once()
+        MockDiscovery.return_value.stop.assert_called_once()
+
+    def test_join_success_starts_refresh_thread(self, capsys):
+        thread = MagicMock()
+
+        with (
+            patch("builtins.input", return_value="Alice"),
+            patch("shatranj.presentation.cli.cli.GameClient") as MockClient,
+            patch("threading.Thread", return_value=thread) as MockThread,
+        ):
+            MockClient.return_value.start_connection.return_value = True
+            self.cli._do_join(["example.com:12345"])
+
+        MockClient.assert_called_once_with("example.com:12345", callback=self.cli._on_message)
+        MockClient.return_value.start_connection.assert_called_once_with(player_name="Alice")
+        MockThread.assert_called_once_with(
+            target=self.cli._auto_refresh_players,
+            daemon=True,
+        )
+        thread.start.assert_called_once()
+        assert "Connected! Waiting for server..." in capsys.readouterr().out
+
+    def test_join_failed_connection_reports_error(self):
+        stderr = StringIO()
+
+        with (
+            patch("builtins.input", return_value="Alice"),
+            patch("shatranj.presentation.cli.cli.GameClient") as MockClient,
+            patch("sys.stderr", stderr),
+        ):
+            MockClient.return_value.start_connection.return_value = False
+            self.cli._do_join(["localhost:12345"])
+
+        assert "Connection failed." in stderr.getvalue()
+
+    def test_join_handles_oserror(self):
+        stderr = StringIO()
+
+        with (
+            patch("builtins.input", return_value="Alice"),
+            patch("shatranj.presentation.cli.cli.GameClient", side_effect=OSError("boom")),
+            patch("sys.stderr", stderr),
+        ):
+            self.cli._do_join(["localhost:12345"])
+
+        assert "boom" in stderr.getvalue()
+
+
+class TestCliUtilityOutputs:
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_show_time_without_game_reports_error(self):
+        self.cli.enable_blitz(3)
+        self.cli._state = None
+        stderr = StringIO()
+
+        with patch("sys.stderr", stderr):
+            self.cli._do_show_time()
+
+        assert "No game in progress." in stderr.getvalue()
+
+    def test_pause_with_blitz_but_without_game_reports_error(self):
+        self.cli.enable_blitz(3)
+        self.cli._state = None
+        stderr = StringIO()
+
+        with patch("sys.stderr", stderr):
+            self.cli._do_pause([])
+
+        assert "No game in progress." in stderr.getvalue()
+
+    def test_scoreboard_without_server_reports_unavailable(self, capsys):
+        self.cli._do_scoreboard([])
+        assert "No multiplayer server is available." in capsys.readouterr().out
+
+    def test_scoreboard_uses_network_client_when_connected(self):
+        self.cli._network_client = MagicMock()
+
+        self.cli._do_scoreboard([])
+
+        self.cli._network_client.get_scoreboard.assert_called_once()
+
+    def test_error_and_debug_print_write_to_stderr(self):
+        stderr = StringIO()
+        self.cli._debug = True
+
+        with patch("sys.stderr", stderr):
+            self.cli._error("problem")
+            self.cli._debug_print("details")
+
+        text = stderr.getvalue()
+        assert "Error: problem" in text
+        assert "[DEBUG] details" in text
+
+    def test_debug_print_is_silent_when_debug_disabled(self):
+        stderr = StringIO()
+        self.cli._debug = False
+
+        with patch("sys.stderr", stderr):
+            self.cli._debug_print("details")
+
+        assert stderr.getvalue() == ""
+
+    def test_quit_connected_network_sends_quit_and_disconnect(self, capsys):
+        self.cli._network_client = MagicMock()
+        self.cli._network_client.connected = True
+        self.cli._running = True
+
+        with patch("time.sleep") as mock_sleep:
+            self.cli._do_quit([])
+
+        self.cli._network_client.send.assert_called_once()
+        self.cli._network_client.disconnect.assert_called_once()
+        mock_sleep.assert_called_once_with(1.0)
+        assert self.cli._running is False
+        assert "Goodbye!" in capsys.readouterr().out
+
+    def test_save_to_file_success_returns_true(self, capsys):
+        self.cli._state = GameState()
+
+        with patch("shatranj.presentation.cli.cli.save_game_file") as mock_save:
+            result = self.cli._save_to_file("game.shj")
+
+        assert result is True
+        mock_save.assert_called_once()
+        assert "Game saved to 'game.shj'." in capsys.readouterr().out
+
+    def test_save_to_file_error_returns_false_and_reports_error(self):
+        self.cli._state = GameState()
+        stderr = StringIO()
+
+        with (
+            patch("shatranj.presentation.cli.cli.save_game_file", side_effect=SaveError("disk full")),
+            patch("sys.stderr", stderr),
+        ):
+            result = self.cli._save_to_file("game.shj")
+
+        assert result is False
+        assert "disk full" in stderr.getvalue()
+
+    def test_do_save_marks_state_saved_after_success(self):
+        self.cli._state = GameState()
+        self.cli._saved = False
+
+        with patch.object(self.cli, "_save_to_file", return_value=True) as mock_save:
+            self.cli._do_save(["game.shj"])
+
+        mock_save.assert_called_once_with("game.shj")
+        assert self.cli._saved is True
+
+    def test_symbol_to_piece_maps_known_and_unknown_symbols(self):
+        assert self.cli._symbol_to_piece("R") == (ROOK, WHITE)
+        assert self.cli._symbol_to_piece("?") == (PAWN, BLACK)
+
+
+class TestOnMessageNetworkFlow:
+    def setup_method(self):
+        self.cli = CLI()
+
+    def test_game_start_message_initializes_state_and_blitz(self):
+        fen = Board().to_fen()
+        msg = SimpleNamespace(
+            command="GAME_START",
+            args=[f"board={fen}", "black=You", "blitz=5"],
+        )
+
+        with patch.object(self.cli, "_do_show_board") as mock_show_board:
+            self.cli._on_message(msg)
+
+        assert self.cli._state is not None
+        assert self.cli._my_color == "BLACK"
+        assert self.cli._blitz_enabled is True
+        assert self.cli._blitz_minutes == 5
+        assert self.cli._state.board.get_piece_at(0) == (ROOK, WHITE)
+        mock_show_board.assert_called_once()
+
+    def test_game_start_invalid_blitz_value_uses_default(self):
+        fen = Board().to_fen()
+        msg = SimpleNamespace(
+            command="GAME_START",
+            args=[f"board={fen}", "white=You", "blitz=abc"],
+        )
+
+        with patch.object(self.cli, "_do_show_board"):
+            self.cli._on_message(msg)
+
+        assert self.cli._blitz_enabled is True
+        assert self.cli._blitz_minutes == 30
+        assert self.cli._my_color == "WHITE"
+
+    def test_move_message_applies_move_and_marks_game_unsaved(self, capsys):
+        self.cli._state = GameState()
+        self.cli._saved = True
+        msg = SimpleNamespace(command="OPPONENT_MOVE", args=["e2-e3"])
+
+        with (
+            patch.object(self.cli, "_finish_active_turn", return_value=True),
+            patch.object(self.cli, "_start_turn_timer") as mock_start_timer,
+            patch("shatranj.presentation.cli.cli.print_board") as mock_print_board,
+        ):
+            self.cli._on_message(msg)
+
+        assert self.cli._saved is False
+        assert self.cli._state.board.get_piece_at(20) == (PAWN, WHITE)
+        assert self.cli._state.board.get_piece_at(12) is None
+        mock_start_timer.assert_called_once()
+        mock_print_board.assert_called_once()
+        assert "L'adversaire a joué : e2-e3" in capsys.readouterr().out
+
+    def test_move_message_stops_when_active_turn_cannot_finish(self):
+        self.cli._state = GameState()
+        msg = SimpleNamespace(command="MOVE", args=["e2-e3"])
+
+        with (
+            patch.object(self.cli, "_finish_active_turn", return_value=False) as mock_finish,
+            patch.object(self.cli, "_start_turn_timer") as mock_start_timer,
+        ):
+            self.cli._on_message(msg)
+
+        mock_finish.assert_called_once()
+        mock_start_timer.assert_not_called()
+        assert self.cli._state.board.get_piece_at(12) == (PAWN, WHITE)
+
+    def test_invite_and_decline_messages_are_printed(self, capsys):
+        self.cli._on_message(SimpleNamespace(command="INVITE_RECV", args=["Alice"]))
+        self.cli._on_message(SimpleNamespace(command="INVITE_DECLINED", args=[]))
+
+        out = capsys.readouterr().out
+        assert "INVITATION REÇUE de : Alice" in out
+        assert "refusé l'invitation" in out
+
+    def test_invitation_sent_and_players_messages_are_printed(self, capsys):
+        self.cli._on_message(SimpleNamespace(command="INVITATION_SENT", args=[]))
+        self.cli._on_message(
+            SimpleNamespace(command="PLAYERS_LIST", args=["p1:Alice:idle", "p2:Bob:away"])
+        )
+
+        out = capsys.readouterr().out
+        assert "Invitation envoyée" in out
+        assert "JOUEURS EN LIGNE" in out
+        assert "p1:Alice:idle" in out
+        assert "p2:Bob:away" in out
+
+    def test_error_message_with_active_game_undoes_and_clears_state(self):
+        self.cli._state = GameState()
+        self.cli._state.apply_move(Move(12, 20, PAWN, WHITE))
+
+        with patch("shatranj.presentation.cli.cli.print_board") as mock_print_board:
+            self.cli._on_message(
+                SimpleNamespace(command="ERROR", args=["Opponent quit the game"])
+            )
+
+        assert self.cli._state is None
+        mock_print_board.assert_called_once()
+
+    def test_generic_error_message_keeps_state(self, capsys):
+        self.cli._state = GameState()
+
+        self.cli._on_message(SimpleNamespace(command="ERROR", args=["Minor issue"]))
+
+        assert self.cli._state is not None
+        assert "SERVEUR: Minor issue" in capsys.readouterr().out

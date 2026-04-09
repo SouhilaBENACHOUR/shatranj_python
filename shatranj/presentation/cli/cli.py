@@ -32,7 +32,9 @@ from shatranj.persistence import (
 from shatranj.domain.rules.rules_engine import RulesEngine
 from shatranj.domain.network.game_client import GameClient
 from shatranj.domain.network.discovery_client import DiscoveryClient
+from shatranj.domain.network.discovery_server import DiscoveryServer
 from shatranj.domain.network.game_server import GameServer
+from shatranj.domain.network.protocol import Command, GAME_PORT_DEFAULT, Message
 from shatranj.utils.constants import (
     WHITE,
     BLACK,
@@ -65,6 +67,7 @@ PROMPT = ">> "  # Prompt displayed to the user (F14)
 AUTO_PLAY_MAX_PLIES = 400  # Safety limit to avoid infinite AI loops
 THREEFOLD_REPETITION_COUNT = 3
 FIFTY_MOVE_RULE_PLIES = 100  # 50 full moves = 100 half-moves (plies)
+LOCAL_SERVER_NAME = "ShatranjServer"
 
 # List of all recognized commands (for Tab completion, F18)
 COMMANDS = [
@@ -131,6 +134,9 @@ class CLI:
         self._verbose = verbose
         self._ai_players: dict[str, AIPlayer] = {}
         self._debug = debug
+        self._network_client: GameClient | None = None
+        self._local_server: GameServer | None = None
+        self._local_discovery: DiscoveryServer | None = None
 
         self._blitz_enabled = blitz
         self._blitz_minutes = max(1, blitz_time_minutes)
@@ -181,7 +187,7 @@ class CLI:
 
     def _do_decline(self, args: list[str]) -> None:
         """F40: Decline an incoming game invitation."""
-        if hasattr(self, "_network_client") and self._network_client:
+        if self._network_client and self._network_client.is_connected():
             self._network_client.decline_invite()
             print(_("Invitation declined."))
         else:
@@ -189,24 +195,24 @@ class CLI:
 
     def _do_cancel(self, args: list[str]) -> None:
         """F40: Cancel a sent invitation that is still pending."""
-        if hasattr(self, "_network_client") and self._network_client:
-            self._network_client.send("CANCEL")
+        if self._network_client and self._network_client.is_connected():
+            self._network_client.cancel_invite()
             print(_("Invitation canceled."))
         else:
             print(_("No active network connection."))
 
     def _do_away(self, args: list[str]) -> None:
         """F40: Change status to 'away' to block invitations."""
-        if hasattr(self, "_network_client") and self._network_client:
-            self._network_client.send("AWAY")
+        if self._network_client and self._network_client.is_connected():
+            self._network_client.set_away()
             print(_("Status set to AWAY."))
         else:
             print(_("No active network connection."))
 
     def _do_back(self, args: list[str]) -> None:
         """F40: Return to 'idle' status from 'away'."""
-        if hasattr(self, "_network_client") and self._network_client:
-            self._network_client.send("BACK")
+        if self._network_client and self._network_client.is_connected():
+            self._network_client.set_back()
             print(_("Status set to BACK (idle)."))
         else:
             print(_("No active network connection."))
@@ -519,21 +525,19 @@ class CLI:
         if move is None:
             return
 
-        # 2. Vérifier la couleur
+        # 2. Check the side to move
         if move.color != self._state.current_color:
             self._error(f"It's {self._state.current_color}'s turn, not {move.color}'s.")
             return
 
-        # 3. Sécurité réseau : tour du joueur
-        if (
-            hasattr(self, "_network_client")
-            and self._network_client
-            and self._network_client.connected
-        ):
+        # 3. Network safety: only allow the local player to move their side
+        if self._network_client and self._network_client.connected:
             if hasattr(self, "_my_color") and self._my_color:
                 if self._state.current_color != self._my_color:
                     self._error(
-                        f"Patience ! C'est au tour de {self._state.current_color} de jouer."
+                        _(
+                            "Please wait. It is {color}'s turn to move."
+                        ).format(color=self._state.current_color)
                     )
                     return
 
@@ -573,8 +577,6 @@ class CLI:
             print(f"[verbose] {move.piece_type} " f"{from_alg} -> {to_alg}{captured}")
             print(f"[verbose] history length: " f"{len(self._state.get_history())}")
 
-        print(f"Vous avez joué : {self._format_move_with_piece(move)}")
-
         print_board(self._state.board)
         print(_("It's now {color}'s turn.").format(color=self._state.current_color))
         if self._check_game_over():
@@ -606,7 +608,7 @@ class CLI:
                     self._blitz_enabled = True
                     try:
                         self._blitz_minutes = int(arg.split("=")[1])
-                    except:
+                    except ValueError:
                         self._blitz_minutes = 30
 
             if board_data:
@@ -627,15 +629,19 @@ class CLI:
                 self._start_turn_timer()
 
             print("\n" + "=" * 30)
-            print(" LE MATCH COMMENCE ! ")
+            print(_(" Match started! "))
 
             if self._blitz_enabled:
-                print(f" (MODE BLITZ : {self._blitz_minutes} minutes)")
+                print(
+                    _(" (BLITZ MODE: {minutes} minutes)").format(
+                        minutes=self._blitz_minutes
+                    )
+                )
 
             if self._my_color:
-                print(f" >>> VOUS JOUEZ LES {self._my_color}S <<<")
+                print(_(" >>> YOU PLAY {color} <<<").format(color=self._my_color))
                 if self._my_color == "BLACK":
-                    print(" (Les Blancs commencent. Veuillez patienter...)")
+                    print(_(" (White moves first. Please wait...)"))
             print("=" * 30)
 
             self._do_show_board()
@@ -657,10 +663,15 @@ class CLI:
 
                     self._start_turn_timer()
 
-                    print(f"\n[+] L'adversaire a joué : {move_text}")
+                    print(
+                        _("\n[+] Opponent played: {move}").format(move=move_text)
+                    )
+                    print(f"[+] L'adversaire a joué : {move_text}")
                     print_board(self._state.board)
                     print(
-                        f"\nC'est maintenant au tour des {self._state.current_color}s."
+                        _("\nIt's now {color}'s turn.").format(
+                            color=self._state.current_color
+                        )
                     )
 
                     print(f"\n{PROMPT}", end="", flush=True)
@@ -668,32 +679,67 @@ class CLI:
 
         # --- F40 : RÉCEPTION D'INVITATION ---
         if "INVITE_RECV" in cmd or "INVITATION_RECEIVED" in cmd:
-            from_user = args[0] if args else "Inconnu"
-            print(f"\n[!] INVITATION REÇUE de : {from_user}")
+            from_user = args[0].split("=", 1)[-1] if args else _("Unknown")
+            print(_("\n[!] Invitation received from: {player}").format(player=from_user))
+            print(f"[!] INVITATION REÇUE de : {from_user}")
             print(_("Type 'accept' to play or 'decline' to refuse."))
             print(f"\n{PROMPT}", end="", flush=True)
             return
 
         if "INVITATION_SENT" in cmd:
-            print("\n[+] Invitation envoyée ! En attente de l'adversaire...")
+            print(_("\n[+] Invitation sent. Waiting for the opponent..."))
+            print("[+] Invitation envoyée ! En attente de l'adversaire...")
             print(f"\n{PROMPT}", end="", flush=True)
             return
 
         if "DECLINED" in cmd or "INVITE_DECLINED" in cmd:
-            print("\n[!] L'adversaire a refusé l'invitation.")
+            print(_("\n[!] The opponent declined the invitation."))
+            print("[!] L'adversaire a refusé l'invitation.")
             print(f"\n{PROMPT}", end="", flush=True)
             return
 
         if "PLAYERS" in cmd:
-            print("\n--- JOUEURS EN LIGNE ---")
+            print(_("\n--- ONLINE PLAYERS ---"))
+            print("--- JOUEURS EN LIGNE ---")
             for p in args:
                 print(f" -> {p}")
             print("----------------------")
             print(f"\n{PROMPT}", end="", flush=True)
             return
 
+        if "SCOREBOARD" in cmd:
+            print(_("\n--- SCOREBOARD ---"))
+            if not args:
+                print(_("No scoreboard data available."))
+            for row in args:
+                try:
+                    name, wins, losses, games, status = row.split(":", 4)
+                except ValueError:
+                    print(f" - {row}")
+                    continue
+                print(
+                    _(
+                        " - {name}: {wins} win(s), {losses} loss(es), "
+                        "{games} game(s), status={status}"
+                    ).format(
+                        name=name,
+                        wins=wins,
+                        losses=losses,
+                        games=games,
+                        status=status,
+                    )
+                )
+            print(f"\n{PROMPT}", end="", flush=True)
+            return
+
+        if "PONG" in cmd:
+            latency = args[0] if args else _("unknown latency")
+            print(_("\nPong received: {latency}").format(latency=latency))
+            print(f"\n{PROMPT}", end="", flush=True)
+            return
+
         if "ERROR" in cmd:
-            msg_text = args[0] if args else "Erreur réseau."
+            msg_text = args[0] if args else _("Network error.")
             if any(
                 word in msg_text.lower()
                 for word in ["quitt", "quit", "left", "aucune", "fantôme"]
@@ -701,12 +747,12 @@ class CLI:
                 if self._state is not None:
                     self._state.undo()
                     print_board(self._state.board)
-                    print(f"\n[!] SERVEUR: {msg_text}")
+                    print(f"\n[!] SERVER: {msg_text} / SERVEUR: {msg_text}")
                 else:
-                    print(f"\n[!] SERVEUR: {msg_text}")
+                    print(f"\n[!] SERVER: {msg_text} / SERVEUR: {msg_text}")
                 self._state = None
             else:
-                print(f"\n[!] SERVEUR: {msg_text}")
+                print(f"\n[!] SERVER: {msg_text} / SERVEUR: {msg_text}")
             print(f"\n{PROMPT}", end="", flush=True)
             return
 
@@ -739,7 +785,6 @@ class CLI:
 
             current = self._state.current_color
 
-            # We keep your mate's debug print here!
             if hasattr(self, "_debug_print"):
                 self._debug_print(f"checking game over for {current}")
 
@@ -779,8 +824,74 @@ class CLI:
             return False  # Game continues
 
         except AttributeError:
-            # THE SAFETY NET: If the internet deletes the game while we are checking it, just stop safely!
             return True
+
+    def _is_local_server_running(self) -> bool:
+        """Return True when a local multiplayer server is active."""
+        return bool(self._local_server and self._local_server.running)
+
+    def _stop_local_server(self) -> None:
+        """Stop the local discovery and game servers if they are running."""
+        if self._local_server is not None:
+            self._local_server.stop()
+            self._local_server = None
+        if self._local_discovery is not None:
+            self._local_discovery.stop()
+            self._local_discovery = None
+
+    def _do_server_start(self, args: list[str]) -> None:
+        """Start a local multiplayer server in the background."""
+        if self._is_local_server_running():
+            print(_("Local server is already running."))
+            return
+
+        port = GAME_PORT_DEFAULT
+        if args:
+            try:
+                port = int(args[0])
+            except ValueError:
+                self._error(_("Invalid port: '{port}'.").format(port=args[0]))
+                return
+
+        self._local_discovery = DiscoveryServer(LOCAL_SERVER_NAME, port, "1.0")
+        self._local_server = GameServer(LOCAL_SERVER_NAME, port)
+        try:
+            self._local_server.start()
+            self._local_discovery.start()
+        except OSError as err:
+            self._stop_local_server()
+            self._error(str(err))
+            return
+        print(
+            _("Local server started on TCP {port} (discovery UDP 12346).").format(
+                port=port
+            )
+        )
+
+    def _do_server_stop(self) -> None:
+        """Stop the local multiplayer server if it is running."""
+        if not self._is_local_server_running():
+            print(_("No local server is currently running."))
+            return
+        self._stop_local_server()
+        print(_("Local server stopped."))
+
+    def _do_server_status(self) -> None:
+        """Display the current status of the local multiplayer server."""
+        if not self._is_local_server_running():
+            print(_("No local server is currently running."))
+            return
+
+        status = self._local_server.get_status()
+        print(_("Server name: {name}").format(name=status["name"]))
+        print(_("Port: {port}").format(port=status["port"]))
+        print(_("Connected players: {count}").format(count=status["players"]))
+        print(_("Active sessions: {count}").format(count=status["sessions"]))
+        print(
+            _("Pending invitations: {count}").format(
+                count=status["pending_invitations"]
+            )
+        )
 
     def _do_server_list(self) -> None:
         """F38: List servers found via UDP broadcast."""
@@ -792,16 +903,6 @@ class CLI:
             for s in servers:
                 print(f" - {s.name} at {s.ip}:{s.port}")
 
-    def _on_network_message(self, msg):
-        """Handles messages from the GameServer."""
-        if msg.command == "OPPONENT_MOVE":  # F39
-            move = self._parse_move(msg.args[0])
-            if move and self._state:
-                self._state.board.move_piece(move.from_square, move.to_square)
-                print(_("\nOpponent played: {move}").format(move=msg.args[0]))
-                print_board(self._state.board)
-                print(f"\nIt's now {self._state.current_color}'s turn.")
-
     def _do_join(self, args: list[str]) -> None:
         address = args[0] if args else "localhost:12345"
         name = input(_("Enter your name: "))
@@ -809,16 +910,14 @@ class CLI:
             self._network_client = GameClient(address, callback=self._on_message)
             if self._network_client.start_connection(player_name=name):
                 print(_("Connected! Waiting for server..."))
-
-                # ---> TURN ON THE BACKGROUND CLOCK <---
                 import threading
 
                 threading.Thread(target=self._auto_refresh_players, daemon=True).start()
 
             else:
                 self._error(_("Connection failed."))
-        except Exception as e:
-            self._error(str(e))
+        except (OSError, ValueError) as err:
+            self._error(str(err))
 
     def _auto_refresh_players(self):
         """Timer in the background that asks for the player list every minute."""
@@ -827,28 +926,30 @@ class CLI:
         # Keep looping as long as the game is running and we are connected
         while (
             self._running
-            and hasattr(self, "_network_client")
+            and self._network_client is not None
             and getattr(self._network_client, "connected", False)
         ):
             time.sleep(60)  # Wait 60 seconds
+            if self._network_client is not None:
+                self._network_client.get_players()
 
     def _do_ping(self, args: list[str]) -> None:
         """F38: Send PING to server."""
-        if hasattr(self, "_network_client") and self._network_client:
+        if self._network_client and self._network_client.is_connected():
             self._network_client.ping()
         else:
             self._error(_("Not connected to a server."))
 
     def _do_players(self, args: list[str]) -> None:
         """F39/F40: Request the list of connected players"""
-        if hasattr(self, "_network_client") and self._network_client:
+        if self._network_client and self._network_client.is_connected():
             self._network_client.get_players()
         else:
             print(_("Not connected to a server."))
 
     def _do_accept(self, args: list[str]) -> None:
         """F40: Accept an incoming game invitation."""
-        if hasattr(self, "_network_client") and self._network_client:
+        if self._network_client and self._network_client.is_connected():
             self._network_client.accept_invite()
             print(_("Accepting invitation..."))
         else:
@@ -997,8 +1098,7 @@ class CLI:
                 return
 
         if (
-            hasattr(self, "_network_client")
-            and self._network_client
+            self._network_client
             and self._network_client.connected
             and args
         ):
@@ -1011,7 +1111,11 @@ class CLI:
                     mins = args[2] if len(args) > 2 else "30"
                     blitz_arg = f" blitz={mins}"  # We attach this to the target ID!
 
-                print(_("Sending network invitation to {target_id}...").format(target_id=target_id))
+                print(
+                    _("Sending network invitation to {target_id}...").format(
+                        target_id=target_id
+                    )
+                )
 
                 # We sneak the blitz argument into the invite message!
                 self._network_client.invite_player(target_id + blitz_arg)
@@ -1027,9 +1131,64 @@ class CLI:
         self._reset_blitz_clock()
 
         if len(args) >= 1 and args[0].lower() == "ai-vs-ai":
-            self._ai_players[WHITE] = AIPlayer(color=WHITE, depth=2)
-            self._ai_players[BLACK] = AIPlayer(color=BLACK, depth=2)
-            print(_("New game started! AI plays WHITE and BLACK."))
+            algo = args[1].lower() if len(args) >= 2 else "alphabeta"
+
+            if algo not in ("minimax", "alphabeta", "mcts", "iterative"):
+                self._error(
+                    f"Unknown algorithm: '{algo}'."
+                    "Use minimax, alphabeta, mcts or iterative."
+                )
+                return
+
+            if len(args) >= 3:
+                try:
+                    depth = int(args[2])
+                    if depth < 1:
+                        self._error("Depth must be a positive integer.")
+                        return
+                except ValueError:
+                    self._error(
+                        f"Invalid depth: '{args[2]}'. Expected a positive integer."
+                    )
+                    return
+            else:
+                depth = self._default_ai_depth(algo)
+
+            scoring = args[3].lower() if len(args) >= 4 else "advanced"
+            if scoring not in ("material", "positional", "advanced"):
+                self._error(
+                    f"Unknown scoring: '{scoring}'. "
+                    "Use material, positional or advanced."
+                )
+                return
+
+            try:
+                time_limit, selection = self._parse_ai_extra_options(args[4:])
+            except ValueError:
+                return
+
+            self._ai_players[WHITE] = AIPlayer(
+                color=WHITE,
+                depth=depth,
+                algorithm=algo,
+                scoring=scoring,
+                time_limit=time_limit,
+                selection=selection,
+            )
+            self._ai_players[BLACK] = AIPlayer(
+                color=BLACK,
+                depth=depth,
+                algorithm=algo,
+                scoring=scoring,
+                time_limit=time_limit,
+                selection=selection,
+            )
+            print(
+                _(
+                    "New game started! AI plays WHITE and BLACK "
+                    "({algo}, depth={depth}, scoring={scoring})."
+                ).format(algo=algo, depth=depth, scoring=scoring)
+            )
 
         elif len(args) >= 2 and args[0].lower() == "ai":
             ai_color = args[1].upper()
@@ -1055,12 +1214,7 @@ class CLI:
                     )
                     return
             else:
-                if algo == "alphabeta":
-                    depth = 3
-                elif algo == "mcts":
-                    depth = 100
-                else:
-                    depth = 3
+                depth = self._default_ai_depth(algo)
 
             scoring = args[4].lower() if len(args) >= 5 else "advanced"
 
@@ -1071,12 +1225,19 @@ class CLI:
                 )
                 return
 
+            try:
+                time_limit, selection = self._parse_ai_extra_options(args[5:])
+            except ValueError:
+                return
+
             if ai_color == "BLACK":
                 self._ai_players[BLACK] = AIPlayer(
                     color=BLACK,
                     depth=depth,
                     algorithm=algo,
                     scoring=scoring,
+                    time_limit=time_limit,
+                    selection=selection,
                 )
                 print(
                     _(
@@ -1091,6 +1252,8 @@ class CLI:
                     depth=depth,
                     algorithm=algo,
                     scoring=scoring,
+                    time_limit=time_limit,
+                    selection=selection,
                 )
                 print(
                     _(
@@ -1178,31 +1341,16 @@ class CLI:
                 else:
                     print(_("No path given, quitting without saving."))
 
-        # ---> FIX: WAIT BEFORE UNPLUGGING <---
-        if (
-            hasattr(self, "_network_client")
-            and self._network_client
-            and self._network_client.connected
-        ):
-            try:
-                # 1. Package the official quit message
-                from shatranj.domain.network.protocol import Message, Command
-
-                self._network_client.send(Message.build(Command.QUIT))
-            except:
-                pass
-
-            # 2. Wait a full second so the computer actually sends it!
-            import time
-
+        if self._network_client and self._network_client.connected:
+            self._network_client.send(Message.build(Command.QUIT))
             time.sleep(1.0)
 
-            # 3. Pull the plug safely
             try:
                 self._network_client.disconnect()
-            except:
+            except OSError:
                 pass
 
+        self._stop_local_server()
         print("Goodbye!")
         self._running = False
 
@@ -1232,6 +1380,19 @@ Available commands:
   show time           Display remaining time (blitz mode)
   show configuration  Display current configuration
   set PARAM=VALUE     Change a configuration parameter
+  server list         Discover local multiplayer servers
+  server start [PORT] Start a local multiplayer server
+  server stop         Stop the local multiplayer server
+  server status       Show the local server status
+  join [HOST:PORT]    Connect to a multiplayer server
+  ping                Measure server latency
+  players             Show online players
+  scoreboard          Show the multiplayer scoreboard
+  accept              Accept the current invitation
+  decline             Decline the current invitation
+  cancel              Cancel your pending invitation
+  away                Mark yourself unavailable
+  back                Mark yourself available again
 
 To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 """)
@@ -1257,6 +1418,13 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             "redo": "redo [N]  -  Redo the last N undone moves (default 1).",
             "pause": "pause  -  Pause/resume the blitz timer.",
             "set": ("set PARAM=VALUE  -  Change a setting. E.g.:" " set debug=true"),
+            "server": (
+                "server [list|start|stop|status]  -  Manage the local "
+                "multiplayer server."
+            ),
+            "join": "join [HOST:PORT]  -  Connect to a multiplayer server.",
+            "players": "players  -  Request the list of online players.",
+            "scoreboard": "scoreboard  -  Show the multiplayer scoreboard.",
         }
         if cmd in help_texts:
             print(help_texts[cmd])
@@ -1471,6 +1639,47 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
             return f" (algorithm: {algo}, depth: {depth})"
         return f" (algorithm: {algo}, depth: {depth}, scoring: {scoring})"
 
+    def _default_ai_depth(self, algorithm: str) -> int:
+        """Return the default depth/simulation count for an AI algorithm."""
+        if algorithm == "mcts":
+            return 100
+        return 3
+
+    def _parse_ai_extra_options(
+        self,
+        tokens: list[str],
+    ) -> tuple[float | None, str]:
+        """Parse optional AI tokens such as time=5 or selection=uct."""
+        time_limit = None
+        selection = "uct"
+
+        for token in tokens:
+            key, sep, value = token.partition("=")
+            if sep != "=":
+                self._error(f"Invalid AI option: '{token}'")
+                raise ValueError(token)
+            key = key.lower()
+            value = value.strip()
+            if key == "time":
+                try:
+                    time_limit = float(value)
+                except ValueError as err:
+                    self._error(f"Invalid AI time limit: '{value}'")
+                    raise err
+                if time_limit <= 0:
+                    self._error("AI time limit must be greater than 0.")
+                    raise ValueError(value)
+            elif key == "selection":
+                selection = value.lower()
+                if selection not in ("uct", "ucb1"):
+                    self._error(f"Unknown MCTS selection: '{value}'")
+                    raise ValueError(value)
+            else:
+                self._error(f"Unknown AI option: '{key}'")
+                raise ValueError(key)
+
+        return time_limit, selection
+
     def _do_load(self, args: list[str]) -> None:
         """Load a game from a file."""
         if not args:
@@ -1509,7 +1718,26 @@ To play a move, type it in algebraic notation: e.g. e2-e4 or e2xe4
 
     def _do_scoreboard(self, args: list[str]) -> None:
         """F39: Show the win/loss records of players."""
-        print(_("Scoreboard feature not yet implemented!"))
+        if self._network_client and self._network_client.is_connected():
+            self._network_client.get_scoreboard()
+            return
+
+        if self._is_local_server_running():
+            rows = self._local_server.get_scoreboard()
+            print(_("--- SCOREBOARD ---"))
+            if not rows:
+                print(_("No scoreboard data available."))
+                return
+            for row in rows:
+                print(
+                    _(
+                        " - {name}: {wins} win(s), {losses} loss(es), "
+                        "{games} game(s), status={status}"
+                    ).format(**row)
+                )
+            return
+
+        print(_("No multiplayer server is available."))
 
     def _do_save(self, args: list[str]) -> None:
         """Save the current game to a file."""

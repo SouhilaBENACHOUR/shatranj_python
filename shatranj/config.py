@@ -46,7 +46,7 @@ DEFAULTS: dict[str, str] = {
 
 # Allowed values for restricted-choice keys
 VALID_VALUES: dict[str, set[str]] = {
-    "ai-mode": {"minimax", "alphabeta", "mcts"},
+    "ai-mode": {"minimax", "alphabeta", "mcts", "iterative"},
     "ai-scoring": {"material", "positional", "advanced"},
     "language": {"en", "fr"},
 }
@@ -157,12 +157,18 @@ class ShatranjConfig:
             if "--ai-mode" in sys.argv:
                 self._values["ai-mode"] = args.ai_mode.lower()
 
-        if getattr(args, "ai_depth", None) is not None:
-            self._values["ai-depth"] = str(args.ai_depth)
+        ai_depth = getattr(args, "ai_minimax_depth", None)
+        if ai_depth is None:
+            ai_depth = getattr(args, "ai_depth", None)
+        if ai_depth is not None:
+            self._values["ai-depth"] = str(ai_depth)
 
-        if getattr(args, "ai_scoring", None) is not None:
-            if "--ai-scoring" in sys.argv:
-                self._values["ai-scoring"] = args.ai_scoring.lower()
+        ai_scoring = getattr(args, "ai_minimax_scoring", None)
+        if ai_scoring is None:
+            ai_scoring = getattr(args, "ai_scoring", None)
+        if ai_scoring is not None:
+            if "--ai-scoring" in sys.argv or "--ai-minimax-scoring" in sys.argv:
+                self._values["ai-scoring"] = ai_scoring.lower()
 
     # ------------------------------------------------------------------
     # Private helpers

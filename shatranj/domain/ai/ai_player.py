@@ -28,10 +28,15 @@ class AIPlayer:
         depth: int = 3,
         algorithm: str = "alphabeta",
         scoring: str = "advanced",
+        *,
+        time_limit: float | None = None,
+        selection: str = "uct",
     ) -> None:
         self.color = color
         self.algorithm = algorithm
         self.scoring = scoring
+        self.time_limit = time_limit
+        self.selection = selection
         self._engine = RulesEngine()
         evaluator = Evaluator(mode=scoring)
 
@@ -51,7 +56,7 @@ class AIPlayer:
                 engine=self._engine,
                 evaluator=evaluator,
                 depth=depth,
-                time_limit=5.0,  # 5 secondes par coup par défaut
+                time_limit=5.0 if time_limit is None else time_limit,
             )
         else:
             # minimax default

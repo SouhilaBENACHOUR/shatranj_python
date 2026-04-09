@@ -70,10 +70,16 @@ class LoadedGame:
 def strip_save_comments(text: str) -> list[str]:
     """Return non-empty save-file lines without inline or block comments."""
 
+    return [line for _line_number, line in _strip_save_comments_with_numbers(text)]
+
+
+def _strip_save_comments_with_numbers(text: str) -> list[tuple[int, str]]:
+    """Return non-empty save-file lines together with their source line number."""
+
     result = []
     block_depth = 0
 
-    for raw_line in text.splitlines():
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
         chars = []
         i = 0
         while i < len(raw_line):
@@ -99,7 +105,7 @@ def strip_save_comments(text: str) -> list[str]:
 
         line = "".join(chars).strip()
         if line:
-            result.append(line)
+            result.append((line_number, line))
 
     return result
 
@@ -113,7 +119,8 @@ def load_game_file(path: str) -> LoadedGame:
     except OSError as err:
         raise LoadError(f"Could not open '{path}': {err}", path=path) from err
 
-    lines = strip_save_comments(raw)
+    line_entries = _strip_save_comments_with_numbers(raw)
+    lines = [line for _line_number, line in line_entries]
 
     try:
         idx_settings = lines.index("[settings]")
@@ -124,8 +131,8 @@ def load_game_file(path: str) -> LoadedGame:
 
     settings = _parse_settings(lines[idx_settings + 1 : idx_game])
     state = _parse_game_state(
-        game_lines=lines[idx_game + 1 : idx_history],
-        history_lines=lines[idx_history + 1 :],
+        game_lines=line_entries[idx_game + 1 : idx_history],
+        history_lines=line_entries[idx_history + 1 :],
         path=path,
     )
     return LoadedGame(
@@ -221,29 +228,39 @@ def _parse_settings(lines: list[str]) -> dict[str, str]:
 
 def _parse_game_state(
     *,
-    game_lines: list[str],
-    history_lines: list[str],
+    game_lines: list[tuple[int, str]],
+    history_lines: list[tuple[int, str]],
     path: str,
 ) -> GameState:
     if not game_lines:
         raise LoadError("Missing current player color.", path=path)
 
-    color_letter = game_lines[0].strip().upper()
+    color_line, color_value = game_lines[0]
+    color_letter = color_value.strip().upper()
     if color_letter not in ("W", "B"):
-        raise LoadError(f"Invalid player color: '{color_letter}'", path=path)
+        raise LoadError(
+            f"Invalid player color: '{color_letter}'",
+            path=path,
+            line=color_line,
+        )
     current_color = WHITE if color_letter == "W" else BLACK
 
     board_lines = game_lines[1:9]
     if len(board_lines) != 8:
-        raise LoadError("Invalid board format: expected 8 rows", path=path)
+        raise LoadError(
+            "Invalid board format: expected 8 rows",
+            path=path,
+            line=board_lines[-1][0] if board_lines else color_line,
+        )
 
     board = Board(setup=False)
-    for rank_idx, board_line in enumerate(board_lines, start=1):
+    for rank_idx, (line_number, board_line) in enumerate(board_lines, start=1):
         symbols = board_line.split()
         if len(symbols) != 8:
             raise LoadError(
                 f"Invalid board row {rank_idx}: '{board_line}'",
                 path=path,
+                line=line_number,
             )
 
         rank = 8 - rank_idx
@@ -254,6 +271,7 @@ def _parse_game_state(
                 raise LoadError(
                     f"Unknown piece symbol: '{symbol}' at row {rank_idx}",
                     path=path,
+                    line=line_number,
                 )
             piece_type, color = SYMBOL_TO_PIECE[symbol]
             board.place_piece(piece_type, color, rank * 8 + file_idx)
@@ -269,13 +287,13 @@ def _parse_game_state(
 
 
 def _parse_history(
-    history_lines: list[str],
+    history_lines: list[tuple[int, str]],
     board: Board,
     path: str,
 ) -> list[Move]:
     history = []
 
-    for line in history_lines:
+    for line_number, line in history_lines:
         tokens = line.split()
         i = 0
         while i + 1 < len(tokens):
@@ -287,14 +305,20 @@ def _parse_history(
                 raise LoadError(
                     f"Invalid move color in history: '{color_token}'",
                     path=path,
+                    line=line_number,
                 )
 
             color = WHITE if color_token == "W" else BLACK
-            move_part, captured = _parse_history_move_token(move_token, path)
+            move_part, captured = _parse_history_move_token(
+                move_token,
+                path,
+                line_number,
+            )
             if len(move_part) != 5 or move_part[2] not in ("-", "x"):
                 raise LoadError(
                     f"Invalid move in history: '{move_token}'",
                     path=path,
+                    line=line_number,
                 )
 
             try:
@@ -304,6 +328,7 @@ def _parse_history(
                 raise LoadError(
                     f"Invalid square in history: {err}",
                     path=path,
+                    line=line_number,
                 ) from err
 
             piece_info = board.get_piece_at(from_square)
@@ -324,6 +349,7 @@ def _parse_history(
 def _parse_history_move_token(
     move_token: str,
     path: str,
+    line_number: int,
 ) -> tuple[str, str | None]:
     """Parse one saved move token and its optional captured-piece suffix."""
     move_part, separator, capture_token = move_token.partition(":")
@@ -335,6 +361,7 @@ def _parse_history_move_token(
             raise LoadError(
                 f"Unexpected capture detail in history: '{move_token}'",
                 path=path,
+                line=line_number,
             )
         return move_part, None
 
@@ -346,6 +373,7 @@ def _parse_history_move_token(
         raise LoadError(
             f"Invalid captured piece in history: '{move_token}'",
             path=path,
+            line=line_number,
         )
     return move_part, piece
 

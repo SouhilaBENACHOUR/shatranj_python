@@ -47,7 +47,7 @@ pip install -e .
 pip install pytest pytest-cov coverage flake8 black
 ```
 # Usage
-Planned Usage (under development)
+Current command-line usage
 ```bash
 Launch CLI (default)
 shatranj
@@ -57,6 +57,7 @@ shatranj --gui
 
 # Play against AI
 shatranj --ai B
+shatranj --ai A --ai-mode mcts --ai-depth 200
 
 # Blitz mode (30 minutes per player)
 shatranj --blitz --time 30
@@ -67,7 +68,7 @@ shatranj game.shatranj
 # Start multiplayer server
 shatranj --server 12345
 ```
-### Command Line Options (planned)
+### Command Line Options
 ```bash
 -h, --help Show help message
 -V, --version Show version
@@ -77,12 +78,19 @@ shatranj --server 12345
 -b, --blitz Blitz mode
 -t TIME, --time TIME Time per player (minutes)
 -a [COLOR], --ai [COLOR] Play against AI (W/B/A)
+--ai-mode MODE Select AI algorithm
+--ai-depth DEPTH Generic AI depth / simulation count
+--ai-minimax-depth DEPTH Alias for minimax-style searches
+--ai-scoring SCORING Evaluation mode
+--ai-minimax-scoring SCORING Alias for minimax scoring
+--ai-time SECONDS Per-move limit for iterative AI
+--ai-mcts-selection POLICY MCTS selection policy
 -c, --contest Contest mode
 -s [PORT], --server [PORT] Start server
 --daemon Headless server mode
 ```
 
-### Interactive Shell Commands (planned)
+### Interactive Shell Commands
 ```bash
 new [ARGS] Start new game
 help [CMD] Show help
@@ -96,6 +104,17 @@ redo [N] Redo move(s)
 show board Display board
 show history Display move history
 show time Display remaining time
+show configuration Display CLI configuration
+server list Discover servers on local network
+server start [PORT] Start local multiplayer server
+server stop Stop local multiplayer server
+server status Show local server status
+join [HOST:PORT] Connect to a multiplayer server
+ping Measure server latency
+players Show connected players
+scoreboard Show multiplayer scoreboard
+accept/decline/cancel Manage invitations
+away/back Change lobby availability
 set PARAM=VALUE Change configuration
 ```
 # Move Notation
@@ -197,7 +216,4 @@ Shatranj Rules (Wikipedia)
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 # Project Status
-\uD83D\uDD35 Early Development
-This project is currently in the initial development phase. We are implementing the core game engine using bitboards and establishing the foundational architecture.
-Current Focus: Bitboard representation and basic game rules implementation.
-
+Course project delivery version.
