@@ -5,17 +5,12 @@ from pathlib import Path
 import pytest
 
 from shatranj.domain.core.move import Move
-from shatranj.persistence import (
-    ClockState,
-    _parse_ai_players,
-    _parse_clock_state,
-    load_game_file,
-    save_game_file,
-    strip_save_comments,
-)
+from shatranj.persistence import (ClockState, _parse_ai_players,
+                                  _parse_clock_state, load_game_file,
+                                  save_game_file, strip_save_comments)
 from shatranj.presentation.cli.game_state import GameState
-from shatranj.utils.exceptions import LoadError, SaveError
 from shatranj.utils.constants import BLACK, PAWN, SHAH, WHITE
+from shatranj.utils.exceptions import LoadError, SaveError
 
 
 def _build_capturing_state() -> GameState:
@@ -26,14 +21,14 @@ def _build_capturing_state() -> GameState:
     state.board.place_piece(SHAH, BLACK, 60)
     state.board.place_piece(PAWN, WHITE, 12)
     state.board.place_piece(PAWN, BLACK, 21)
-    state.apply_move(
-        Move(12, 21, PAWN, WHITE, captured_piece=PAWN)
-    )
+    state.apply_move(Move(12, 21, PAWN, WHITE, captured_piece=PAWN))
     return state
 
 
 def _workspace_temp_file(name: str) -> Path:
-    """Return a writable temporary file path inside the repository workspace."""
+    """
+    Return a writable temporary file path inside the repository workspace.
+    """
     base = Path(".tmp_persistence_tests")
     base.mkdir(exist_ok=True)
     return base / name
@@ -159,7 +154,9 @@ def test_load_invalid_capture_error_reports_source_line():
     save_file = _workspace_temp_file("invalid_capture_line.shj")
     try:
         save_game_file(str(save_file), state=state)
-        raw = save_file.read_text(encoding="ascii").replace("W e2xf3:P", "W e2xf3:Z")
+        raw = save_file.read_text(encoding="ascii").replace(
+            "W e2xf3:P", "W e2xf3:Z"
+        )
         save_file.write_text(raw, encoding="ascii")
 
         with pytest.raises(LoadError) as exc_info:
@@ -176,7 +173,9 @@ def test_load_invalid_square_in_history_raises_load_error():
     save_file = _workspace_temp_file("invalid_square.shj")
     try:
         save_game_file(str(save_file), state=state)
-        raw = save_file.read_text(encoding="ascii").replace("e2xf3:P", "z9xf3:P")
+        raw = save_file.read_text(encoding="ascii").replace(
+            "e2xf3:P", "z9xf3:P"
+        )
         save_file.write_text(raw, encoding="ascii")
 
         with pytest.raises(LoadError):
@@ -190,7 +189,9 @@ def test_load_invalid_square_error_reports_source_line():
     save_file = _workspace_temp_file("invalid_square_line.shj")
     try:
         save_game_file(str(save_file), state=state)
-        raw = save_file.read_text(encoding="ascii").replace("e2xf3:P", "z9xf3:P")
+        raw = save_file.read_text(encoding="ascii").replace(
+            "e2xf3:P", "z9xf3:P"
+        )
         save_file.write_text(raw, encoding="ascii")
 
         with pytest.raises(LoadError) as exc_info:
@@ -218,7 +219,9 @@ def test_save_and_load_roundtrip_preserves_clock_and_ai_settings():
     )
 
     try:
-        save_game_file(str(save_file), state=state, clock=clock, ai_players=ai_players)
+        save_game_file(
+            str(save_file), state=state, clock=clock, ai_players=ai_players
+        )
         loaded = load_game_file(str(save_file))
 
         assert loaded.clock.mode == "timed"
@@ -227,7 +230,9 @@ def test_save_and_load_roundtrip_preserves_clock_and_ai_settings():
         assert loaded.clock.black_seconds == 165.0
         assert loaded.clock.paused is True
         assert WHITE in loaded.ai_players
-        assert getattr(loaded.ai_players[WHITE], "algorithm", None) == "alphabeta"
+        assert (
+            getattr(loaded.ai_players[WHITE], "algorithm", None) == "alphabeta"
+        )
     finally:
         save_file.unlink(missing_ok=True)
 
@@ -238,7 +243,9 @@ def test_load_invalid_board_row_raises_load_error():
 
     try:
         save_game_file(str(save_file), state=state)
-        raw = save_file.read_text(encoding="ascii").replace("_ _ _ _ _ _ _ _", "_ _ _")
+        raw = save_file.read_text(encoding="ascii").replace(
+            "_ _ _ _ _ _ _ _", "_ _ _"
+        )
         save_file.write_text(raw, encoding="ascii")
 
         with pytest.raises(LoadError):

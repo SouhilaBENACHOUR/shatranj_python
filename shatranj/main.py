@@ -104,7 +104,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
         const="B",
         default=None,
         metavar="COLOR",
-        help="Replace player COLOR with AI. Colors: W (white), B (black), A (all)",
+        help=(
+            "Replace player COLOR with AI. "
+            "Colors: W (white), B (black), A (all)"
+        ),
     )
     parser.add_argument(
         "--ai-mode",
@@ -159,7 +162,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--contest",
         action="store_true",
         default=False,
-        help="Contest mode: read a position from a file and output the best move",
+        help=(
+            "Contest mode: read a position from a file "
+            "and output the best move"
+        ),
     )
     parser.add_argument(
         "savefile",
@@ -229,7 +235,9 @@ def main() -> int:
     debug = cfg.get_bool("debug")
     blitz = cfg.get_bool("blitz")
     timeout_minutes = cfg.get_int("timeout")
-    ai_mode = args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
+    ai_mode = (
+        args.ai_mode if args.ai_mode is not None else cfg.get_str("ai-mode")
+    )
     ai_depth = _resolve_ai_depth(args, cfg)
     ai_scoring = _resolve_ai_scoring(args, cfg)
     ai_time = args.ai_time
@@ -312,7 +320,9 @@ def main() -> int:
             return 1
 
         if ai_depth < 1:
-            print("Error: AI depth must be a positive integer.", file=sys.stderr)
+            print(
+                "Error: AI depth must be a positive integer.", file=sys.stderr
+            )
             return 1
 
         if ai_time is not None and ai_time <= 0:

@@ -9,17 +9,9 @@ Three evaluation functions:
 
 from shatranj.domain.core.board import Board
 from shatranj.domain.rules.rules_engine import RulesEngine
+from shatranj.utils.constants import (ALFIL, BLACK, FERZ, KNIGHT, PAWN, ROOK,
+                                      SHAH, WHITE)
 from shatranj.utils.exceptions import EvaluatorError
-from shatranj.utils.constants import (
-    WHITE,
-    BLACK,
-    PAWN,
-    ROOK,
-    KNIGHT,
-    FERZ,
-    SHAH,
-    ALFIL,
-)
 
 # Material values
 PIECE_VALUES = {

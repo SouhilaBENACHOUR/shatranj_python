@@ -2,18 +2,15 @@
 alphabeta.py - Minimax with Alpha-Beta pruning + Transposition Table
 """
 
+from shatranj.domain.ai.evaluator import Evaluator
+from shatranj.domain.ai.transposition_table import (EXACT, LOWER_BOUND,
+                                                    UPPER_BOUND,
+                                                    TranspositionTable,
+                                                    ZobristHasher)
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.domain.ai.evaluator import Evaluator
-from shatranj.domain.ai.transposition_table import (
-    ZobristHasher,
-    TranspositionTable,
-    EXACT,
-    LOWER_BOUND,
-    UPPER_BOUND,
-)
-from shatranj.utils.constants import WHITE, BLACK
+from shatranj.utils.constants import BLACK, WHITE
 
 
 class AlphaBeta:

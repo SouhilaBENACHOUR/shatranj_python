@@ -167,7 +167,10 @@ class ShatranjConfig:
         if ai_scoring is None:
             ai_scoring = getattr(args, "ai_scoring", None)
         if ai_scoring is not None:
-            if "--ai-scoring" in sys.argv or "--ai-minimax-scoring" in sys.argv:
+            if (
+                "--ai-scoring" in sys.argv
+                or "--ai-minimax-scoring" in sys.argv
+            ):
                 self._values["ai-scoring"] = ai_scoring.lower()
 
     # ------------------------------------------------------------------

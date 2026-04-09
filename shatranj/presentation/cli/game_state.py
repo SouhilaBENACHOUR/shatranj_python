@@ -14,7 +14,7 @@ Why a separate class from Board?
 
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, BLACK
+from shatranj.utils.constants import BLACK, WHITE
 
 
 class GameState:

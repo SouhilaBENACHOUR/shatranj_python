@@ -5,16 +5,8 @@ from dataclasses import dataclass, field
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.presentation.cli.game_state import GameState
-from shatranj.utils.constants import (
-    ALFIL,
-    BLACK,
-    FERZ,
-    KNIGHT,
-    PAWN,
-    ROOK,
-    SHAH,
-    WHITE,
-)
+from shatranj.utils.constants import (ALFIL, BLACK, FERZ, KNIGHT, PAWN, ROOK,
+                                      SHAH, WHITE)
 from shatranj.utils.exceptions import InvalidSquareError, LoadError, SaveError
 
 PIECE_TO_SYMBOL = {
@@ -40,7 +32,9 @@ PIECE_TYPE_TO_TOKEN = {
     KNIGHT: "N",
     PAWN: "P",
 }
-TOKEN_TO_PIECE_TYPE = {token: piece for piece, token in PIECE_TYPE_TO_TOKEN.items()}
+TOKEN_TO_PIECE_TYPE = {
+    token: piece for piece, token in PIECE_TYPE_TO_TOKEN.items()
+}
 
 
 @dataclass(slots=True)
@@ -70,11 +64,15 @@ class LoadedGame:
 def strip_save_comments(text: str) -> list[str]:
     """Return non-empty save-file lines without inline or block comments."""
 
-    return [line for _line_number, line in _strip_save_comments_with_numbers(text)]
+    return [
+        line for _line_number, line in _strip_save_comments_with_numbers(text)
+    ]
 
 
 def _strip_save_comments_with_numbers(text: str) -> list[tuple[int, str]]:
-    """Return non-empty save-file lines together with their source line number."""
+    """
+    Return non-empty save-file lines together with their source line number.
+    """
 
     result = []
     block_depth = 0
@@ -127,12 +125,14 @@ def load_game_file(path: str) -> LoadedGame:
         idx_game = lines.index("[game]")
         idx_history = lines.index("[history]")
     except ValueError as err:
-        raise LoadError("Invalid save format: missing section.", path=path) from err
+        raise LoadError(
+            "Invalid save format: missing section.", path=path
+        ) from err
 
-    settings = _parse_settings(lines[idx_settings + 1 : idx_game])
+    settings = _parse_settings(lines[idx_settings + 1: idx_game])
     state = _parse_game_state(
-        game_lines=line_entries[idx_game + 1 : idx_history],
-        history_lines=line_entries[idx_history + 1 :],
+        game_lines=line_entries[idx_game + 1: idx_history],
+        history_lines=line_entries[idx_history + 1:],
         path=path,
     )
     return LoadedGame(
@@ -168,10 +168,14 @@ def save_game_file(
             for color, ai in ai_players.items():
                 color_key = "white" if color == WHITE else "black"
                 handle.write(f"ai-color={color_key}\n")
-                handle.write(f"ai-mode={getattr(ai, 'algorithm', 'alphabeta')}\n")
+                handle.write(
+                    f"ai-mode={getattr(ai, 'algorithm', 'alphabeta')}\n"
+                )
                 depth = getattr(getattr(ai, "_search", None), "_depth", 3)
                 handle.write(f"ai-depth={depth}\n")
-                handle.write(f"ai-scoring={getattr(ai, 'scoring', 'advanced')}\n")
+                handle.write(
+                    f"ai-scoring={getattr(ai, 'scoring', 'advanced')}\n"
+                )
             if clock is not None and clock.mode == "timed":
                 base_seconds = max(
                     0.0,
@@ -182,15 +186,12 @@ def save_game_file(
                 handle.write("clock_mode=timed\n")
                 handle.write(f"time_control_name={clock.label}\n")
                 handle.write(f"base_seconds={base_seconds:.3f}\n")
-                handle.write(
-                    f"increment_seconds={int(max(0, clock.increment_seconds))}\n"
-                )
-                handle.write(
-                    f"white_remaining_seconds={max(0.0, clock.white_seconds):.3f}\n"
-                )
-                handle.write(
-                    f"black_remaining_seconds={max(0.0, clock.black_seconds):.3f}\n"
-                )
+                inc = int(max(0, clock.increment_seconds))
+                handle.write(f"increment_seconds={inc}\n")
+                white_s = max(0.0, clock.white_seconds)
+                handle.write(f"white_remaining_seconds={white_s:.3f}\n")
+                black_s = max(0.0, clock.black_seconds)
+                handle.write(f"black_remaining_seconds={black_s:.3f}\n")
                 handle.write(f"timer_paused={str(clock.paused).lower()}\n")
             handle.write("\n")
 
@@ -201,7 +202,9 @@ def save_game_file(
                 for file in range(8):
                     square = rank * 8 + file
                     piece = state.board.get_piece_at(square)
-                    row.append("_" if piece is None else PIECE_TO_SYMBOL[piece])
+                    row.append(
+                        "_" if piece is None else PIECE_TO_SYMBOL[piece]
+                    )
                 handle.write(" ".join(row) + "\n")
             handle.write("\n")
 
@@ -417,7 +420,9 @@ def _serialize_move(move: Move) -> str:
     if capture_token is None:
         return f"{color_letter} {from_square}{separator}{to_square}"
 
-    return f"{color_letter} {from_square}{separator}{to_square}:{capture_token}"
+    return (
+        f"{color_letter} {from_square}{separator}{to_square}:{capture_token}"
+    )
 
 
 def _parse_bool(value: str | None, default: bool) -> bool:

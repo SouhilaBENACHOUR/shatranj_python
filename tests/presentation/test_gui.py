@@ -10,11 +10,12 @@ import sys
 import time
 import types
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from shatranj.utils.constants import BLACK, BOARD_SIZE, WHITE, PAWN, ROOK, SHAH, KNIGHT, ALFIL, FERZ
+from shatranj.utils.constants import (BLACK, BOARD_SIZE,
+                                      PAWN, ROOK, SHAH, WHITE)
 
 # ---------------------------------------------------------------------------
 # GTK mock — installed BEFORE any shatranj.presentation.gui import
@@ -93,8 +94,10 @@ _gi_mock, _gtk_mock = _make_gtk_mock()
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_game_state(color=WHITE):
     from shatranj.presentation.cli.game_state import GameState
+
     state = GameState()
     state.current_color = color
     return state
@@ -173,10 +176,13 @@ def _make_window_ns(**kwargs):
 # Tests for _format_clock
 # ---------------------------------------------------------------------------
 
+
 class TestFormatClock:
     def _fmt(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w._format_clock
 
@@ -221,10 +227,13 @@ class TestFormatClock:
 # Tests for _display_color
 # ---------------------------------------------------------------------------
 
+
 class TestDisplayColor:
     def _fn(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w._display_color
 
@@ -244,6 +253,7 @@ class TestDisplayColor:
 # ---------------------------------------------------------------------------
 # Tests for board coordinate math
 # ---------------------------------------------------------------------------
+
 
 class TestBoardCoordinateMath:
     def _pixel_to_square(self, x, y, width=480, height=480):
@@ -290,7 +300,9 @@ class TestBoardCoordinateMath:
 
     def test_board_geometry_wider(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
         sq, ox, oy = bw._board_geometry(800, 480)
         assert sq == 60
@@ -299,7 +311,9 @@ class TestBoardCoordinateMath:
 
     def test_board_geometry_taller(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
         sq, ox, oy = bw._board_geometry(480, 800)
         assert sq == 60
@@ -308,7 +322,9 @@ class TestBoardCoordinateMath:
 
     def test_board_geometry_square(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
         sq, ox, oy = bw._board_geometry(480, 480)
         assert sq == 60
@@ -317,6 +333,7 @@ class TestBoardCoordinateMath:
 
     def test_flipped_display_indices_roundtrip(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
 
         importlib.reload(bw)
@@ -330,6 +347,7 @@ class TestBoardCoordinateMath:
 
     def test_flipped_top_left_is_h1(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
 
         importlib.reload(bw)
@@ -338,6 +356,7 @@ class TestBoardCoordinateMath:
 
     def test_flipped_bottom_left_is_h8(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
 
         importlib.reload(bw)
@@ -346,6 +365,7 @@ class TestBoardCoordinateMath:
 
     def test_flipped_bottom_right_is_a8(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
 
         importlib.reload(bw)
@@ -357,10 +377,13 @@ class TestBoardCoordinateMath:
 # Tests for _get_clock_status_text
 # ---------------------------------------------------------------------------
 
+
 class TestGetClockStatusText:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._get_clock_status_text
 
@@ -370,7 +393,9 @@ class TestGetClockStatusText:
         assert "ause" in result
 
     def test_to_move_human(self):
-        ns = _make_window_ns(_game_paused=False, _ai_players={}, _increment_seconds=0)
+        ns = _make_window_ns(
+            _game_paused=False, _ai_players={}, _increment_seconds=0
+        )
         result = self._method()(ns, WHITE, WHITE)
         assert "move" in result.lower() or "jouer" in result.lower()
 
@@ -385,7 +410,9 @@ class TestGetClockStatusText:
         assert "AI" in result or "IA" in result
 
     def test_waiting_human(self):
-        ns = _make_window_ns(_game_paused=False, _ai_players={}, _increment_seconds=0)
+        ns = _make_window_ns(
+            _game_paused=False, _ai_players={}, _increment_seconds=0
+        )
         result = self._method()(ns, BLACK, WHITE)
         assert "ait" in result.lower()
 
@@ -400,12 +427,16 @@ class TestGetClockStatusText:
         assert "ready" in result.lower() or "prête" in result.lower()
 
     def test_increment_appended(self):
-        ns = _make_window_ns(_game_paused=False, _ai_players={}, _increment_seconds=5)
+        ns = _make_window_ns(
+            _game_paused=False, _ai_players={}, _increment_seconds=5
+        )
         result = self._method()(ns, WHITE, WHITE)
         assert "5" in result
 
     def test_no_increment_no_pipe(self):
-        ns = _make_window_ns(_game_paused=False, _ai_players={}, _increment_seconds=0)
+        ns = _make_window_ns(
+            _game_paused=False, _ai_players={}, _increment_seconds=0
+        )
         result = self._method()(ns, WHITE, WHITE)
         assert "|" not in result
 
@@ -414,10 +445,13 @@ class TestGetClockStatusText:
 # Tests for _get_display_time
 # ---------------------------------------------------------------------------
 
+
 class TestGetDisplayTime:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._get_display_time
 
@@ -479,10 +513,13 @@ class TestGetDisplayTime:
 # Tests for _finish_active_turn
 # ---------------------------------------------------------------------------
 
+
 class TestFinishActiveTurn:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._finish_active_turn
 
@@ -549,10 +586,13 @@ class TestFinishActiveTurn:
 # Tests for _is_active_player_flagged
 # ---------------------------------------------------------------------------
 
+
 class TestIsActivePlayerFlagged:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._is_active_player_flagged
 
@@ -606,10 +646,13 @@ class TestIsActivePlayerFlagged:
 # Tests for _configure_new_game_clock / _configure_loaded_game_clock
 # ---------------------------------------------------------------------------
 
+
 class TestConfigureClock:
     def _window_module(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w
 
@@ -641,10 +684,13 @@ class TestConfigureClock:
 # Tests for _check_game_over
 # ---------------------------------------------------------------------------
 
+
 class TestCheckGameOver:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._check_game_over
 
@@ -693,16 +739,21 @@ class TestCheckGameOver:
 # Tests for _show_game_over_dialog
 # ---------------------------------------------------------------------------
 
+
 class TestShowGameOverDialog:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._show_game_over_dialog
 
     def test_clears_state(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         state = _make_game_state()
@@ -722,7 +773,9 @@ class TestShowGameOverDialog:
 
     def test_dialog_shown_with_message(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=_make_game_state())
@@ -740,23 +793,34 @@ class TestShowGameOverDialog:
 # Tests for _sync_board_interaction
 # ---------------------------------------------------------------------------
 
+
 class TestSyncBoardInteraction:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._sync_board_interaction
 
     def test_no_state_disables_interaction(self):
-        ns = _make_window_ns(_state=None, _game_paused=False, _ai_players={},
-                             _network_my_color=None)
+        ns = _make_window_ns(
+            _state=None,
+            _game_paused=False,
+            _ai_players={},
+            _network_my_color=None,
+        )
         self._method()(ns)
         ns._board_widget.set_interaction_enabled.assert_called_with(False)
 
     def test_human_turn_enables_interaction(self):
         state = _make_game_state(WHITE)
-        ns = _make_window_ns(_state=state, _game_paused=False, _ai_players={},
-                             _network_my_color=None)
+        ns = _make_window_ns(
+            _state=state,
+            _game_paused=False,
+            _ai_players={},
+            _network_my_color=None,
+        )
         self._method()(ns)
         ns._board_widget.set_interaction_enabled.assert_called_with(True)
 
@@ -773,15 +837,21 @@ class TestSyncBoardInteraction:
 
     def test_paused_disables_interaction(self):
         state = _make_game_state(WHITE)
-        ns = _make_window_ns(_state=state, _game_paused=True, _ai_players={},
-                             _network_my_color=None)
+        ns = _make_window_ns(
+            _state=state,
+            _game_paused=True,
+            _ai_players={},
+            _network_my_color=None,
+        )
         self._method()(ns)
         ns._board_widget.set_interaction_enabled.assert_called_with(False)
 
     def test_no_board_widget_does_not_crash(self):
         ns = SimpleNamespace(_state=None)
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         w.ShatranjWindow._sync_board_interaction(ns)
 
@@ -790,17 +860,22 @@ class TestSyncBoardInteraction:
 # Tests for _on_undo / _on_redo
 # ---------------------------------------------------------------------------
 
+
 class TestUndoRedo:
     def test_on_undo_no_state_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_state=None)
         w.ShatranjWindow._on_undo(ns)
 
     def test_on_undo_calls_state_undo(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state()
         state.undo = MagicMock()
@@ -813,14 +888,18 @@ class TestUndoRedo:
 
     def test_on_redo_no_state_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_state=None)
         w.ShatranjWindow._on_redo(ns)
 
     def test_on_redo_calls_state_redo(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state()
         state.redo = MagicMock(return_value=MagicMock())
@@ -833,7 +912,9 @@ class TestUndoRedo:
 
     def test_on_redo_no_move_returns_early(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state()
         state.redo = MagicMock(return_value=None)
@@ -848,20 +929,26 @@ class TestUndoRedo:
 # Tests for _on_hint
 # ---------------------------------------------------------------------------
 
+
 class TestOnHint:
     def test_no_state_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_state=None)
         w.ShatranjWindow._on_hint(ns)
 
     def test_hint_shown_when_move_found(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         from shatranj.domain.core.move import Move
+
         move = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
 
         state = _make_game_state(WHITE)
@@ -870,7 +957,10 @@ class TestOnHint:
         dialog = MagicMock()
         w.Gtk.AlertDialog = MagicMock(return_value=dialog)
 
-        with patch("shatranj.presentation.gui.window.choose_hint_move", return_value=move):
+        with patch(
+            "shatranj.presentation.gui.window.choose_hint_move",
+            return_value=move,
+        ):
             w.ShatranjWindow._on_hint(ns)
 
         dialog.set_detail.assert_called_once()
@@ -879,7 +969,9 @@ class TestOnHint:
 
     def test_hint_not_shown_when_no_move(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         state = _make_game_state(WHITE)
@@ -888,7 +980,10 @@ class TestOnHint:
         dialog = MagicMock()
         w.Gtk.AlertDialog = MagicMock(return_value=dialog)
 
-        with patch("shatranj.presentation.gui.window.choose_hint_move", return_value=None):
+        with patch(
+            "shatranj.presentation.gui.window.choose_hint_move",
+            return_value=None,
+        ):
             w.ShatranjWindow._on_hint(ns)
 
         dialog.show.assert_not_called()
@@ -898,10 +993,13 @@ class TestOnHint:
 # Tests for _on_pause
 # ---------------------------------------------------------------------------
 
+
 class TestOnPause:
     def test_on_pause_delegates_to_toggle(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns()
         ns._toggle_pause = MagicMock()
@@ -910,7 +1008,9 @@ class TestOnPause:
 
     def test_toggle_pause_not_timed_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state()
         ns = _make_window_ns(_state=state, _clock_mode="elapsed")
@@ -918,7 +1018,9 @@ class TestOnPause:
 
     def test_toggle_pause_sets_paused(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state(WHITE)
         ns = _make_window_ns(
@@ -935,7 +1037,9 @@ class TestOnPause:
 
     def test_toggle_pause_resumes(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state(WHITE)
         ns = _make_window_ns(
@@ -955,21 +1059,29 @@ class TestOnPause:
 # Tests for _on_move_played
 # ---------------------------------------------------------------------------
 
+
 class TestOnMovePlayed:
     def _make_move(self, from_sq=12, to_sq=20):
         from shatranj.domain.core.move import Move
-        return Move(from_square=from_sq, to_square=to_sq, piece_type=PAWN, color=WHITE)
+
+        return Move(
+            from_square=from_sq, to_square=to_sq, piece_type=PAWN, color=WHITE
+        )
 
     def test_no_state_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_state=None)
         w.ShatranjWindow._on_move_played(ns, self._make_move())
 
     def test_paused_aborts(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state(WHITE)
         ns = _make_window_ns(_state=state, _game_paused=True, _ai_players={})
@@ -979,7 +1091,9 @@ class TestOnMovePlayed:
 
     def test_ai_turn_aborts(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state(WHITE)
         ns = _make_window_ns(
@@ -993,7 +1107,9 @@ class TestOnMovePlayed:
 
     def test_valid_move_applied(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         state = _make_game_state(WHITE)
@@ -1023,10 +1139,13 @@ class TestOnMovePlayed:
 # Tests for _confirm_abandon
 # ---------------------------------------------------------------------------
 
+
 class TestConfirmAbandon:
     def test_no_state_calls_confirmed_directly(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_state=None, _saved=True)
         callback = MagicMock()
@@ -1035,7 +1154,9 @@ class TestConfirmAbandon:
 
     def test_saved_calls_confirmed_directly(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_state=_make_game_state(), _saved=True)
         callback = MagicMock()
@@ -1044,7 +1165,9 @@ class TestConfirmAbandon:
 
     def test_unsaved_shows_dialog(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=_make_game_state(), _saved=False)
@@ -1062,9 +1185,17 @@ class TestConfirmAbandon:
 # Tests for NewGameDialog.get_config logic
 # ---------------------------------------------------------------------------
 
+
 class TestNewGameDialogConfig:
-    def _make_config(self, mode, algorithm, speed_label,
-                     time_label, base_seconds, increment_seconds):
+    def _make_config(
+        self,
+        mode,
+        algorithm,
+        speed_label,
+        time_label,
+        base_seconds,
+        increment_seconds,
+    ):
         return {
             "mode": mode,
             "ai_color": BLACK,
@@ -1076,12 +1207,16 @@ class TestNewGameDialogConfig:
         }
 
     def test_hvh_keys_present(self):
-        config = self._make_config("hvh", "alphabeta", "Blitz", "5 min", 300, 0)
+        config = self._make_config(
+            "hvh", "alphabeta", "Blitz", "5 min", 300, 0
+        )
         for key in ("mode", "algorithm", "base_seconds", "increment_seconds"):
             assert key in config
 
     def test_hvai_mode(self):
-        config = self._make_config("hvai", "alphabeta", "Rapid", "10 min", 600, 0)
+        config = self._make_config(
+            "hvai", "alphabeta", "Rapid", "10 min", 600, 0
+        )
         assert config["mode"] == "hvai"
         assert config["ai_color"] == BLACK
 
@@ -1091,16 +1226,22 @@ class TestNewGameDialogConfig:
         assert config["algorithm"] == "mcts"
 
     def test_increment_stored(self):
-        config = self._make_config("hvh", "alphabeta", "Blitz", "3 | 2", 180, 2)
+        config = self._make_config(
+            "hvh", "alphabeta", "Blitz", "3 | 2", 180, 2
+        )
         assert config["increment_seconds"] == 2
 
     def test_base_seconds_stored(self):
-        config = self._make_config("hvh", "alphabeta", "Rapid", "30 min", 1800, 0)
+        config = self._make_config(
+            "hvh", "alphabeta", "Rapid", "30 min", 1800, 0
+        )
         assert config["base_seconds"] == 1800
 
     def test_get_config_raises_without_preset(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         from shatranj.utils.exceptions import ShatranjError
 
@@ -1116,11 +1257,14 @@ class TestNewGameDialogConfig:
 # Tests for ShatranjApp structure
 # ---------------------------------------------------------------------------
 
+
 class TestShatranjApp:
     def test_app_module_importable(self):
         import importlib
+
         try:
             import shatranj.presentation.gui.app as app_module
+
             importlib.reload(app_module)
             assert hasattr(app_module, "ShatranjApp")
             assert hasattr(app_module, "run_gui")
@@ -1130,6 +1274,7 @@ class TestShatranjApp:
     def test_run_gui_callable(self):
         try:
             from shatranj.presentation.gui.app import run_gui
+
             assert callable(run_gui)
         except Exception as e:
             pytest.skip(f"GTK not available: {e}")
@@ -1139,10 +1284,13 @@ class TestShatranjApp:
 # Tests for _update_history
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateHistory:
     def test_no_state_clears_list(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=None)
@@ -1156,7 +1304,9 @@ class TestUpdateHistory:
 
     def test_with_state_appends_moves(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         from shatranj.domain.core.move import Move
@@ -1180,10 +1330,13 @@ class TestUpdateHistory:
 # Tests for _on_save_game
 # ---------------------------------------------------------------------------
 
+
 class TestOnSaveGame:
     def test_no_state_returns_early(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=None)
@@ -1195,7 +1348,9 @@ class TestOnSaveGame:
 
     def test_with_state_opens_dialog(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=_make_game_state())
@@ -1210,10 +1365,13 @@ class TestOnSaveGame:
 # Regression: translated hint callback
 # ---------------------------------------------------------------------------
 
+
 class TestHintCallback:
     def test_on_hint_does_not_shadow_gettext(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         from shatranj.domain.core.board import Board
@@ -1244,10 +1402,13 @@ class TestHintCallback:
 # Tests for _reset_clock
 # ---------------------------------------------------------------------------
 
+
 class TestResetClock:
     def test_reset_sets_idle_mode(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_clock_mode="timed", _game_paused=True)
         ns._update_clock_labels = MagicMock()
@@ -1260,7 +1421,9 @@ class TestResetClock:
 
     def test_reset_calls_update_labels(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns()
         ns._update_clock_labels = MagicMock()
@@ -1272,10 +1435,13 @@ class TestResetClock:
 # Tests for _start_next_turn
 # ---------------------------------------------------------------------------
 
+
 class TestStartNextTurn:
     def test_not_timed_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_clock_mode="idle", _state=_make_game_state())
         ns._update_clock_labels = MagicMock()
@@ -1284,7 +1450,9 @@ class TestStartNextTurn:
 
     def test_no_state_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_clock_mode="timed", _state=None)
         ns._update_clock_labels = MagicMock()
@@ -1293,7 +1461,9 @@ class TestStartNextTurn:
 
     def test_paused_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(
             _clock_mode="timed",
@@ -1306,7 +1476,9 @@ class TestStartNextTurn:
 
     def test_sets_turn_started_at(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(
             _clock_mode="timed",
@@ -1322,10 +1494,13 @@ class TestStartNextTurn:
 # Tests for _set_clock_card_state
 # ---------------------------------------------------------------------------
 
+
 class TestSetClockCardState:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._set_clock_card_state
 
@@ -1364,10 +1539,13 @@ class TestSetClockCardState:
 # Tests for _on_new_game_response
 # ---------------------------------------------------------------------------
 
+
 class TestOnNewGameResponse:
     def test_ok_response_starts_game(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         config = {
@@ -1385,26 +1563,34 @@ class TestOnNewGameResponse:
         ns = _make_window_ns()
         ns._start_game = MagicMock()
 
-        w.ShatranjWindow._on_new_game_response(ns, dialog, w.Gtk.ResponseType.OK)
+        w.ShatranjWindow._on_new_game_response(
+            ns, dialog, w.Gtk.ResponseType.OK
+        )
         ns._start_game.assert_called_once_with(config)
         dialog.destroy.assert_called_once()
 
     def test_cancel_response_destroys_dialog(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         dialog = MagicMock()
         ns = _make_window_ns()
         ns._start_game = MagicMock()
 
-        w.ShatranjWindow._on_new_game_response(ns, dialog, w.Gtk.ResponseType.CANCEL)
+        w.ShatranjWindow._on_new_game_response(
+            ns, dialog, w.Gtk.ResponseType.CANCEL
+        )
         dialog.destroy.assert_called_once()
         ns._start_game.assert_not_called()
 
     def test_shatranj_error_in_get_config_aborts(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         from shatranj.utils.exceptions import ShatranjError
 
@@ -1413,7 +1599,9 @@ class TestOnNewGameResponse:
         ns = _make_window_ns()
         ns._start_game = MagicMock()
 
-        w.ShatranjWindow._on_new_game_response(ns, dialog, w.Gtk.ResponseType.OK)
+        w.ShatranjWindow._on_new_game_response(
+            ns, dialog, w.Gtk.ResponseType.OK
+        )
         ns._start_game.assert_not_called()
 
 
@@ -1421,10 +1609,13 @@ class TestOnNewGameResponse:
 # Tests for _on_back_to_menu and _on_quit
 # ---------------------------------------------------------------------------
 
+
 class TestBackToMenuAndQuit:
     def test_on_back_to_menu_calls_confirm_abandon(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=None, _saved=True)
@@ -1434,7 +1625,9 @@ class TestBackToMenuAndQuit:
 
     def test_on_quit_calls_confirm_abandon(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=None, _saved=True)
@@ -1444,7 +1637,9 @@ class TestBackToMenuAndQuit:
 
     def test_do_back_clears_state(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=_make_game_state(), _saved=True)
@@ -1454,9 +1649,11 @@ class TestBackToMenuAndQuit:
         ns.get_application = MagicMock()
 
         captured = []
+
         def fake_confirm(cb):
             captured.append(cb)
             cb()
+
         ns._confirm_abandon = fake_confirm
 
         w.ShatranjWindow._on_back_to_menu(ns)
@@ -1468,14 +1665,20 @@ class TestBackToMenuAndQuit:
 # Tests for _apply_ai_move
 # ---------------------------------------------------------------------------
 
+
 class TestApplyAiMove:
     def _make_move(self, from_sq=12, to_sq=20, color=WHITE):
         from shatranj.domain.core.move import Move
-        return Move(from_square=from_sq, to_square=to_sq, piece_type=PAWN, color=color)
+
+        return Move(
+            from_square=from_sq, to_square=to_sq, piece_type=PAWN, color=color
+        )
 
     def test_none_state_returns_false(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(_state=None)
         result = w.ShatranjWindow._apply_ai_move(ns, self._make_move())
@@ -1483,7 +1686,9 @@ class TestApplyAiMove:
 
     def test_paused_returns_true(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = _make_window_ns(
             _state=_make_game_state(WHITE),
@@ -1495,7 +1700,9 @@ class TestApplyAiMove:
 
     def test_wrong_color_returns_false(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state(BLACK)
         ns = _make_window_ns(
@@ -1509,16 +1716,22 @@ class TestApplyAiMove:
 
     def test_color_not_in_ai_players_returns_false(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state(WHITE)
         ns = _make_window_ns(_state=state, _game_paused=False, _ai_players={})
-        result = w.ShatranjWindow._apply_ai_move(ns, self._make_move(color=WHITE))
+        result = w.ShatranjWindow._apply_ai_move(
+            ns, self._make_move(color=WHITE)
+        )
         assert result is False
 
     def test_illegal_move_returns_false(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         state = _make_game_state(WHITE)
         engine = MagicMock()
@@ -1529,16 +1742,21 @@ class TestApplyAiMove:
             _ai_players={WHITE: MagicMock()},
             _engine=engine,
         )
-        result = w.ShatranjWindow._apply_ai_move(ns, self._make_move(color=WHITE))
+        result = w.ShatranjWindow._apply_ai_move(
+            ns, self._make_move(color=WHITE)
+        )
         assert result is False
 
     def test_done_event_set_on_success(self):
         import importlib
         import threading
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         from shatranj.domain.core.move import Move
+
         move = Move(from_square=12, to_square=20, piece_type=PAWN, color=WHITE)
 
         state = _make_game_state(WHITE)
@@ -1566,10 +1784,13 @@ class TestApplyAiMove:
 # Tests for _scroll_history_to_position
 # ---------------------------------------------------------------------------
 
+
 class TestScrollHistory:
     def test_scroll_to_position_value(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         adjustment = MagicMock()
@@ -1589,7 +1810,9 @@ class TestScrollHistory:
 
     def test_scroll_to_latest(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns()
@@ -1601,6 +1824,7 @@ class TestScrollHistory:
 # ---------------------------------------------------------------------------
 # Tests for BoardWidget pure logic
 # ---------------------------------------------------------------------------
+
 
 class TestBoardWidgetLogic:
     def _make_widget(self):
@@ -1630,10 +1854,13 @@ class TestBoardWidgetLogic:
 
     def test_set_board_updates_state(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         from shatranj.domain.core.board import Board
+
         ns = self._make_widget()
         new_board = Board(setup=False)
         bw.BoardWidget.set_board(ns, new_board, BLACK)
@@ -1645,7 +1872,9 @@ class TestBoardWidgetLogic:
 
     def test_clear_selection_resets_state(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1658,7 +1887,9 @@ class TestBoardWidgetLogic:
 
     def test_set_interaction_enabled_true(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1667,7 +1898,9 @@ class TestBoardWidgetLogic:
 
     def test_set_interaction_disabled_clears_drag(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1682,7 +1915,9 @@ class TestBoardWidgetLogic:
 
     def test_on_click_disabled_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1692,7 +1927,9 @@ class TestBoardWidgetLogic:
 
     def test_on_click_no_board_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1702,7 +1939,9 @@ class TestBoardWidgetLogic:
 
     def test_on_click_selects_own_piece(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1712,7 +1951,9 @@ class TestBoardWidgetLogic:
 
     def test_on_click_negative_coords_returns_early(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1721,7 +1962,9 @@ class TestBoardWidgetLogic:
 
     def test_on_click_plays_valid_move(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
         from shatranj.domain.core.move import Move
 
@@ -1737,7 +1980,9 @@ class TestBoardWidgetLogic:
 
     def test_on_drag_begin_disabled_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1747,7 +1992,9 @@ class TestBoardWidgetLogic:
 
     def test_on_drag_begin_selects_piece(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1758,7 +2005,9 @@ class TestBoardWidgetLogic:
 
     def test_on_drag_begin_enemy_piece_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1768,7 +2017,9 @@ class TestBoardWidgetLogic:
 
     def test_on_drag_update_moves_piece(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1781,7 +2032,9 @@ class TestBoardWidgetLogic:
 
     def test_on_drag_update_not_dragging_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1791,7 +2044,9 @@ class TestBoardWidgetLogic:
 
     def test_on_drag_end_not_dragging_does_nothing(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
 
         ns = self._make_widget()
@@ -1800,7 +2055,9 @@ class TestBoardWidgetLogic:
 
     def test_on_drag_end_drops_on_valid_square(self):
         import importlib
+
         import shatranj.presentation.gui.board_widget as bw
+
         importlib.reload(bw)
         from shatranj.domain.core.move import Move
 
@@ -1829,18 +2086,19 @@ class TestBoardWidgetLogic:
 # Tests for hinting.py
 # ---------------------------------------------------------------------------
 
+
 class TestHinting:
     def test_build_hint_player_uses_existing_ai(self):
-        from shatranj.domain.ai.hinting import build_hint_player
         from shatranj.domain.ai.ai_player import AIPlayer
+        from shatranj.domain.ai.hinting import build_hint_player
 
         ai = AIPlayer(color=WHITE, depth=3, algorithm="alphabeta")
         result = build_hint_player(WHITE, {WHITE: ai})
         assert result is ai
 
     def test_build_hint_player_clones_template(self):
-        from shatranj.domain.ai.hinting import build_hint_player
         from shatranj.domain.ai.ai_player import AIPlayer
+        from shatranj.domain.ai.hinting import build_hint_player
 
         ai = AIPlayer(color=BLACK, depth=3, algorithm="alphabeta")
         result = build_hint_player(WHITE, {BLACK: ai})
@@ -1865,14 +2123,15 @@ class TestHinting:
         assert result is None or isinstance(result, Move)
 
     def test_extract_depth_from_ai(self):
-        from shatranj.domain.ai.hinting import _extract_depth
         from shatranj.domain.ai.ai_player import AIPlayer
+        from shatranj.domain.ai.hinting import _extract_depth
 
         ai = AIPlayer(color=WHITE, depth=5, algorithm="alphabeta")
         assert _extract_depth(ai) == 5
 
     def test_extract_depth_fallback(self):
-        from shatranj.domain.ai.hinting import _extract_depth, DEFAULT_HINT_DEPTH
+        from shatranj.domain.ai.hinting import (DEFAULT_HINT_DEPTH,
+                                                _extract_depth)
 
         fake = SimpleNamespace(_search=SimpleNamespace())
         result = _extract_depth(fake)
@@ -1883,10 +2142,13 @@ class TestHinting:
 # Tests for NewGameDialog pure logic
 # ---------------------------------------------------------------------------
 
+
 class TestNewGameDialogPureLogic:
     def test_on_mode_changed_updates_selected_mode(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         button = MagicMock()
@@ -1901,7 +2163,9 @@ class TestNewGameDialogPureLogic:
 
     def test_on_mode_changed_inactive_button_ignored(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         button = MagicMock()
@@ -1916,7 +2180,9 @@ class TestNewGameDialogPureLogic:
 
     def test_update_ai_options_hides_for_hvh(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = SimpleNamespace(
@@ -1928,7 +2194,9 @@ class TestNewGameDialogPureLogic:
 
     def test_update_ai_options_shows_for_hvai(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = SimpleNamespace(
@@ -1940,7 +2208,9 @@ class TestNewGameDialogPureLogic:
 
     def test_build_custom_preset_returns_dict(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = SimpleNamespace(
@@ -1957,7 +2227,9 @@ class TestNewGameDialogPureLogic:
 
     def test_build_custom_preset_no_increment_label(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = SimpleNamespace(
@@ -1972,7 +2244,9 @@ class TestNewGameDialogPureLogic:
 
     def test_on_algorithm_changed_stores_selection(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = SimpleNamespace(
@@ -1985,7 +2259,9 @@ class TestNewGameDialogPureLogic:
 
     def test_get_config_valid_returns_dict(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = SimpleNamespace(
@@ -2008,10 +2284,13 @@ class TestNewGameDialogPureLogic:
 # Tests for _update_clock_labels
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateClockLabels:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._update_clock_labels
 
@@ -2069,16 +2348,21 @@ class TestUpdateClockLabels:
 # Tests for _stop_timer
 # ---------------------------------------------------------------------------
 
+
 class TestStopTimer:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._stop_timer
 
     def test_stop_timer_clears_source(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_timer_source_id=42)
@@ -2093,7 +2377,9 @@ class TestStopTimer:
 
     def test_stop_timer_with_reset(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_timer_source_id=None)
@@ -2106,7 +2392,9 @@ class TestStopTimer:
 
     def test_stop_timer_without_reset_calls_update(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_timer_source_id=None)
@@ -2122,10 +2410,13 @@ class TestStopTimer:
 # Tests for _on_timer_tick
 # ---------------------------------------------------------------------------
 
+
 class TestOnTimerTick:
     def _method(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         return w.ShatranjWindow._on_timer_tick
 
@@ -2155,10 +2446,13 @@ class TestOnTimerTick:
 # Tests for _on_load_game_finish
 # ---------------------------------------------------------------------------
 
+
 class TestOnLoadGameFinish:
     def test_file_none_returns_early(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns()
@@ -2170,7 +2464,9 @@ class TestOnLoadGameFinish:
 
     def test_load_error_shows_alert(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         from shatranj.utils.exceptions import LoadError
 
@@ -2190,12 +2486,15 @@ class TestOnLoadGameFinish:
 
     def test_successful_load_updates_state(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         state = _make_game_state(WHITE)
 
         from shatranj.persistence import LoadedGame
+
         loaded = LoadedGame(state=state, ai_players={})
 
         ns = _make_window_ns()
@@ -2205,7 +2504,10 @@ class TestOnLoadGameFinish:
         dialog = MagicMock()
         dialog.open_finish.return_value = file_mock
 
-        with patch("shatranj.presentation.gui.window.load_game_file", return_value=loaded):
+        with patch(
+            "shatranj.presentation.gui.window.load_game_file",
+            return_value=loaded,
+        ):
             w.ShatranjWindow._on_load_game_finish(ns, dialog, MagicMock())
 
         assert ns._state is state
@@ -2216,10 +2518,13 @@ class TestOnLoadGameFinish:
 # Tests for _on_save_game_finish
 # ---------------------------------------------------------------------------
 
+
 class TestOnSaveGameFinish:
     def test_file_none_returns_early(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns(_state=_make_game_state())
@@ -2231,7 +2536,9 @@ class TestOnSaveGameFinish:
 
     def test_successful_save_sets_saved(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         state = _make_game_state(WHITE)
@@ -2252,10 +2559,13 @@ class TestOnSaveGameFinish:
 # Tests for _on_info and _on_help
 # ---------------------------------------------------------------------------
 
+
 class TestOnInfoAndHelp:
     def test_on_info_creates_dialog(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns()
@@ -2267,7 +2577,9 @@ class TestOnInfoAndHelp:
 
     def test_on_help_creates_alert_dialog(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns()
@@ -2281,6 +2593,7 @@ class TestOnInfoAndHelp:
 
     def test_on_configuration_uses_alert_helper(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
 
         importlib.reload(w)
@@ -2298,6 +2611,7 @@ class TestOnInfoAndHelp:
 class TestBuildShortcuts:
     def test_configuration_shortcut_is_registered(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
 
         importlib.reload(w)
@@ -2316,6 +2630,7 @@ class TestBuildShortcuts:
 # ---------------------------------------------------------------------------
 # Tests for _start_game
 # ---------------------------------------------------------------------------
+
 
 class TestStartGame:
     def _make_config(self, mode="hvh", algo="alphabeta"):
@@ -2341,7 +2656,9 @@ class TestStartGame:
 
     def test_hvh_creates_no_ai_players(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = self._make_ns()
         w.ShatranjWindow._start_game(ns, self._make_config("hvh"))
@@ -2350,7 +2667,9 @@ class TestStartGame:
 
     def test_hvai_creates_one_ai_player(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = self._make_ns()
         w.ShatranjWindow._start_game(ns, self._make_config("hvai"))
@@ -2359,7 +2678,9 @@ class TestStartGame:
 
     def test_aivai_creates_two_ai_players(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = self._make_ns()
         w.ShatranjWindow._start_game(ns, self._make_config("aivai"))
@@ -2368,7 +2689,9 @@ class TestStartGame:
 
     def test_mcts_uses_depth_100(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = self._make_ns()
         w.ShatranjWindow._start_game(ns, self._make_config("hvai", "mcts"))
@@ -2376,7 +2699,9 @@ class TestStartGame:
 
     def test_start_game_calls_configure_clock(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
         ns = self._make_ns()
         config = self._make_config()
@@ -2389,10 +2714,13 @@ class TestStartGame:
 # Tests for _on_new_game and _on_load_game
 # ---------------------------------------------------------------------------
 
+
 class TestOnNewGameAndLoad:
     def test_on_new_game_creates_dialog(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns()
@@ -2406,7 +2734,9 @@ class TestOnNewGameAndLoad:
 
     def test_on_load_game_opens_file_dialog(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
+
         importlib.reload(w)
 
         ns = _make_window_ns()
@@ -2424,13 +2754,12 @@ class TestOnNewGameAndLoad:
 # ---------------------------------------------------------------------------
 # Helpers pour accéder aux méthodes de NewGameDialog sans GTK
 # ---------------------------------------------------------------------------
-
-import importlib as _importlib
-import types as _types
-
 def _get_newgame_method(name):
-    """Extract a method from NewGameDialog source without going through the mock."""
+    """
+    Extract a method from NewGameDialog source without going through the mock.
+    """
     import shatranj.presentation.gui.window as _w
+
     # The class may be mocked, but its methods are defined in the source.
     # We find them by inspecting the module's source-defined classes.
     for obj in vars(_w).values():
@@ -2450,6 +2779,7 @@ def _get_newgame_method(name):
 class TestOnlineBoardOrientation:
     def test_should_flip_board_only_for_black(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
 
         importlib.reload(w)
@@ -2460,6 +2790,7 @@ class TestOnlineBoardOrientation:
 
     def test_refresh_game_view_flips_board_for_online_black(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
 
         importlib.reload(w)
@@ -2514,6 +2845,7 @@ class _FakeStrip:
 class TestOnlineSideLayout:
     def test_display_side_order_flips_top_and_bottom_for_black(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
 
         importlib.reload(w)
@@ -2524,6 +2856,7 @@ class TestOnlineSideLayout:
 
     def test_sync_clock_card_order_puts_black_clock_at_bottom(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
 
         importlib.reload(w)
@@ -2544,6 +2877,7 @@ class TestOnlineSideLayout:
 
     def test_update_captured_pieces_follows_black_view(self):
         import importlib
+
         import shatranj.presentation.gui.window as w
 
         importlib.reload(w)

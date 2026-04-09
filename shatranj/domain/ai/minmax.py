@@ -1,13 +1,10 @@
+from shatranj.domain.ai.evaluator import Evaluator
+from shatranj.domain.ai.transposition_table import (EXACT, TranspositionTable,
+                                                    ZobristHasher)
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.domain.ai.evaluator import Evaluator
-from shatranj.domain.ai.transposition_table import (
-    ZobristHasher,
-    TranspositionTable,
-    EXACT,
-)
-from shatranj.utils.constants import WHITE, BLACK
+from shatranj.utils.constants import BLACK, WHITE
 
 
 class Minimax:
@@ -168,7 +165,9 @@ class Minimax:
         key            -> current Zobrist hash key
         """
         # --- Transposition Table lookup ---
-        tt_score, should_use = self._tt.get(key, depth, float("-inf"), float("+inf"))
+        tt_score, should_use = self._tt.get(
+            key, depth, float("-inf"), float("+inf")
+        )
         if should_use:
             return tt_score
 

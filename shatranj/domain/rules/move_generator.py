@@ -1,15 +1,7 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import (
-    WHITE,
-    PAWN,
-    ROOK,
-    KNIGHT,
-    FERZ,
-    SHAH,
-    ALFIL,
-)
-from shatranj.utils.constants import BOARD_SIZE, NUM_SQUARES
+from shatranj.utils.constants import (ALFIL, BOARD_SIZE, FERZ, KNIGHT,
+                                      NUM_SQUARES, PAWN, ROOK, SHAH, WHITE)
 
 
 class MoveGenerator:
@@ -40,7 +32,9 @@ class MoveGenerator:
                     continue
                 target = board.get_piece_at(diag)
                 if target is not None and target[1] != color:
-                    moves.append(Move(sq, diag, PAWN, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, diag, PAWN, color, captured_piece=target[0])
+                    )
 
         return moves
 
@@ -139,7 +133,9 @@ class MoveGenerator:
                     # Square occupied by an enemy → capture
                     # target[1] = color of the target piece
                     moves.append(
-                        Move(sq, to_sq, KNIGHT, color, captured_piece=target[0])
+                        Move(
+                            sq, to_sq, KNIGHT, color, captured_piece=target[0]
+                        )
                     )
                 # If target[1] == color → friendly piece, skip
 
@@ -202,7 +198,9 @@ class MoveGenerator:
                     moves.append(Move(sq, to_sq, FERZ, color))
                 elif target[1] != color:
                     # Square occupied by an enemy → capture
-                    moves.append(Move(sq, to_sq, FERZ, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, to_sq, FERZ, color, captured_piece=target[0])
+                    )
                 # If target[1] == color → friendly piece, skip
 
         return moves
@@ -265,7 +263,9 @@ class MoveGenerator:
                     moves.append(Move(sq, to_sq, SHAH, color))
                 elif target[1] != color:
                     # Square occupied by an enemy → capture
-                    moves.append(Move(sq, to_sq, SHAH, color, captured_piece=target[0]))
+                    moves.append(
+                        Move(sq, to_sq, SHAH, color, captured_piece=target[0])
+                    )
                 # If target[1] == color → friendly piece, skip
 
         return moves

@@ -4,10 +4,12 @@ test_main.py - Unit tests for the main module
 Tests the main entry point and command-line argument parsing.
 """
 
-import pytest
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
+
 from shatranj import main
 
 
@@ -71,9 +73,7 @@ class TestMainEntryPoint:
             with patch(
                 "shatranj.domain.network.DiscoveryServer"
             ) as MockDiscovery:
-                with patch(
-                    "shatranj.domain.network.GameServer"
-                ) as MockServer:
+                with patch("shatranj.domain.network.GameServer") as MockServer:
                     with patch(
                         "shatranj.main.time.sleep",
                         side_effect=KeyboardInterrupt,
@@ -101,9 +101,7 @@ class TestMainEntryPoint:
             with patch(
                 "shatranj.domain.network.DiscoveryServer"
             ) as MockDiscovery:
-                with patch(
-                    "shatranj.domain.network.GameServer"
-                ) as MockServer:
+                with patch("shatranj.domain.network.GameServer") as MockServer:
                     with patch(
                         "shatranj.main.time.sleep",
                         side_effect=KeyboardInterrupt,
@@ -255,9 +253,7 @@ class TestMainBlitz:
                 mock_config = MockConfig.return_value
                 mock_config.get_bool.return_value = True
                 mock_config.get_int.return_value = 15
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -276,9 +272,7 @@ class TestMainBlitz:
                 mock_config = MockConfig.return_value
                 mock_config.get_bool.return_value = True
                 mock_config.get_int.return_value = 30
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -297,9 +291,7 @@ class TestMainBlitz:
                 mock_config = MockConfig.return_value
                 mock_config.get_bool.return_value = False
                 mock_config.get_int.return_value = 30
-                with patch(
-                    "sys.stderr", new_callable=StringIO
-                ) as mock_stderr:
+                with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
                     with patch(
                         "shatranj.presentation.cli.cli.CLI.run"
                     ) as mock_cli_run:
@@ -324,11 +316,9 @@ class TestMainAI:
                 mock_config.get_str.side_effect = lambda key: {
                     "ai-mode": "minimax",
                     "ai-depth": 3,
-                    "ai-scoring": "advanced"
+                    "ai-scoring": "advanced",
                 }.get(key, "advanced")
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -348,11 +338,9 @@ class TestMainAI:
                 mock_config.get_str.side_effect = lambda key: {
                     "ai-mode": "alphabeta",
                     "ai-depth": 4,
-                    "ai-scoring": "advanced"
+                    "ai-scoring": "advanced",
                 }.get(key, "advanced")
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -362,9 +350,7 @@ class TestMainAI:
 
     def test_main_ai_mcts(self):
         """Run main with MCTS AI."""
-        with patch(
-            "sys.argv", ["shatranj", "--ai", "B", "--ai-mode", "mcts"]
-        ):
+        with patch("sys.argv", ["shatranj", "--ai", "B", "--ai-mode", "mcts"]):
             with patch("shatranj.main.ShatranjConfig") as MockConfig:
                 mock_config = MockConfig.return_value
                 mock_config.get_bool.return_value = False
@@ -372,11 +358,9 @@ class TestMainAI:
                 mock_config.get_str.side_effect = lambda key: {
                     "ai-mode": "mcts",
                     "ai-depth": 100,
-                    "ai-scoring": "advanced"
+                    "ai-scoring": "advanced",
                 }.get(key, "advanced")
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -386,9 +370,7 @@ class TestMainAI:
 
     def test_main_ai_custom_depth(self):
         """Run main with custom AI depth."""
-        with patch(
-            "sys.argv", ["shatranj", "--ai", "W", "--ai-depth", "6"]
-        ):
+        with patch("sys.argv", ["shatranj", "--ai", "W", "--ai-depth", "6"]):
             with patch("shatranj.main.ShatranjConfig") as MockConfig:
                 mock_config = MockConfig.return_value
                 mock_config.get_bool.return_value = False
@@ -396,11 +378,9 @@ class TestMainAI:
                 mock_config.get_str.side_effect = lambda key: {
                     "ai-mode": "alphabeta",
                     "ai-depth": 6,
-                    "ai-scoring": "advanced"
+                    "ai-scoring": "advanced",
                 }.get(key, "advanced")
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -420,11 +400,9 @@ class TestMainAI:
                 mock_config.get_str.side_effect = lambda key: {
                     "ai-mode": "alphabeta",
                     "ai-depth": 4,
-                    "ai-scoring": "material"
+                    "ai-scoring": "material",
                 }.get(key, "material")
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -497,9 +475,7 @@ class TestMainVerboseDebug:
                     return False
 
                 mock_config.get_bool.side_effect = get_bool_side_effect
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -524,9 +500,7 @@ class TestMainVerboseDebug:
                     return False
 
                 mock_config.get_bool.side_effect = get_bool_side_effect
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -551,9 +525,7 @@ class TestMainVerboseDebug:
                     return False
 
                 mock_config.get_bool.side_effect = get_bool_side_effect
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
@@ -578,16 +550,12 @@ class TestMainLoadSave:
             with patch("shatranj.main.ShatranjConfig") as MockConfig:
                 mock_config = MockConfig.return_value
                 mock_config.get_bool.return_value = False
-                with patch(
-                    "shatranj.presentation.cli.cli.CLI"
-                ) as MockCLI:
+                with patch("shatranj.presentation.cli.cli.CLI") as MockCLI:
                     mock_cli = MockCLI.return_value
                     mock_cli.run.return_value = 0
                     result = main.main()
                     assert result == 0
-                    mock_cli._do_load.assert_called_once_with(
-                        [str(save_file)]
-                    )
+                    mock_cli._do_load.assert_called_once_with([str(save_file)])
 
 
 class TestMainVersion:
@@ -614,7 +582,7 @@ class TestMainErrorHandling:
                 mock_config.get_bool.return_value = False
                 with patch(
                     "shatranj.presentation.gui.app.run_gui",
-                    side_effect=ModuleNotFoundError
+                    side_effect=ModuleNotFoundError,
                 ):
                     with patch(
                         "sys.stderr", new_callable=StringIO

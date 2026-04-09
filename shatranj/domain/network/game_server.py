@@ -7,12 +7,8 @@ from typing import Dict, Optional
 
 from shatranj.domain.core.board import Board
 from shatranj.domain.network.player_connection import PlayerConnection
-from shatranj.domain.network.protocol import (
-    Command,
-    GAME_PORT_DEFAULT,
-    Message,
-    Response,
-)
+from shatranj.domain.network.protocol import (GAME_PORT_DEFAULT, Command,
+                                              Message, Response)
 from shatranj.utils.constants import BLACK, WHITE
 
 logger = logging.getLogger(__name__)
@@ -31,7 +27,9 @@ class GameSession:
         self.board = Board()
         self.current_color = WHITE
 
-    def get_opponent(self, player: PlayerConnection) -> Optional[PlayerConnection]:
+    def get_opponent(
+        self, player: PlayerConnection
+    ) -> Optional[PlayerConnection]:
         if player == self.white:
             return self.black
         if player == self.black:
@@ -64,7 +62,9 @@ class GameServer:
             logger.warning("Game server already running on port %s", self.port)
             return
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.setsockopt(
+            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1
+        )
         self.server_socket.bind(("0.0.0.0", self.port))
         self.server_socket.listen(5)
         self.running = True
@@ -93,7 +93,9 @@ class GameServer:
             try:
                 self.server_socket.settimeout(1)
                 client_socket, addr = self.server_socket.accept()
-                conn = PlayerConnection(client_socket, addr, self._on_player_message)
+                conn = PlayerConnection(
+                    client_socket, addr, self._on_player_message
+                )
                 conn.start()
             except socket.timeout:
                 continue
@@ -101,7 +103,9 @@ class GameServer:
                 if self.running:
                     logger.error("Server loop error: %s", err)
 
-    def _on_player_message(self, connection: PlayerConnection, message: Message):
+    def _on_player_message(
+        self, connection: PlayerConnection, message: Message
+    ):
         with self._lock:
             if message.command == Command.CONN:
                 self._handle_auth(connection, message)
@@ -181,8 +185,13 @@ class GameServer:
             )
             return
 
-        if target_id not in self.players or self.players[target_id]["status"] != "idle":
-            connection.send(Message.build(Response.ERROR, "Player not available."))
+        if (
+            target_id not in self.players
+            or self.players[target_id]["status"] != "idle"
+        ):
+            connection.send(
+                Message.build(Response.ERROR, "Player not available.")
+            )
             return
 
         self.players[sender_id]["status"] = "waitgame"
@@ -241,9 +250,13 @@ class GameServer:
         opponent_args = ("white=Opponent", "black=You", f"board={fen}")
 
         if blitz_setting:
-            white_conn.send(Message.build(Response.GAME_START, *base_args, blitz_setting))
+            white_conn.send(
+                Message.build(Response.GAME_START, *base_args, blitz_setting)
+            )
             black_conn.send(
-                Message.build(Response.GAME_START, *opponent_args, blitz_setting)
+                Message.build(
+                    Response.GAME_START, *opponent_args, blitz_setting
+                )
             )
             return
 
@@ -271,7 +284,9 @@ class GameServer:
                     self._record_win(self.players[opponent_id]["name"])
 
                 if pid in self.players:
-                    self._record_loss(self.players[pid]["name"], disconnected=True)
+                    self._record_loss(
+                        self.players[pid]["name"], disconnected=True
+                    )
 
             del self.active_sessions[sid]
             break
@@ -300,7 +315,9 @@ class GameServer:
             if invite["to"] == target_id:
                 self.players[sid]["status"] = "idle"
                 self.players[target_id]["status"] = "idle"
-                self.players[sid]["conn"].send(Message.build(Response.INVITE_DECLINED))
+                self.players[sid]["conn"].send(
+                    Message.build(Response.INVITE_DECLINED)
+                )
                 del self.invitations[sid]
                 break
 
@@ -345,13 +362,18 @@ class GameServer:
             session = None
             session_id = None
             for sid, active_session in self.active_sessions.items():
-                if active_session.white == connection or active_session.black == connection:
+                if (
+                    active_session.white == connection
+                    or active_session.black == connection
+                ):
                     session = active_session
                     session_id = sid
                     break
 
             if session is None:
-                connection.send(Message.build(Response.ERROR, "No active game."))
+                connection.send(
+                    Message.build(Response.ERROR, "No active game.")
+                )
                 return
 
             player_color = session.get_player_color(connection)
@@ -363,7 +385,9 @@ class GameServer:
 
             opponent = session.get_opponent(connection)
             if opponent is not None:
-                success = opponent.send(Message.build(Response.OPPONENT_MOVE, move_str))
+                success = opponent.send(
+                    Message.build(Response.OPPONENT_MOVE, move_str)
+                )
                 if success is False:
                     connection.send(
                         Message.build(
@@ -379,7 +403,9 @@ class GameServer:
 
         except Exception as err:
             logger.error("Move handling error: %s", err)
-            connection.send(Message.build(Response.INVALID, f"Technical error: {err}"))
+            connection.send(
+                Message.build(Response.INVALID, f"Technical error: {err}")
+            )
 
     def get_status(self) -> dict[str, int | str | bool]:
         """Return a lightweight snapshot of the local server state."""
@@ -411,7 +437,11 @@ class GameServer:
                     }
                 )
         rows.sort(
-            key=lambda row: (-int(row["wins"]), int(row["losses"]), str(row["name"]))
+            key=lambda row: (
+                -int(row["wins"]),
+                int(row["losses"]),
+                str(row["name"]),
+            )
         )
         return rows
 

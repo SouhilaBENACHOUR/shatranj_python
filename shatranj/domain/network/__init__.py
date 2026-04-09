@@ -15,8 +15,8 @@ Architecture réseau :
     - Validation serveur-side : anti-triche
 
 Composants implémentés :
-    - DiscoveryServer : Serveur UDP diffusant présence (annonces toutes les 10s)
-    - DiscoveryClient : Client UDP découvrant serveurs disponibles (timeout 30s)
+    - DiscoveryServer: Serveur UDP diffusant présence (annonces toutes les 10s)
+    - DiscoveryClient: Client UDP découvrant serveurs disponibles (timeout 30s)
     - GameServer : Serveur TCP gérant parties multijoueur
     - GameClient : Client TCP se connectant à un serveur
     - PlayerConnection : Gestion communication avec un joueur
@@ -42,26 +42,19 @@ Protocole TCP (Jeu) :
         - CHECKMATE|winner=white
 """
 
-# Importer les classes du réseau
-from shatranj.domain.network.protocol import (
-    Command,
-    Response,
-    InvalidReason,
-    Message,
-    DISCOVERY_PORT,
-    BROADCAST_ADDRESS,
-    BROADCAST_INTERVAL,
-    SERVER_TIMEOUT,
-    GAME_PORT_DEFAULT,
-)
+from shatranj.domain.network.discovery_client import (DiscoveryClient,
+                                                      ServerInfo)
 from shatranj.domain.network.discovery_server import DiscoveryServer
-from shatranj.domain.network.discovery_client import (
-    DiscoveryClient,
-    ServerInfo,
-)
-from shatranj.domain.network.game_server import GameServer, GameSession
 from shatranj.domain.network.game_client import GameClient
+from shatranj.domain.network.game_server import GameServer, GameSession
 from shatranj.domain.network.player_connection import PlayerConnection
+# Importer les classes du réseau
+from shatranj.domain.network.protocol import (BROADCAST_ADDRESS,
+                                              BROADCAST_INTERVAL,
+                                              DISCOVERY_PORT,
+                                              GAME_PORT_DEFAULT,
+                                              SERVER_TIMEOUT, Command,
+                                              InvalidReason, Message, Response)
 
 __all__ = [
     # Protocol

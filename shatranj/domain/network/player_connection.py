@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 class PlayerConnection:
     """Manages TCP communication with a connected player."""
 
-    def __init__(self, socket: socket.socket, addr: tuple, on_message: Callable):
+    def __init__(
+        self, socket: socket.socket, addr: tuple, on_message: Callable
+    ):
         """
         Initialize a player connection.
 
@@ -86,9 +88,10 @@ class PlayerConnection:
                 try:
                     self.socket.settimeout(2)
                     data = self.socket.recv(1024)
-                    logger.info(
-                        f"[RECV] {self.addr} - Got {len(data) if data else 0} bytes: {repr(data[:100]) if data else 'EMPTY'}"
-                    )
+                    a = self.addr
+                    le = len(data) if data else 0
+                    c = repr(data[:100]) if data else 'EMPTY'
+                    logger.info(f"[RECV] {a} - Got {le}b: {c}")
 
                     if not data:
                         logger.info(f"Player {self.addr} disconnected")
@@ -104,7 +107,9 @@ class PlayerConnection:
                         try:
                             message = Message.parse(line)
                             logger.debug(
-                                f"[RECV] {self.addr} - Parsed: {message.command}"
+                                "[RECV] %s - Parsed: %s",
+                                self.addr,
+                                message.command,
                             )
                             self.on_message(self, message)
                         except Exception as err:
@@ -118,7 +123,9 @@ class PlayerConnection:
                     continue
                 except OSError as err:
                     if self.running:
-                        logger.error("Error receiving from %s: %s", self.addr, err)
+                        logger.error(
+                            "Error receiving from %s: %s", self.addr, err
+                        )
 
         except OSError as err:
             logger.error("Receive loop error for %s: %s", self.addr, err)

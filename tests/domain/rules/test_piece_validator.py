@@ -1,16 +1,15 @@
 import pytest
+
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK
-from shatranj.utils.constants import KNIGHT, ALFIL, FERZ, SHAH
-from shatranj.domain.rules.piece_validator import (
-    PawnValidator,
-    RookValidator,
-    KnightValidator,
-    AlfilValidator,
-    FerzValidator,
-    ShahValidator,
-)
+from shatranj.domain.rules.piece_validator import (AlfilValidator,
+                                                   FerzValidator,
+                                                   KnightValidator,
+                                                   PawnValidator,
+                                                   RookValidator,
+                                                   ShahValidator)
+from shatranj.utils.constants import (ALFIL, BLACK, FERZ, KNIGHT, PAWN, ROOK,
+                                      SHAH, WHITE)
 
 
 @pytest.fixture

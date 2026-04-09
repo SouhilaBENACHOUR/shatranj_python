@@ -5,6 +5,13 @@ Role: creates the GTK application and the main window.
 """
 
 import os
+import gi
+
+gi.require_version("Gtk", "4.0")
+
+from gi.repository import Gio, Gtk  # noqa: E402
+
+from shatranj.presentation.gui.window import ShatranjWindow  # noqa: E402
 
 
 def _apply_wslg_display_workaround(env: dict[str, str] | None = None) -> None:
@@ -33,19 +40,13 @@ def _apply_wslg_display_workaround(env: dict[str, str] | None = None) -> None:
 
 _apply_wslg_display_workaround()
 
-import gi
-
-gi.require_version("Gtk", "4.0")
-
-from gi.repository import Gio, Gtk
-
-from shatranj.presentation.gui.window import ShatranjWindow
-
 
 class ShatranjApp(Gtk.Application):
     """Main GTK application."""
 
-    def __init__(self, blitz: bool = False, blitz_time_minutes: int = 30) -> None:
+    def __init__(
+        self, blitz: bool = False, blitz_time_minutes: int = 30
+    ) -> None:
         super().__init__(
             application_id="fr.u-bordeaux.shatranj",
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,

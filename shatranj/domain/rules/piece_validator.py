@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
+
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE
-from shatranj.utils.constants import BOARD_SIZE
+from shatranj.utils.constants import BOARD_SIZE, WHITE
 
 # ------------------------------------------------------------------ #
 #  ABSTRACT BASE CLASS (Strategy interface)                           #

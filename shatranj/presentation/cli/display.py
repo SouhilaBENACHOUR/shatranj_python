@@ -13,17 +13,8 @@ import os
 import sys
 
 from shatranj.domain.core.board import Board
-from shatranj.utils.constants import (
-    WHITE,
-    BLACK,
-    SHAH,
-    FERZ,
-    ROOK,
-    ALFIL,
-    KNIGHT,
-    PAWN,
-)
-from shatranj.utils.constants import BOARD_SIZE
+from shatranj.utils.constants import (ALFIL, BLACK, BOARD_SIZE, FERZ, KNIGHT,
+                                      PAWN, ROOK, SHAH, WHITE)
 
 # Dictionary: (piece_type, color) -> ASCII letter
 # White pieces = UPPERCASE, Black pieces = lowercase
@@ -110,7 +101,9 @@ def board_to_string(board: Board, use_color: bool = False) -> str:
                 row_squares.append(".")
             else:
                 symbol = PIECE_SYMBOLS[piece]
-                row_squares.append(_colorize_piece(symbol, piece[1], use_color))
+                row_squares.append(
+                    _colorize_piece(symbol, piece[1], use_color)
+                )
 
         # Format: "8  r n a f k a n r"
         lines.append(f"  {row_label}  " + " ".join(row_squares))

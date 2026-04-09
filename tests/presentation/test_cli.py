@@ -15,21 +15,24 @@ Run with:
   pytest tests/test_cli.py -v
 """
 
-import pytest
 import os
-from unittest.mock import patch, MagicMock
-from shatranj.domain.core.move import Move
 from io import StringIO
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from shatranj.domain.core.board import Board
+from shatranj.domain.core.move import Move
 from shatranj.presentation.cli.cli import CLI
 from shatranj.presentation.cli.game_state import GameState
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN, FERZ
+from shatranj.utils.constants import BLACK, FERZ, PAWN, ROOK, SHAH, WHITE
 from shatranj.utils.exceptions import InvalidSquareError, SaveError
 
 
 class TestGameState:
     """Tests for the GameState class."""
+
     def setup_method(self):
         """Called before each test. Creates a fresh game state."""
         from shatranj.presentation.cli.game_state import GameState
@@ -114,6 +117,7 @@ class TestGameState:
 
 class TestDisplay:
     """Tests for ASCII board display."""
+
     def test_board_to_string_has_8_rows(self):
         """The displayed board has 8 piece rows and 1 column label row."""
         from shatranj.domain.core.board import Board
@@ -442,8 +446,8 @@ class TestDoLoad:
 
     def test_load_no_args(self):
         """No argument provided shows an error."""
-        from unittest.mock import patch
         from io import StringIO
+        from unittest.mock import patch
 
         stderr = StringIO()
         with patch("sys.stderr", stderr):
@@ -454,8 +458,8 @@ class TestDoLoad:
 
     def test_load_file_not_found(self):
         """Non-existent file shows an error."""
-        from unittest.mock import patch
         from io import StringIO
+        from unittest.mock import patch
 
         stderr = StringIO()
         with patch("sys.stderr", stderr):
@@ -466,8 +470,8 @@ class TestDoLoad:
 
     def test_load_invalid_color(self, tmp_path):
         """Invalid color in file shows an error."""
-        from unittest.mock import patch
         from io import StringIO
+        from unittest.mock import patch
 
         content = (
             "[settings]\n"
@@ -496,8 +500,8 @@ class TestDoLoad:
 
     def test_load_invalid_board_row(self, tmp_path):
         """Invalid board row shows an error."""
-        from unittest.mock import patch
         from io import StringIO
+        from unittest.mock import patch
 
         content = (
             "[settings]\n"
@@ -526,8 +530,8 @@ class TestDoLoad:
 
     def test_load_invalid_piece_symbol(self, tmp_path):
         """Unknown piece symbol shows an error."""
-        from unittest.mock import patch
         from io import StringIO
+        from unittest.mock import patch
 
         content = (
             "[settings]\n"
@@ -556,8 +560,8 @@ class TestDoLoad:
 
     def test_load_invalid_move_in_history(self, tmp_path):
         """Invalid move in history shows an error."""
-        from unittest.mock import patch
         from io import StringIO
+        from unittest.mock import patch
 
         content = (
             "[settings]\n"
@@ -930,8 +934,9 @@ class TestDoPlayMoveEdgeCases:
         self.cli._state.current_color = WHITE
         stderr = StringIO()
         with patch("sys.stderr", stderr):
-            with patch.object(self.cli, "_parse_move",
-                              return_value=Move(52, 44, PAWN, BLACK)):
+            with patch.object(
+                self.cli, "_parse_move", return_value=Move(52, 44, PAWN, BLACK)
+            ):
                 self.cli._do_play_move("e7-e6")
         assert "turn" in stderr.getvalue().lower()
 
@@ -1451,12 +1456,10 @@ class TestDoQuitSaveFlow:
 
     def test_quit_unsaved_save_fails_then_succeeds(self):
         with patch(
-            "builtins.input",
-            side_effect=["y", "fail.sav", "y", "ok.sav"]
+            "builtins.input", side_effect=["y", "fail.sav", "y", "ok.sav"]
         ):
             with patch.object(
-                self.cli, "_save_to_file",
-                side_effect=[False, True]
+                self.cli, "_save_to_file", side_effect=[False, True]
             ):
                 self.cli._do_quit([])
 
@@ -1656,7 +1659,9 @@ class TestNetworkShellCommands:
             SimpleNamespace(name="Beta", ip="10.0.0.2", port=23456),
         ]
 
-        with patch("shatranj.presentation.cli.cli.DiscoveryClient") as MockDiscovery:
+        with patch(
+            "shatranj.presentation.cli.cli.DiscoveryClient"
+        ) as MockDiscovery:
             MockDiscovery.return_value.scan.return_value = servers
             self.cli._do_server_list()
 
@@ -1665,7 +1670,9 @@ class TestNetworkShellCommands:
         assert "Beta at 10.0.0.2:23456" in out
 
     def test_server_list_without_servers_prints_notice(self, capsys):
-        with patch("shatranj.presentation.cli.cli.DiscoveryClient") as MockDiscovery:
+        with patch(
+            "shatranj.presentation.cli.cli.DiscoveryClient"
+        ) as MockDiscovery:
             MockDiscovery.return_value.scan.return_value = []
             self.cli._do_server_list()
 
@@ -1674,7 +1681,9 @@ class TestNetworkShellCommands:
     def test_server_start_stop_and_status_manage_local_server(self, capsys):
         with (
             patch("shatranj.presentation.cli.cli.GameServer") as MockServer,
-            patch("shatranj.presentation.cli.cli.DiscoveryServer") as MockDiscovery,
+            patch(
+                "shatranj.presentation.cli.cli.DiscoveryServer"
+            ) as MockDiscovery,
         ):
             MockServer.return_value.running = True
             MockServer.return_value.get_status.return_value = {
@@ -1710,8 +1719,12 @@ class TestNetworkShellCommands:
             MockClient.return_value.start_connection.return_value = True
             self.cli._do_join(["example.com:12345"])
 
-        MockClient.assert_called_once_with("example.com:12345", callback=self.cli._on_message)
-        MockClient.return_value.start_connection.assert_called_once_with(player_name="Alice")
+        MockClient.assert_called_once_with(
+            "example.com:12345", callback=self.cli._on_message
+        )
+        MockClient.return_value.start_connection.assert_called_once_with(
+            player_name="Alice"
+        )
         MockThread.assert_called_once_with(
             target=self.cli._auto_refresh_players,
             daemon=True,
@@ -1737,7 +1750,10 @@ class TestNetworkShellCommands:
 
         with (
             patch("builtins.input", return_value="Alice"),
-            patch("shatranj.presentation.cli.cli.GameClient", side_effect=OSError("boom")),
+            patch(
+                "shatranj.presentation.cli.cli.GameClient",
+                side_effect=OSError("boom"),
+            ),
             patch("sys.stderr", stderr),
         ):
             self.cli._do_join(["localhost:12345"])
@@ -1818,7 +1834,9 @@ class TestCliUtilityOutputs:
     def test_save_to_file_success_returns_true(self, capsys):
         self.cli._state = GameState()
 
-        with patch("shatranj.presentation.cli.cli.save_game_file") as mock_save:
+        with patch(
+            "shatranj.presentation.cli.cli.save_game_file"
+        ) as mock_save:
             result = self.cli._save_to_file("game.shj")
 
         assert result is True
@@ -1830,7 +1848,10 @@ class TestCliUtilityOutputs:
         stderr = StringIO()
 
         with (
-            patch("shatranj.presentation.cli.cli.save_game_file", side_effect=SaveError("disk full")),
+            patch(
+                "shatranj.presentation.cli.cli.save_game_file",
+                side_effect=SaveError("disk full"),
+            ),
             patch("sys.stderr", stderr),
         ):
             result = self.cli._save_to_file("game.shj")
@@ -1842,7 +1863,9 @@ class TestCliUtilityOutputs:
         self.cli._state = GameState()
         self.cli._saved = False
 
-        with patch.object(self.cli, "_save_to_file", return_value=True) as mock_save:
+        with patch.object(
+            self.cli, "_save_to_file", return_value=True
+        ) as mock_save:
             self.cli._do_save(["game.shj"])
 
         mock_save.assert_called_once_with("game.shj")
@@ -1896,7 +1919,9 @@ class TestOnMessageNetworkFlow:
         with (
             patch.object(self.cli, "_finish_active_turn", return_value=True),
             patch.object(self.cli, "_start_turn_timer") as mock_start_timer,
-            patch("shatranj.presentation.cli.cli.print_board") as mock_print_board,
+            patch(
+                "shatranj.presentation.cli.cli.print_board"
+            ) as mock_print_board,
         ):
             self.cli._on_message(msg)
 
@@ -1912,7 +1937,9 @@ class TestOnMessageNetworkFlow:
         msg = SimpleNamespace(command="MOVE", args=["e2-e3"])
 
         with (
-            patch.object(self.cli, "_finish_active_turn", return_value=False) as mock_finish,
+            patch.object(
+                self.cli, "_finish_active_turn", return_value=False
+            ) as mock_finish,
             patch.object(self.cli, "_start_turn_timer") as mock_start_timer,
         ):
             self.cli._on_message(msg)
@@ -1922,17 +1949,25 @@ class TestOnMessageNetworkFlow:
         assert self.cli._state.board.get_piece_at(12) == (PAWN, WHITE)
 
     def test_invite_and_decline_messages_are_printed(self, capsys):
-        self.cli._on_message(SimpleNamespace(command="INVITE_RECV", args=["Alice"]))
-        self.cli._on_message(SimpleNamespace(command="INVITE_DECLINED", args=[]))
+        self.cli._on_message(
+            SimpleNamespace(command="INVITE_RECV", args=["Alice"])
+        )
+        self.cli._on_message(
+            SimpleNamespace(command="INVITE_DECLINED", args=[])
+        )
 
         out = capsys.readouterr().out
         assert "INVITATION REÇUE de : Alice" in out
         assert "refusé l'invitation" in out
 
     def test_invitation_sent_and_players_messages_are_printed(self, capsys):
-        self.cli._on_message(SimpleNamespace(command="INVITATION_SENT", args=[]))
         self.cli._on_message(
-            SimpleNamespace(command="PLAYERS_LIST", args=["p1:Alice:idle", "p2:Bob:away"])
+            SimpleNamespace(command="INVITATION_SENT", args=[])
+        )
+        self.cli._on_message(
+            SimpleNamespace(
+                command="PLAYERS_LIST", args=["p1:Alice:idle", "p2:Bob:away"]
+            )
         )
 
         out = capsys.readouterr().out
@@ -1945,9 +1980,13 @@ class TestOnMessageNetworkFlow:
         self.cli._state = GameState()
         self.cli._state.apply_move(Move(12, 20, PAWN, WHITE))
 
-        with patch("shatranj.presentation.cli.cli.print_board") as mock_print_board:
+        with patch(
+            "shatranj.presentation.cli.cli.print_board"
+        ) as mock_print_board:
             self.cli._on_message(
-                SimpleNamespace(command="ERROR", args=["Opponent quit the game"])
+                SimpleNamespace(
+                    command="ERROR", args=["Opponent quit the game"]
+                )
             )
 
         assert self.cli._state is None
@@ -1956,7 +1995,9 @@ class TestOnMessageNetworkFlow:
     def test_generic_error_message_keeps_state(self, capsys):
         self.cli._state = GameState()
 
-        self.cli._on_message(SimpleNamespace(command="ERROR", args=["Minor issue"]))
+        self.cli._on_message(
+            SimpleNamespace(command="ERROR", args=["Minor issue"])
+        )
 
         assert self.cli._state is not None
         assert "SERVEUR: Minor issue" in capsys.readouterr().out

@@ -5,23 +5,14 @@ Tests the exception classes defined in shatranj/utils/exceptions.py.
 """
 
 import pytest
-from shatranj.utils.exceptions import (
-    ShatranjError,
-    BoardError,
-    InvalidSquareError,
-    InvalidMoveError,
-    NoPieceError,
-    RulesError,
-    IllegalMoveError,
-    AIError,
-    NoMoveAvailableError,
-    EvaluatorError,
-    PersistenceError,
-    SaveError,
-    LoadError,
-    ConfigError,
-    MissingShahError,
-)
+
+from shatranj.utils.exceptions import (AIError, BoardError, ConfigError,
+                                       EvaluatorError, IllegalMoveError,
+                                       InvalidMoveError, InvalidSquareError,
+                                       LoadError, MissingShahError,
+                                       NoMoveAvailableError, NoPieceError,
+                                       PersistenceError, RulesError, SaveError,
+                                       ShatranjError)
 
 
 class TestBaseException:

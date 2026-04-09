@@ -15,16 +15,9 @@ Transposition Table:
 """
 
 import random
-from shatranj.utils.constants import (
-    WHITE,
-    BLACK,
-    PAWN,
-    ROOK,
-    KNIGHT,
-    FERZ,
-    SHAH,
-    ALFIL,
-)
+
+from shatranj.utils.constants import (ALFIL, BLACK, FERZ, KNIGHT, PAWN, ROOK,
+                                      SHAH, WHITE)
 
 # --- Flags for transposition table entries ---
 EXACT = 0  # exact score (all children explored)

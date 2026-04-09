@@ -483,9 +483,6 @@ msgstr "Blitz Minutes (0 = untimed)"
 msgid "Copy an ID from the list above, paste it here, then click Invite."
 msgstr "Copy an ID from the list above, paste it here, then click Invite."
 
-msgid "Do you want to start the online game?"
-msgstr "Do you want to start the online game?"
-
 msgid "Accept"
 msgstr "Accept"
 
@@ -521,3 +518,115 @@ msgstr "Close"
 
 msgid "Invite"
 msgstr "Invite"
+
+# ---------------------------------------------------------------------------
+# demo_network.py / play_network.py
+# ---------------------------------------------------------------------------
+
+msgid "Starting demonstration server..."
+msgstr "Starting demonstration server..."
+
+msgid "Connecting {name}..."
+msgstr "Connecting {name}..."
+
+msgid "[{name}] Message: {cmd}: {args}"
+msgstr "[{name}] Message: {cmd}: {args}"
+
+msgid "[{name}] Color: {color}"
+msgstr "[{name}] Color: {color}"
+
+msgid "[{name}] Board load error: {err}"
+msgstr "[{name}] Board load error: {err}"
+
+msgid "[{name}] Game started!"
+msgstr "[{name}] Game started!"
+
+msgid "[{name}] Initial board:"
+msgstr "[{name}] Initial board:"
+
+msgid "[{name}] Board after my move:"
+msgstr "[{name}] Board after my move:"
+
+msgid "[{name}] Opponent plays: {move}"
+msgstr "[{name}] Opponent plays: {move}"
+
+msgid "[{name}] Board after opponent move:"
+msgstr "[{name}] Board after opponent move:"
+
+msgid "[{name}] Connection failed."
+msgstr "[{name}] Connection failed."
+
+msgid "[{name}] Game did not start."
+msgstr "[{name}] Game did not start."
+
+msgid "[{name}] Playing: {move}"
+msgstr "[{name}] Playing: {move}"
+
+msgid "[{name}] Disconnected."
+msgstr "[{name}] Disconnected."
+
+msgid "Shatranj network demonstration with board display"
+msgstr "Shatranj network demonstration with board display"
+
+msgid "Demonstration complete."
+msgstr "Demonstration complete."
+
+msgid "Message: {cmd}: {args}"
+msgstr "Message: {cmd}: {args}"
+
+msgid "Board load error: {err}"
+msgstr "Board load error: {err}"
+
+msgid "You are playing: {color}"
+msgstr "You are playing: {color}"
+
+msgid "Game started!"
+msgstr "Game started!"
+
+msgid "Current turn: {turn}"
+msgstr "Current turn: {turn}"
+
+msgid "Move played successfully!"
+msgstr "Move played successfully!"
+
+msgid "Opponent plays: {move}"
+msgstr "Opponent plays: {move}"
+
+msgid "Invalid move: {reason}"
+msgstr "Invalid move: {reason}"
+
+msgid "Invalid move!"
+msgstr "Invalid move!"
+
+msgid "Check!"
+msgstr "Check!"
+
+msgid "Checkmate! Winner: {winner}"
+msgstr "Checkmate! Winner: {winner}"
+
+msgid "Stalemate! Draw."
+msgstr "Stalemate! Draw."
+
+msgid "Current board — {turn} to move"
+msgstr "Current board — {turn} to move"
+
+msgid "Connecting to Shatranj server as '{name}'..."
+msgstr "Connecting to Shatranj server as '{name}'..."
+
+msgid "Enter moves as 'e2-e4' or type QUIT to exit."
+msgstr "Enter moves as 'e2-e4' or type QUIT to exit."
+
+msgid "Connection to server failed."
+msgstr "Connection to server failed."
+
+msgid "Your move: "
+msgstr "Your move: "
+
+msgid "Move sent: {move}"
+msgstr "Move sent: {move}"
+
+msgid "Failed to send move."
+msgstr "Failed to send move."
+
+msgid "\nDisconnecting..."
+msgstr "\nDisconnecting..."

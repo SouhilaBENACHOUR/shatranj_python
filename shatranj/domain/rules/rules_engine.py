@@ -2,7 +2,7 @@ from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.move_generator import MoveGenerator
 from shatranj.domain.rules.move_validator import MoveValidator
-from shatranj.utils.constants import BLACK, WHITE, SHAH
+from shatranj.utils.constants import BLACK, SHAH, WHITE
 from shatranj.utils.exceptions import MissingShahError
 
 
@@ -14,13 +14,19 @@ class RulesEngine:
         validator: MoveValidator | None = None,
         generator: MoveGenerator | None = None,
     ) -> None:
-        self._validator = validator if validator is not None else MoveValidator()
-        self._generator = generator if generator is not None else MoveGenerator()
+        self._validator = (
+            validator if validator is not None else MoveValidator()
+        )
+        self._generator = (
+            generator if generator is not None else MoveGenerator()
+        )
 
     def is_valid_move(self, board: Board, move: Move) -> bool:
         return self._validator.is_valid_move(board, move)
 
-    def generate_pseudo_legal_moves(self, board: Board, color: str) -> list[Move]:
+    def generate_pseudo_legal_moves(
+        self, board: Board, color: str
+    ) -> list[Move]:
         moves: list[Move] = []
         generators = (
             self._generator.generate_pawn_moves,

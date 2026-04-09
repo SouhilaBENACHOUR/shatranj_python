@@ -1,15 +1,12 @@
 import math
 import random
 
+from shatranj.domain.ai.transposition_table import (EXACT, TranspositionTable,
+                                                    ZobristHasher)
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.domain.ai.transposition_table import (
-    ZobristHasher,
-    TranspositionTable,
-    EXACT,
-)
-from shatranj.utils.constants import WHITE, BLACK
+from shatranj.utils.constants import BLACK, WHITE
 
 
 class MCTSNode:
@@ -132,7 +129,9 @@ class MCTS:
                 sim_color = BLACK if sim_color == WHITE else WHITE
 
                 child = MCTSNode(move=move, parent=node, color=sim_color)
-                legal_child = self._engine.generate_legal_moves(board_copy, sim_color)
+                legal_child = self._engine.generate_legal_moves(
+                    board_copy, sim_color
+                )
                 child.untried = list(legal_child)
                 node.children.append(child)
                 node = child
@@ -172,7 +171,9 @@ class MCTS:
 
         # check TT for this position
         key = self._hasher.compute_key(board, color)
-        tt_score, should_use = self._tt.get(key, 0, float("-inf"), float("+inf"))
+        tt_score, should_use = self._tt.get(
+            key, 0, float("-inf"), float("+inf")
+        )
         if should_use:
             return tt_score
 

@@ -10,7 +10,9 @@ from shatranj.utils.exceptions import InvalidSquareError
 
 def check_square(square: int) -> bool:
     if square < 0 or square >= NUM_SQUARES:
-        raise InvalidSquareError(f"Square {square} must be in [0, {NUM_SQUARES - 1}]")
+        raise InvalidSquareError(
+            f"Square {square} must be in [0, {NUM_SQUARES - 1}]"
+        )
     return True
 
 

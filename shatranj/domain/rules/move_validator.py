@@ -1,17 +1,15 @@
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.BlitzClock import BlitzClock
-from shatranj.utils.constants import PAWN, ROOK, KNIGHT, ALFIL
-from shatranj.utils.constants import FERZ, SHAH, NUM_SQUARES
-from shatranj.domain.rules.piece_validator import (
-    PieceValidator,
-    PawnValidator,
-    RookValidator,
-    KnightValidator,
-    AlfilValidator,
-    FerzValidator,
-    ShahValidator,
-)
+from shatranj.domain.rules.piece_validator import (AlfilValidator,
+                                                   FerzValidator,
+                                                   KnightValidator,
+                                                   PawnValidator,
+                                                   PieceValidator,
+                                                   RookValidator,
+                                                   ShahValidator)
+from shatranj.utils.constants import (ALFIL, FERZ, KNIGHT, NUM_SQUARES, PAWN,
+                                      ROOK, SHAH)
 
 
 class MoveValidator:
@@ -30,7 +28,9 @@ class MoveValidator:
         SHAH: ShahValidator(),
     }
 
-    def is_valid_move(self, board: Board, move: Move, clock: BlitzClock = None) -> bool:
+    def is_valid_move(
+        self, board: Board, move: Move, clock: BlitzClock = None
+    ) -> bool:
         # --- Blitz Logic ---
         # If a clock is used, check if the player ran out of time
         if clock is not None:

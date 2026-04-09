@@ -9,26 +9,19 @@ import os
 
 import cairo
 import gi
+from shatranj.utils.constants import (ALFIL, BLACK, BOARD_SIZE, FERZ, KNIGHT,
+                                      PAWN, ROOK, SHAH, WHITE)
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Rsvg", "2.0")
 
-from gi.repository import Gtk, Rsvg
 
-from shatranj.domain.core.board import Board
-from shatranj.domain.core.move import Move
-from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import (
-    ALFIL,
-    BLACK,
-    BOARD_SIZE,
-    FERZ,
-    KNIGHT,
-    PAWN,
-    ROOK,
-    SHAH,
-    WHITE,
-)
+from gi.repository import Gtk, Rsvg  # noqa: E402
+
+from shatranj.domain.core.board import Board  # noqa: E402
+from shatranj.domain.core.move import Move  # noqa: E402
+from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
+
 
 # Colors
 LIGHT_SQUARE = (0.94, 0.85, 0.71)  # beige

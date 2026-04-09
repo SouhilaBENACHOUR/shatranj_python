@@ -36,7 +36,9 @@ class GameClient:
             self.socket.connect((self.server_ip, self.server_port))
             self.connected = True
 
-            self.thread = threading.Thread(target=self._receive_loop, daemon=True)
+            self.thread = threading.Thread(
+                target=self._receive_loop, daemon=True
+            )
             self.thread.start()
             return self.send(Message.build(Command.CONN, player_name))
         except OSError as err:

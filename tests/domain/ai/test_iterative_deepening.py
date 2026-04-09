@@ -1,10 +1,8 @@
-
-
-from shatranj.domain.core.board import Board
-from shatranj.domain.ai.iterative_deepening import IterativeDeepening
 from shatranj.domain.ai.evaluator import Evaluator
+from shatranj.domain.ai.iterative_deepening import IterativeDeepening
+from shatranj.domain.core.board import Board
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK
+from shatranj.utils.constants import BLACK, ROOK, SHAH, WHITE
 
 # ================================================================
 # Positive tests

@@ -1,9 +1,9 @@
 import pytest
 
-from shatranj.domain.core.board import Board
 from shatranj.domain.ai.ai_player import AIPlayer
+from shatranj.domain.core.board import Board
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK, PAWN
+from shatranj.utils.constants import BLACK, PAWN, ROOK, SHAH, WHITE
 
 # ================================================================
 # AIPlayer — positive tests

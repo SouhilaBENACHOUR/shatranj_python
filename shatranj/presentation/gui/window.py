@@ -25,32 +25,17 @@ from shatranj.domain.ai.hinting import choose_hint_move  # noqa: E402
 from shatranj.domain.core.board import Board  # noqa: E402
 from shatranj.domain.core.move import Move  # noqa: E402
 from shatranj.domain.network.game_client import GameClient  # noqa: E402
-from shatranj.persistence import (
-    ClockState,
-    load_game_file,
-    save_game_file,
-)  # noqa: E402
 from shatranj.domain.rules.rules_engine import RulesEngine  # noqa: E402
+from shatranj.persistence import (ClockState, load_game_file,  # noqa: E402
+                                  save_game_file)
 from shatranj.presentation.cli.game_state import GameState  # noqa: E402
-from shatranj.presentation.gui.board_widget import (  # noqa: E402
-    BoardWidget,
-    get_piece_asset_path,
-)
-from shatranj.utils.constants import (  # noqa: E402
-    ALFIL,
-    BLACK,
-    FERZ,
-    KNIGHT,  # noqa: E402
-    PAWN,
-    ROOK,
-    SHAH,
-    WHITE,
-)
-from shatranj.utils.exceptions import (  # noqa: E402
-    InvalidSquareError,
-    LoadError,
-    ShatranjError,
-)
+from shatranj.presentation.gui.board_widget import (BoardWidget,  # noqa: E402
+                                                    get_piece_asset_path)
+from shatranj.utils.constants import KNIGHT  # noqa: E402
+from shatranj.utils.constants import (ALFIL, BLACK, FERZ, PAWN,  # noqa: E402
+                                      ROOK, SHAH, WHITE)
+from shatranj.utils.exceptions import (InvalidSquareError,  # noqa: E402
+                                       LoadError, ShatranjError)
 
 _ = builtins.__dict__.get("_", lambda x: x)
 
@@ -674,7 +659,10 @@ def _can_interact_with_board(
         return False
     if state.current_color in ai_players:
         return False
-    if network_player_color is not None and state.current_color != network_player_color:
+    if (
+        network_player_color is not None
+        and state.current_color != network_player_color
+    ):
         return False
     return True
 
@@ -735,7 +723,8 @@ def _captured_pieces_from_history(history) -> dict[str, list[str]] | None:
         captured[captured_color].append(move.captured_piece)
 
     return {
-        color: _sort_captured_piece_types(captured[color]) for color in (WHITE, BLACK)
+        color: _sort_captured_piece_types(captured[color])
+        for color in (WHITE, BLACK)
     }
 
 
@@ -792,7 +781,9 @@ class NewGameDialog(Gtk.Dialog):
         self.add_button(_("Start Match"), Gtk.ResponseType.OK)
         self.set_default_response(Gtk.ResponseType.OK)
 
-        self._cancel_button = self.get_widget_for_response(Gtk.ResponseType.CANCEL)
+        self._cancel_button = self.get_widget_for_response(
+            Gtk.ResponseType.CANCEL
+        )
         self._start_button = self.get_widget_for_response(Gtk.ResponseType.OK)
         if self._cancel_button is not None:
             self._cancel_button.add_css_class("config-action")
@@ -970,7 +961,9 @@ class NewGameDialog(Gtk.Dialog):
         )
         time_section.append(self._preset_box)
 
-        self._time_summary = Gtk.Label(label="Choose a speed to unlock its presets.")
+        self._time_summary = Gtk.Label(
+            label="Choose a speed to unlock its presets."
+        )
         self._time_summary.set_halign(Gtk.Align.START)
         self._time_summary.set_xalign(0.0)
         self._time_summary.set_wrap(True)
@@ -1210,14 +1203,18 @@ class NewGameDialog(Gtk.Dialog):
         self._selected_preset = preset
         self._start_button.set_sensitive(True)
         speed_label = TIME_CONTROL_GROUPS[self._selected_speed]["label"]
-        self._time_summary.set_label(f"Selected: {speed_label} {preset['label']}")
+        self._time_summary.set_label(
+            f"Selected: {speed_label} {preset['label']}"
+        )
 
     def _build_custom_preset(self) -> dict:
         """Return the current custom time selection."""
 
         minutes = int(self._custom_minutes_spin.get_value())
         increment = int(self._custom_increment_spin.get_value())
-        label = f"{minutes} | {increment}" if increment > 0 else f"{minutes} min"
+        label = (
+            f"{minutes} | {increment}" if increment > 0 else f"{minutes} min"
+        )
         return {
             "label": label,
             "base_seconds": minutes * 60,
@@ -1630,7 +1627,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         ):
             self._clear_box_children(strip)
             for piece in captured[captured_color]:
-                strip.append(self._make_captured_piece_widget(piece, captured_color))
+                strip.append(
+                    self._make_captured_piece_widget(piece, captured_color)
+                )
 
     def _sync_clock_card_order(self) -> None:
         """Keep top and bottom clocks aligned with the board orientation."""
@@ -2208,11 +2207,15 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._remaining_time[moving_color] = 0.0
             self._update_clock_labels()
             self._show_game_over_dialog(
-                _("Time out! {color} wins!").format(color=_display_color(winner))
+                _("Time out! {color} wins!").format(
+                    color=_display_color(winner)
+                )
             )
             return False
 
-        self._remaining_time[moving_color] = remaining + self._increment_seconds
+        self._remaining_time[moving_color] = (
+            remaining + self._increment_seconds
+        )
         self._update_clock_labels()
         return True
 
@@ -2280,7 +2283,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             return
 
         current_color = self._state.current_color
-        self._remaining_time[current_color] = self._get_display_time(current_color)
+        self._remaining_time[current_color] = self._get_display_time(
+            current_color
+        )
         self._turn_started_at = None
         self._game_paused = True
         self._sync_board_interaction()
@@ -2905,7 +2910,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         return self._state is not None and self._network_my_color is not None
 
     def _close_network_connection(self) -> None:
-        """Disconnect from the online server and clear the GUI network state."""
+        """
+        Disconnect from the online server and clear the GUI network state.
+        """
 
         client = self._network_client
         self._close_network_dialogs()
@@ -2993,7 +3000,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         summary.set_wrap(True)
         box.append(summary)
 
-        players = Gtk.Label(label=_format_network_players(self._network_last_players))
+        players = Gtk.Label(
+            label=_format_network_players(self._network_last_players)
+        )
         players.set_halign(Gtk.Align.START)
         players.set_xalign(0.0)
         players.set_wrap(True)
@@ -3029,7 +3038,10 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         box.append(blitz_spin)
 
         note = Gtk.Label(
-            label=_("Copy an ID from the list above, paste it here, then click Invite.")
+            label=_(
+                "Copy an ID from the list above, "
+                "paste it here, then click Invite."
+            )
         )
         note.set_halign(Gtk.Align.START)
         note.set_xalign(0.0)
@@ -3096,7 +3108,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         title.add_css_class("config-title")
         box.append(title)
 
-        details = Gtk.Label(label=self._network_last_invite or _("Unknown player"))
+        details = Gtk.Label(
+            label=self._network_last_invite or _("Unknown player")
+        )
         details.set_halign(Gtk.Align.START)
         details.set_xalign(0.0)
         details.set_wrap(True)
@@ -3132,7 +3146,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._show_alert(
                 _("Network"),
                 _(
-                    "Finish the current game or return to the menu before joining a server."
+                    "Finish the current game or return to "
+                    "the menu before joining a server."
                 ),
             )
             return
@@ -3179,7 +3194,8 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if response == Gtk.ResponseType.OK:
                 address = address_entry.get_text().strip() or "localhost:12345"
                 name = (
-                    name_entry.get_text().strip() or self._default_network_player_name()
+                    name_entry.get_text().strip()
+                    or self._default_network_player_name()
                 )
                 dlg.destroy()
                 self._connect_to_network_server(address, name)
@@ -3189,7 +3205,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
         dialog.connect("response", on_response)
         dialog.present()
 
-    def _connect_to_network_server(self, address: str, player_name: str) -> None:
+    def _connect_to_network_server(
+        self, address: str, player_name: str
+    ) -> None:
         """Create the TCP client used by the online GUI."""
 
         try:
@@ -3197,7 +3215,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if not client.start_connection(player_name=player_name):
                 self._show_alert(
                     _("Network"),
-                    _("Could not connect to {address}.").format(address=address),
+                    _("Could not connect to {address}.").format(
+                        address=address
+                    ),
                 )
                 return
 
@@ -3397,7 +3417,11 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._close_network_connection()
             self._show_alert(
                 _("Network"),
-                ("\n".join(args) if args else _("Connection refused by the server.")),
+                (
+                    "\n".join(args)
+                    if args
+                    else _("Connection refused by the server.")
+                ),
             )
             return False
 
@@ -3453,7 +3477,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             self._network_my_color = start_info["my_color"]
             self._refresh_game_view()
 
-            clock_config = _build_network_clock_config(start_info["blitz_minutes"])
+            clock_config = _build_network_clock_config(
+                start_info["blitz_minutes"]
+            )
             if clock_config is not None:
                 self._configure_new_game_clock(clock_config)
             else:
@@ -3473,7 +3499,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             if move is None:
                 self._show_alert(
                     _("Network Error"),
-                    _("Could not parse the opponent move: {move}").format(move=args[0]),
+                    _("Could not parse the opponent move: {move}").format(
+                        move=args[0]
+                    ),
                 )
                 return False
 
@@ -3545,7 +3573,9 @@ class ShatranjWindow(Gtk.ApplicationWindow):
             move_text = _move_to_network_text(move)
             if client is None or not client.play_move(move_text):
                 self._close_network_connection()
-                self._show_game_over_dialog(_("Connection to the server was lost."))
+                self._show_game_over_dialog(
+                    _("Connection to the server was lost.")
+                )
                 return
 
         self._state.apply_move(move)

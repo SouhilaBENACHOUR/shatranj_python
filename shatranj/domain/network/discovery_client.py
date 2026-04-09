@@ -34,7 +34,9 @@ class ServerInfo:
         self.last_seen = time.time()
 
     def __repr__(self) -> str:
-        return f"ServerInfo({self.name}, {self.ip}:{self.port}, v{self.version})"
+        return (
+            f"ServerInfo({self.name}, {self.ip}:{self.port}, v{self.version})"
+        )
 
 
 class DiscoveryClient:
@@ -74,7 +76,9 @@ class DiscoveryClient:
     def get_servers(self) -> list[ServerInfo]:
         """Return a list of currently available servers."""
         with self._lock:
-            self.servers = {k: v for k, v in self.servers.items() if not v.is_stale()}
+            self.servers = {
+                k: v for k, v in self.servers.items() if not v.is_stale()
+            }
             return list(self.servers.values())
 
     def scan(self, duration: float = 2.0) -> list[ServerInfo]:
@@ -135,10 +139,16 @@ class DiscoveryClient:
             with self._lock:
                 if key in self.servers:
                     self.servers[key].update_seen()
-                    logger.debug(f"Updated server: {name} at {sender_ip}:{port}")
+                    logger.debug(
+                        f"Updated server: {name} at {sender_ip}:{port}"
+                    )
                 else:
-                    self.servers[key] = ServerInfo(name, sender_ip, port, version)
-                    logger.info(f"Discovered server: {name} at {sender_ip}:{port}")
+                    self.servers[key] = ServerInfo(
+                        name, sender_ip, port, version
+                    )
+                    logger.info(
+                        f"Discovered server: {name} at {sender_ip}:{port}"
+                    )
 
         except ValueError as err:
             logger.error("Error processing announcement: %s", err)

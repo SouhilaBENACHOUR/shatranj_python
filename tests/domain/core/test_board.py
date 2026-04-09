@@ -1,7 +1,8 @@
 import pytest
+
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.utils.constants import WHITE, BLACK, ROOK, PAWN, FERZ
+from shatranj.utils.constants import BLACK, FERZ, PAWN, ROOK, WHITE
 from shatranj.utils.exceptions import InvalidMoveError
 
 

@@ -1,14 +1,9 @@
-
-
-from shatranj.domain.ai.transposition_table import (
-    TranspositionTable,
-    ZobristHasher,
-    EXACT,
-    LOWER_BOUND,
-    UPPER_BOUND,
-)
+from shatranj.domain.ai.transposition_table import (EXACT, LOWER_BOUND,
+                                                    UPPER_BOUND,
+                                                    TranspositionTable,
+                                                    ZobristHasher)
 from shatranj.domain.core.board import Board
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK
+from shatranj.utils.constants import BLACK, ROOK, SHAH, WHITE
 
 # ================================================================
 # Positive tests

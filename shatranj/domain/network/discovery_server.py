@@ -38,10 +38,14 @@ class DiscoveryServer:
             return
 
         self.running = True
-        self.thread = threading.Thread(target=self._broadcast_loop, daemon=True)
+        self.thread = threading.Thread(
+            target=self._broadcast_loop, daemon=True
+        )
         self.thread.start()
         logger.info(
-            f"Discovery server started for '{self.server_name}' on port {self.game_port}"
+            "Discovery server started for '%s' on port %d",
+            self.server_name,
+            self.game_port,
         )
 
     def stop(self) -> None:
@@ -73,7 +77,9 @@ class DiscoveryServer:
                         message.encode("utf-8"),
                         (BROADCAST_ADDRESS, DISCOVERY_PORT),
                     )
-                    logger.debug(f"Broadcast announcement: {message.strip()}")
+                    logger.debug(
+                        "Broadcast announcement: %s", message.strip()
+                    )
 
                     for _ in range(BROADCAST_INTERVAL):
                         if not self.running:

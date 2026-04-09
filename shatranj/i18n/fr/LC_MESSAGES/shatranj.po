@@ -1,5 +1,4 @@
 # Shatranj - French translations
-
 msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -398,7 +397,7 @@ msgid "Join a server before opening the online lobby."
 msgstr "Rejoignez un serveur avant d'ouvrir le lobby en ligne."
 
 msgid "Finish the current game or return to the menu before joining a server."
-msgstr "Terminez la partie ou revenez au menu avant de rejoindre un serveur."
+msgstr "Terminez la partie en cours ou revenez au menu avant de rejoindre un serveur."
 
 msgid "Could not connect to {address}."
 msgstr "Impossible de se connecter à {address}."
@@ -482,7 +481,7 @@ msgid "Blitz Minutes (0 = untimed)"
 msgstr "Minutes blitz (0 = sans limite)"
 
 msgid "Copy an ID from the list above, paste it here, then click Invite."
-msgstr "Copiez un identifiant de la liste ci-dessus, collez-le ici, puis cliquez sur Inviter."
+msgstr "Copiez un ID de la liste ci-dessus, collez-le ici, puis cliquez sur Inviter."
 
 msgid "Accept"
 msgstr "Accepter"
@@ -519,3 +518,115 @@ msgstr "Fermer"
 
 msgid "Invite"
 msgstr "Inviter"
+
+# ---------------------------------------------------------------------------
+# demo_network.py / play_network.py
+# ---------------------------------------------------------------------------
+
+msgid "Starting demonstration server..."
+msgstr "Démarrage du serveur de démonstration..."
+
+msgid "Connecting {name}..."
+msgstr "Connexion de {name}..."
+
+msgid "[{name}] Message: {cmd}: {args}"
+msgstr "[{name}] Message : {cmd} : {args}"
+
+msgid "[{name}] Color: {color}"
+msgstr "[{name}] Couleur : {color}"
+
+msgid "[{name}] Board load error: {err}"
+msgstr "[{name}] Erreur de chargement du plateau : {err}"
+
+msgid "[{name}] Game started!"
+msgstr "[{name}] Partie démarrée !"
+
+msgid "[{name}] Initial board:"
+msgstr "[{name}] Plateau initial :"
+
+msgid "[{name}] Board after my move:"
+msgstr "[{name}] Plateau après mon coup :"
+
+msgid "[{name}] Opponent plays: {move}"
+msgstr "[{name}] L'adversaire joue : {move}"
+
+msgid "[{name}] Board after opponent move:"
+msgstr "[{name}] Plateau après le coup adverse :"
+
+msgid "[{name}] Connection failed."
+msgstr "[{name}] Échec de connexion."
+
+msgid "[{name}] Game did not start."
+msgstr "[{name}] La partie n'a pas démarré."
+
+msgid "[{name}] Playing: {move}"
+msgstr "[{name}] Joue : {move}"
+
+msgid "[{name}] Disconnected."
+msgstr "[{name}] Déconnecté."
+
+msgid "Shatranj network demonstration with board display"
+msgstr "Démonstration réseau Shatranj avec affichage du plateau"
+
+msgid "Demonstration complete."
+msgstr "Démonstration terminée."
+
+msgid "Message: {cmd}: {args}"
+msgstr "Message : {cmd} : {args}"
+
+msgid "Board load error: {err}"
+msgstr "Erreur de chargement du plateau : {err}"
+
+msgid "You are playing: {color}"
+msgstr "Vous jouez les {color}"
+
+msgid "Game started!"
+msgstr "Partie démarrée !"
+
+msgid "Current turn: {turn}"
+msgstr "Tour actuel : {turn}"
+
+msgid "Move played successfully!"
+msgstr "Coup joué avec succès !"
+
+msgid "Opponent plays: {move}"
+msgstr "L'adversaire joue : {move}"
+
+msgid "Invalid move: {reason}"
+msgstr "Coup invalide : {reason}"
+
+msgid "Invalid move!"
+msgstr "Coup invalide !"
+
+msgid "Check!"
+msgstr "Échec !"
+
+msgid "Checkmate! Winner: {winner}"
+msgstr "Échec et mat ! Gagnant : {winner}"
+
+msgid "Stalemate! Draw."
+msgstr "Pat ! Match nul."
+
+msgid "Current board — {turn} to move"
+msgstr "Plateau actuel — {turn} doit jouer"
+
+msgid "Connecting to Shatranj server as '{name}'..."
+msgstr "Connexion au serveur Shatranj en tant que '{name}'..."
+
+msgid "Enter moves as 'e2-e4' or type QUIT to exit."
+msgstr "Entrez vos coups au format 'e2-e4' ou QUIT pour quitter."
+
+msgid "Connection to server failed."
+msgstr "Échec de connexion au serveur."
+
+msgid "Your move: "
+msgstr "Votre coup : "
+
+msgid "Move sent: {move}"
+msgstr "Coup envoyé : {move}"
+
+msgid "Failed to send move."
+msgstr "Erreur d'envoi du coup."
+
+msgid "\nDisconnecting..."
+msgstr "\nDéconnexion..."

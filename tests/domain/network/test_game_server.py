@@ -16,7 +16,9 @@ def test_handle_quit_cleans_active_session_and_notifies_opponent():
         "white-id": {"conn": white, "name": "White", "status": "ingame"},
         "black-id": {"conn": black, "name": "Black", "status": "ingame"},
     }
-    server.active_sessions["session-1"] = GameSession("session-1", white, black)
+    server.active_sessions["session-1"] = GameSession(
+        "session-1", white, black
+    )
 
     server._handle_quit(white)
 

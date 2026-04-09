@@ -1,9 +1,9 @@
 import pytest
 
-from shatranj.domain.core.board import Board
 from shatranj.domain.ai.evaluator import Evaluator
+from shatranj.domain.core.board import Board
+from shatranj.utils.constants import BLACK, ROOK, SHAH, WHITE
 from shatranj.utils.exceptions import EvaluatorError
-from shatranj.utils.constants import WHITE, BLACK, SHAH, ROOK
 
 # ================================================================
 # Evaluator — positive tests
@@ -61,6 +61,7 @@ def test_evaluator_rewards_mobility():
 # ================================================================
 # Evaluator — negative tests
 # ================================================================
+
 
 def test_evaluator_invalid_mode_raises():
     with pytest.raises(EvaluatorError):

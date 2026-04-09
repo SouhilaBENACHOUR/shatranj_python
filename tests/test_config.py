@@ -16,8 +16,7 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-
-from shatranj.config import ShatranjConfig, DEFAULTS
+from shatranj.config import DEFAULTS, ShatranjConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -384,7 +383,9 @@ class TestConfigWithoutTmpPath:
     def test_time_long_option_with_blitz_overrides_timeout(self, monkeypatch):
         config_path = workspace_config_path("timeout_override.shatranjrc")
         config_path.write_text("[defaults]\ntimeout = 30\n", encoding="utf-8")
-        monkeypatch.setattr(sys, "argv", ["shatranj", "--time", "12", "--blitz"])
+        monkeypatch.setattr(
+            sys, "argv", ["shatranj", "--time", "12", "--blitz"]
+        )
 
         cfg = ShatranjConfig(config_path=config_path)
         cfg.apply_args(make_args(time=12, blitz=True))

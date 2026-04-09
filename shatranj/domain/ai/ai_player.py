@@ -1,11 +1,11 @@
+from shatranj.domain.ai.alphabeta import AlphaBeta
+from shatranj.domain.ai.evaluator import Evaluator
+from shatranj.domain.ai.iterative_deepening import IterativeDeepening
+from shatranj.domain.ai.mcts import MCTS
+from shatranj.domain.ai.minmax import Minimax
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
 from shatranj.domain.rules.rules_engine import RulesEngine
-from shatranj.domain.ai.evaluator import Evaluator
-from shatranj.domain.ai.minmax import Minimax
-from shatranj.domain.ai.alphabeta import AlphaBeta
-from shatranj.domain.ai.mcts import MCTS
-from shatranj.domain.ai.iterative_deepening import IterativeDeepening
 
 ALGORITHMS = ("minimax", "alphabeta", "mcts", "iterative")
 SCORING_MODES = ("material", "positional", "advanced")

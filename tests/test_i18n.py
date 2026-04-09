@@ -14,8 +14,8 @@ import builtins
 import gettext
 from unittest.mock import patch
 
-from shatranj.i18n import _detect_language, setup
-from shatranj.i18n import SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
+from shatranj.i18n import (DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES,
+                           _detect_language, setup)
 
 # ---------------------------------------------------------------------------
 # _detect_language()
@@ -147,7 +147,8 @@ class TestSetup:
         assert isinstance(result, gettext.NullTranslations)
 
     def test_null_translations_returns_string_unchanged(
-            self, tmp_path, monkeypatch):
+        self, tmp_path, monkeypatch
+    ):
         import shatranj.i18n as i18n_module
 
         monkeypatch.setattr(i18n_module, "LOCALES_DIR", tmp_path)
