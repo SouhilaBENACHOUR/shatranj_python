@@ -1,39 +1,8 @@
-"""
-exceptions.py - Custom exception hierarchy for Shatranj
-
-All exceptions inherit from ShatranjError so that callers can catch
-either the base class (broad) or a specific subclass (precise).
-
-Hierarchy:
-  ShatranjError
-  ├── BoardError
-  │   ├── InvalidSquareError
-  │   ├── InvalidMoveError
-  │   ├──NoPieceError
-  │   └── MissingShahError
-  ├── RulesError
-  │   └── IllegalMoveError
-  ├── AIError
-  │   └── NoMoveAvailableError
-  ├── EvaluatorError
-  ├── PersistenceError
-  │   ├── SaveError
-  │   └── LoadError
-  └── ConfigError
-"""
-
-# ---------------------------------------------------------------------------
-# Base
-# ---------------------------------------------------------------------------
+"""Custom exception hierarchy for Shatranj."""
 
 
 class ShatranjError(Exception):
     """Base exception for all Shatranj errors."""
-
-
-# ---------------------------------------------------------------------------
-# Board-level errors
-# ---------------------------------------------------------------------------
 
 
 class BoardError(ShatranjError):
@@ -41,36 +10,19 @@ class BoardError(ShatranjError):
 
 
 class InvalidSquareError(BoardError):
-    """Raised when a square index is outside [0, 63].
-
-    Example::
-        raise InvalidSquareError(f"Square {sq} must be in [0, 63]")
-    """
+    """Raised when a square index or notation is invalid."""
 
 
 class InvalidMoveError(BoardError):
-    """Raised when a move cannot be applied (same square, empty source, …).
-
-    Example::
-        raise InvalidMoveError("Cannot move to the same square")
-    """
+    """Raised when a move cannot be applied on the board."""
 
 
 class NoPieceError(BoardError):
-    """Raised when an operation expects a piece on a square but finds none.
-
-    Example::
-        raise NoPieceError(f"No piece on square {square}")
-    """
+    """Raised when an operation expects a piece on a square but finds none."""
 
 
 class MissingShahError(BoardError):
     """Raised when a Shah cannot be found on the board."""
-
-
-# ---------------------------------------------------------------------------
-# Rules errors
-# ---------------------------------------------------------------------------
 
 
 class RulesError(ShatranjError):
@@ -78,16 +30,7 @@ class RulesError(ShatranjError):
 
 
 class IllegalMoveError(RulesError):
-    """Raised when a move is pseudo-legal but leaves the Shah in check.
-
-    Example::
-        raise IllegalMoveError(f"Move {move} leaves Shah in check")
-    """
-
-
-# ---------------------------------------------------------------------------
-# AI errors
-# ---------------------------------------------------------------------------
+    """Raised when a move leaves the Shah in check."""
 
 
 class AIError(ShatranjError):
@@ -95,29 +38,11 @@ class AIError(ShatranjError):
 
 
 class NoMoveAvailableError(AIError):
-    """Raised when the AI finds no legal move (checkmate or stalemate).
-
-    Example::
-        raise NoMoveAvailableError("No legal move for BLACK")
-    """
-
-
-# ---------------------------------------------------------------------------
-# Evaluator errors
-# ---------------------------------------------------------------------------
+    """Raised when the AI finds no legal move."""
 
 
 class EvaluatorError(ShatranjError):
-    """Raised when an unknown evaluation mode is requested.
-
-    Example::
-        raise EvaluatorError(f"Unknown mode '{mode}'")
-    """
-
-
-# ---------------------------------------------------------------------------
-# Persistence errors (save / load)
-# ---------------------------------------------------------------------------
+    """Raised when an unknown evaluation mode is requested."""
 
 
 class PersistenceError(ShatranjError):
@@ -125,26 +50,11 @@ class PersistenceError(ShatranjError):
 
 
 class SaveError(PersistenceError):
-    """Raised when writing a save file fails.
-
-    Example::
-        raise SaveError(f"Could not write to '{path}': {err}")
-    """
+    """Raised when writing a save file fails."""
 
 
 class LoadError(PersistenceError):
-    """Raised when reading or parsing a save file fails.
-
-    Attributes
-    ----------
-    path : str
-        Path of the file that could not be loaded.
-    line : int | None
-        Line number where the error was detected (None if unknown).
-
-    Example::
-        raise LoadError("Invalid board row 3", path="game.shj", line=12)
-    """
+    """Raised when reading or parsing a save file fails."""
 
     def __init__(
         self,
@@ -166,14 +76,5 @@ class LoadError(PersistenceError):
         return " | ".join(parts)
 
 
-# ---------------------------------------------------------------------------
-# Configuration errors
-# ---------------------------------------------------------------------------
-
-
 class ConfigError(ShatranjError):
-    """Raised when the .shatranjrc configuration file is invalid.
-
-    Example::
-        raise ConfigError(f"Unknown ai-mode '{value}'")
-    """
+    """Raised when the configuration file is invalid."""

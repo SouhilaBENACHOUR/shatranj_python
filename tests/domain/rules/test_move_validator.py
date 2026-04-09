@@ -1,7 +1,7 @@
 import pytest
 from shatranj.domain.core.board import Board
 from shatranj.domain.core.move import Move
-from shatranj.domain.rules.move_validator import MoveValidator
+from shatranj.domain.rules.move_validator import BlitzClock, MoveValidator
 from shatranj.utils.constants import WHITE, BLACK, PAWN, ROOK
 from shatranj.utils.constants import KNIGHT, ALFIL, FERZ, SHAH
 
@@ -569,3 +569,55 @@ def test_no_piece_on_from_square(empty_board_and_validator):
     board, validator = empty_board_and_validator
     move = Move(8, 16, PAWN, WHITE)  # empty square
     assert not validator.is_valid_move(board, move)
+
+
+def test_blitz_clock_start_end_and_remaining_time():
+    clock = BlitzClock(60, increment=2)
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(
+            "shatranj.domain.rules.BlitzClock.time.time",
+            lambda: 10.0,
+        )
+        clock.start_turn("white")
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(
+            "shatranj.domain.rules.BlitzClock.time.time",
+            lambda: 14.5,
+        )
+        assert clock.get_remaining_time("white") == 55.5
+        clock.end_turn()
+
+    assert clock.times["white"] == 57.5
+    assert clock.last_update is None
+
+
+def test_blitz_clock_returns_stored_time_for_inactive_color():
+    clock = BlitzClock(30)
+    clock.times["black"] = 12.0
+
+    assert clock.get_remaining_time("black") == 12.0
+
+
+def test_move_is_rejected_when_clock_is_flagged(empty_board_and_validator):
+    board, validator = empty_board_and_validator
+    board.place_piece(PAWN, WHITE, 8)
+    move = Move(8, 16, PAWN, WHITE)
+    clock = BlitzClock(1)
+    clock.times["white"] = 0.0
+
+    assert not validator.is_valid_move(board, move, clock=clock)
+
+
+def test_unknown_piece_validator_returns_false(empty_board_and_validator):
+    board, validator = empty_board_and_validator
+    board.place_piece(PAWN, WHITE, 8)
+    original = MoveValidator._validators.pop(PAWN)
+
+    move = Move(8, 16, PAWN, WHITE)
+
+    try:
+        assert not validator.is_valid_move(board, move)
+    finally:
+        MoveValidator._validators[PAWN] = original
