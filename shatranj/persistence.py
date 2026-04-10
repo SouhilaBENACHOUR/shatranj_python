@@ -169,9 +169,11 @@ def save_game_file(
                 color_key = "white" if color == WHITE else "black"
                 depth = getattr(getattr(ai, "_search", None), "_depth", 3)
                 handle.write(f"ai-color-{i}={color_key}\n")
-                handle.write(f"ai-mode-{i}={getattr(ai, 'algorithm', 'alphabeta')}\n")
+                algo = getattr(ai, 'algorithm', 'alphabeta')
+                handle.write(f"ai-mode-{i}={algo}\n")
                 handle.write(f"ai-depth-{i}={depth}\n")
-                handle.write(f"ai-scoring-{i}={getattr(ai, 'scoring', 'advanced')}\n")
+                scoring = getattr(ai, 'scoring', 'advanced')
+                handle.write(f"ai-scoring-{i}={scoring}\n")
             if clock is not None and clock.mode == "timed":
                 base_seconds = max(
                     0.0,
