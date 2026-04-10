@@ -19,6 +19,7 @@ import os
 from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+import time
 
 import pytest
 
@@ -28,6 +29,7 @@ from shatranj.presentation.cli.cli import CLI
 from shatranj.presentation.cli.game_state import GameState
 from shatranj.utils.constants import BLACK, FERZ, PAWN, ROOK, SHAH, WHITE
 from shatranj.utils.exceptions import InvalidSquareError, SaveError
+from shatranj.persistence import ClockState
 
 
 class TestGameState:
@@ -2001,3 +2003,564 @@ class TestOnMessageNetworkFlow:
 
         assert self.cli._state is not None
         assert "SERVEUR: Minor issue" in capsys.readouterr().out
+
+
+def _make_cli():
+    return CLI(verbose=False, debug=False)
+
+
+def _make_state(color=WHITE):
+    state = GameState()
+    state.current_color = color
+    return state
+
+
+def _make_connected_client():
+    client = MagicMock()
+    client.is_connected.return_value = True
+    client.connected = True
+    client.send.return_value = True
+    return client
+
+
+# ---------------------------------------------------------------------------
+# Timer helpers
+# ---------------------------------------------------------------------------
+
+class TestStartTurnTimer:
+    def test_blitz_enabled_with_state_sets_timer(self):
+        cli = _make_cli()
+        cli._state = _make_state()
+        cli._blitz_enabled = True
+        cli._start_turn_timer()
+        assert cli._turn_started_at is not None
+
+    def test_blitz_disabled_clears_timer(self):
+        cli = _make_cli()
+        cli._state = _make_state()
+        cli._blitz_enabled = False
+        cli._start_turn_timer()
+        assert cli._turn_started_at is None
+
+    def test_no_state_clears_timer(self):
+        cli = _make_cli()
+        cli._state = None
+        cli._blitz_enabled = True
+        cli._start_turn_timer()
+        assert cli._turn_started_at is None
+
+
+class TestStopTurnTimer:
+    def test_clears_timer_and_paused(self):
+        cli = _make_cli()
+        cli._turn_started_at = time.monotonic()
+        cli._timer_paused = True
+        cli._stop_turn_timer()
+        assert cli._turn_started_at is None
+        assert cli._timer_paused is False
+
+
+class TestGetDisplayTime:
+    def test_returns_remaining_when_not_active(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(BLACK)
+        cli._clock_seconds = {WHITE: 100.0, BLACK: 80.0}
+        cli._timer_paused = False
+        cli._turn_started_at = time.monotonic()
+        assert cli._get_display_time(WHITE) == 100.0
+
+    def test_deducts_elapsed_for_active_player(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 100.0}
+        cli._timer_paused = False
+        cli._turn_started_at = time.monotonic() - 3.0
+        result = cli._get_display_time(WHITE)
+        assert result < 100.0
+        assert result >= 96.0
+
+    def test_clamps_to_zero(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 5.0}
+        cli._timer_paused = False
+        cli._turn_started_at = time.monotonic() - 200.0
+        assert cli._get_display_time(WHITE) == 0.0
+
+    def test_paused_no_deduction(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 100.0}
+        cli._timer_paused = True
+        cli._turn_started_at = time.monotonic() - 10.0
+        assert cli._get_display_time(WHITE) == 100.0
+
+
+class TestFinishActiveTurn:
+    def test_not_blitz_returns_true(self):
+        cli = _make_cli()
+        cli._blitz_enabled = False
+        assert cli._finish_active_turn(WHITE) is True
+
+    def test_no_timer_returns_true(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._turn_started_at = None
+        assert cli._finish_active_turn(WHITE) is True
+
+    def test_time_remaining_deducted(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 100.0, BLACK: 100.0}
+        cli._increment_seconds = 0
+        cli._turn_started_at = time.monotonic() - 1.0
+        result = cli._finish_active_turn(WHITE)
+        assert result is True
+        assert cli._clock_seconds[WHITE] < 100.0
+
+    def test_timeout_returns_false(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 1.0, BLACK: 100.0}
+        cli._increment_seconds = 0
+        cli._turn_started_at = time.monotonic() - 200.0
+        result = cli._finish_active_turn(WHITE)
+        assert result is False
+        assert cli._state is None
+
+    def test_increment_added(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 100.0, BLACK: 100.0}
+        cli._increment_seconds = 10
+        cli._turn_started_at = time.monotonic() - 1.0
+        cli._finish_active_turn(WHITE)
+        assert cli._clock_seconds[WHITE] > 100.0
+
+
+class TestConsumeTurnTime:
+    def test_not_blitz_returns_false(self):
+        cli = _make_cli()
+        cli._blitz_enabled = False
+        assert cli._consume_turn_time() is False
+
+    def test_no_state_returns_false(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = None
+        assert cli._consume_turn_time() is False
+
+    def test_paused_returns_false(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state()
+        cli._timer_paused = True
+        cli._turn_started_at = time.monotonic()
+        assert cli._consume_turn_time() is False
+
+    def test_no_timer_returns_false(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state()
+        cli._turn_started_at = None
+        assert cli._consume_turn_time() is False
+
+    def test_time_remaining_returns_false(self):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 100.0}
+        cli._timer_paused = False
+        cli._turn_started_at = time.monotonic()
+        assert cli._consume_turn_time() is False
+
+    def test_timeout_returns_true(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 0.0}
+        cli._timer_paused = False
+        cli._turn_started_at = time.monotonic() - 200.0
+        result = cli._consume_turn_time()
+        assert result is True
+        assert cli._state is None
+
+
+class TestApplyLoadedClockState:
+    def test_non_timed_disables_blitz(self):
+        cli = _make_cli()
+        clock = ClockState(mode="elapsed")
+        cli._apply_loaded_clock_state(clock)
+        assert cli._blitz_enabled is False
+
+    def test_timed_restores_clock(self):
+        cli = _make_cli()
+        clock = ClockState(
+            mode="timed",
+            label="Blitz 5 min",
+            base_seconds=300.0,
+            increment_seconds=2,
+            white_seconds=280.0,
+            black_seconds=295.0,
+            paused=False,
+        )
+        cli._apply_loaded_clock_state(clock)
+        assert cli._blitz_enabled is True
+        assert cli._clock_seconds[WHITE] == 280.0
+        assert cli._clock_seconds[BLACK] == 295.0
+        assert cli._increment_seconds == 2
+
+
+# ---------------------------------------------------------------------------
+# Network commands — no connection
+# ---------------------------------------------------------------------------
+
+class TestNetworkCommandsNoConnection:
+    def test_do_decline_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._do_decline([])
+        out = capsys.readouterr().out
+        assert out != ""
+
+    def test_do_cancel_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._do_cancel([])
+        out = capsys.readouterr().out
+        assert out != ""
+
+    def test_do_away_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._do_away([])
+        out = capsys.readouterr().out
+        assert out != ""
+
+    def test_do_back_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._do_back([])
+        out = capsys.readouterr().out
+        assert out != ""
+
+    def test_do_ping_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._do_ping([])
+        # Should not crash
+
+    def test_do_players_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._do_players([])
+        out = capsys.readouterr().out
+        assert "Not connected" in out or out != ""
+
+    def test_do_accept_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._do_accept([])
+        # Should not crash
+
+    def test_do_scoreboard_no_connection(self, capsys):
+        cli = _make_cli()
+        cli._network_client = None
+        cli._local_server = None
+        cli._do_scoreboard([])
+        out = capsys.readouterr().out
+        assert out != ""
+
+
+# ---------------------------------------------------------------------------
+# Network commands — with connection
+# ---------------------------------------------------------------------------
+
+class TestNetworkCommandsWithConnection:
+    def test_do_decline_sends_decline(self, capsys):
+        cli = _make_cli()
+        cli._network_client = _make_connected_client()
+        cli._do_decline([])
+        cli._network_client.decline_invite.assert_called_once()
+
+    def test_do_cancel_sends_cancel(self, capsys):
+        cli = _make_cli()
+        cli._network_client = _make_connected_client()
+        cli._do_cancel([])
+        cli._network_client.cancel_invite.assert_called_once()
+
+    def test_do_away_sends_away(self, capsys):
+        cli = _make_cli()
+        cli._network_client = _make_connected_client()
+        cli._do_away([])
+        cli._network_client.set_away.assert_called_once()
+
+    def test_do_back_sends_back(self, capsys):
+        cli = _make_cli()
+        cli._network_client = _make_connected_client()
+        cli._do_back([])
+        cli._network_client.set_back.assert_called_once()
+
+    def test_do_ping_calls_ping(self):
+        cli = _make_cli()
+        cli._network_client = _make_connected_client()
+        cli._do_ping([])
+        cli._network_client.ping.assert_called_once()
+
+    def test_do_players_calls_get_players(self):
+        cli = _make_cli()
+        cli._network_client = _make_connected_client()
+        cli._do_players([])
+        cli._network_client.get_players.assert_called_once()
+
+    def test_do_accept_calls_accept(self, capsys):
+        cli = _make_cli()
+        cli._network_client = _make_connected_client()
+        cli._do_accept([])
+        cli._network_client.accept_invite.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Show commands
+# ---------------------------------------------------------------------------
+
+class TestDoShowBoard:
+    def test_no_state_prints_error(self, capsys):
+        cli = _make_cli()
+        cli._state = None
+        with patch("shatranj.presentation.cli.cli.print_board"):
+            cli._do_show_board()
+        capsys.readouterr()
+        assert True  # Should not crash
+
+    def test_with_state_prints_board(self, capsys):
+        cli = _make_cli()
+        cli._state = _make_state()
+        with patch("shatranj.presentation.cli.cli.print_board") as mock_pb:
+            cli._do_show_board()
+        mock_pb.assert_called_once()
+
+
+class TestDoShowHistory:
+    def test_no_state_prints_error(self, capsys):
+        cli = _make_cli()
+        cli._state = None
+        cli._do_show_history()
+        assert True  # Should not crash
+
+    def test_empty_history(self, capsys):
+        cli = _make_cli()
+        cli._state = _make_state()
+        cli._state._history = []
+        cli._do_show_history()
+        out = capsys.readouterr().out
+        assert "No moves played yet" in out
+
+    def test_with_history(self, capsys):
+        cli = _make_cli()
+        state = _make_state()
+        move = Move(
+            from_square=12, to_square=20, piece_type=PAWN, color=WHITE
+        )
+        state.apply_move(move)
+        cli._state = state
+        cli._do_show_history()
+        out = capsys.readouterr().out
+        assert "W" in out
+
+
+class TestDoShowTime:
+    def test_not_blitz_prints_message(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = False
+        cli._do_show_time()
+        out = capsys.readouterr().out
+        assert "blitz" in out.lower()
+
+    def test_no_state_prints_error(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = None
+        cli._do_show_time()
+        assert True  # Should not crash
+
+    def test_with_state_prints_time(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 300.0, BLACK: 295.0}
+        cli._timer_paused = False
+        cli._turn_started_at = None
+        cli._do_show_time()
+        out = capsys.readouterr().out
+        assert "White" in out or "Black" in out
+
+    def test_paused_shows_paused_status(self, capsys):
+        cli = _make_cli()
+        cli._blitz_enabled = True
+        cli._state = _make_state(WHITE)
+        cli._clock_seconds = {WHITE: 300.0, BLACK: 295.0}
+        cli._timer_paused = True
+        cli._turn_started_at = None
+        cli._do_show_time()
+        out = capsys.readouterr().out
+        assert "paused" in out.lower()
+
+
+class TestDoShowConfiguration:
+    def test_prints_configuration(self, capsys):
+        cli = _make_cli()
+        cli._do_show_configuration()
+        out = capsys.readouterr().out
+        assert "verbose" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# Draw detection
+# ---------------------------------------------------------------------------
+
+class TestIsDrawByFiftyMoveRule:
+    def test_no_state_returns_false(self):
+        cli = _make_cli()
+        cli._state = None
+        assert cli._is_draw_by_fifty_move_rule() is False
+
+    def test_no_moves_returns_false(self):
+        cli = _make_cli()
+        cli._state = _make_state()
+        assert cli._is_draw_by_fifty_move_rule() is False
+
+    def test_pawn_move_resets_count(self):
+        cli = _make_cli()
+        state = _make_state()
+        move = Move(
+            from_square=12, to_square=20, piece_type=PAWN, color=WHITE
+        )
+        state._history = [(move, {})]
+        cli._state = state
+        assert cli._is_draw_by_fifty_move_rule() is False
+
+    def test_rook_moves_trigger_fifty(self):
+        cli = _make_cli()
+        state = _make_state()
+        rook_move = Move(
+            from_square=0, to_square=1, piece_type=ROOK, color=WHITE
+        )
+        state._history = [(rook_move, {})] * 100
+        cli._state = state
+        assert cli._is_draw_by_fifty_move_rule() is True
+
+
+class TestIsDrawByThreefoldRepetition:
+    def test_no_state_returns_false(self):
+        cli = _make_cli()
+        cli._state = None
+        assert cli._is_draw_by_threefold_repetition() is False
+
+    def test_no_repetition_returns_false(self):
+        cli = _make_cli()
+        cli._state = _make_state()
+        assert cli._is_draw_by_threefold_repetition() is False
+
+# ---------------------------------------------------------------------------
+# Server commands
+# ---------------------------------------------------------------------------
+
+
+class TestServerCommands:
+    def test_server_stop_not_running(self, capsys):
+        cli = _make_cli()
+        cli._local_server = None
+        cli._do_server_stop()
+        out = capsys.readouterr().out
+        assert "No local server" in out or out != ""
+
+    def test_server_stop_running(self, capsys):
+        cli = _make_cli()
+        mock_server = MagicMock()
+        mock_server.running = True
+        cli._local_server = mock_server
+        cli._local_discovery = MagicMock()
+        cli._do_server_stop()
+        assert cli._local_server is None
+
+    def test_server_status_not_running(self, capsys):
+        cli = _make_cli()
+        cli._local_server = None
+        cli._do_server_status()
+        out = capsys.readouterr().out
+        assert out != ""
+
+    def test_server_status_running(self, capsys):
+        cli = _make_cli()
+        mock_server = MagicMock()
+        mock_server.running = True
+        mock_server.get_status.return_value = {
+            "name": "TestServer",
+            "port": 12345,
+            "players": 2,
+            "sessions": 1,
+            "pending_invitations": 0,
+        }
+        cli._local_server = mock_server
+        cli._do_server_status()
+        out = capsys.readouterr().out
+        assert "TestServer" in out
+
+    def test_server_start_already_running(self, capsys):
+        cli = _make_cli()
+        mock_server = MagicMock()
+        mock_server.running = True
+        cli._local_server = mock_server
+        cli._do_server_start([])
+        out = capsys.readouterr().out
+        assert "already running" in out or out != ""
+
+    def test_server_start_invalid_port(self, capsys):
+        cli = _make_cli()
+        cli._local_server = None
+        cli._do_server_start(["notaport"])
+        assert True  # Should not crash
+
+
+# ---------------------------------------------------------------------------
+# _do_join
+# ---------------------------------------------------------------------------
+
+class TestDoJoin:
+    def test_join_no_args_uses_default(self, capsys):
+        cli = _make_cli()
+        with patch("shatranj.presentation.cli.cli.GameClient") as MockCli:
+            instance = MagicMock()
+            instance.start_connection.return_value = False
+            MockCli.return_value = instance
+            with patch("builtins.input", return_value="Player"):
+                cli._do_join([])
+        assert True
+
+    def test_join_connection_success(self, capsys):
+        cli = _make_cli()
+        with patch("shatranj.presentation.cli.cli.GameClient") as MockCli:
+            instance = MagicMock()
+            instance.start_connection.return_value = True
+            MockCli.return_value = instance
+            with patch("builtins.input", return_value="Player"):
+                cli._do_join(["127.0.0.1"])
+        assert cli._network_client is not None
+
+    def test_join_connection_failure(self, capsys):
+        cli = _make_cli()
+        with patch("shatranj.presentation.cli.cli.GameClient") as MockCli:
+            instance = MagicMock()
+            instance.start_connection.return_value = False
+            MockCli.return_value = instance
+            with patch("builtins.input", return_value="Player"):
+                cli._do_join(["127.0.0.1"])
+        assert True

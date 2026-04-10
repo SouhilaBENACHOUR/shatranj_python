@@ -165,17 +165,13 @@ def save_game_file(
             handle.write("[settings]\n")
             handle.write(f"verbose={str(verbose).lower()}\n")
             handle.write(f"debug={str(debug).lower()}\n")
-            for color, ai in ai_players.items():
+            for i, (color, ai) in enumerate(ai_players.items()):
                 color_key = "white" if color == WHITE else "black"
-                handle.write(f"ai-color={color_key}\n")
-                handle.write(
-                    f"ai-mode={getattr(ai, 'algorithm', 'alphabeta')}\n"
-                )
                 depth = getattr(getattr(ai, "_search", None), "_depth", 3)
-                handle.write(f"ai-depth={depth}\n")
-                handle.write(
-                    f"ai-scoring={getattr(ai, 'scoring', 'advanced')}\n"
-                )
+                handle.write(f"ai-color-{i}={color_key}\n")
+                handle.write(f"ai-mode-{i}={getattr(ai, 'algorithm', 'alphabeta')}\n")
+                handle.write(f"ai-depth-{i}={depth}\n")
+                handle.write(f"ai-scoring-{i}={getattr(ai, 'scoring', 'advanced')}\n")
             if clock is not None and clock.mode == "timed":
                 base_seconds = max(
                     0.0,
@@ -453,20 +449,36 @@ def _parse_ai_players(settings: dict[str, str]) -> dict:
     """Reconstruct AI players from saved settings."""
     from shatranj.domain.ai.ai_player import AIPlayer
 
-    color_str = settings.get("ai-color", "").strip().lower()
-    if not color_str:
-        return {}
-
-    color = WHITE if color_str == "white" else BLACK
-    algo = settings.get("ai-mode", "alphabeta").strip().lower()
-    depth = _parse_int(settings.get("ai-depth"), 3)
-    scoring = settings.get("ai-scoring", "advanced").strip().lower()
-
-    return {
-        color: AIPlayer(
+    result = {}
+    i = 0
+    while f"ai-color-{i}" in settings:
+        color_str = settings[f"ai-color-{i}"].strip().lower()
+        color = WHITE if color_str == "white" else BLACK
+        algo = settings.get(f"ai-mode-{i}", "alphabeta").strip().lower()
+        depth = _parse_int(settings.get(f"ai-depth-{i}", "3"), 3)
+        scoring = settings.get(
+            f"ai-scoring-{i}", "advanced"
+        ).strip().lower()
+        result[color] = AIPlayer(
             color=color,
             depth=depth,
             algorithm=algo,
             scoring=scoring,
         )
-    }
+        i += 1
+
+    # Backward compatibility: old format without index
+    if not result and "ai-color" in settings:
+        color_str = settings["ai-color"].strip().lower()
+        color = WHITE if color_str == "white" else BLACK
+        algo = settings.get("ai-mode", "alphabeta").strip().lower()
+        depth = _parse_int(settings.get("ai-depth", "3"), 3)
+        scoring = settings.get("ai-scoring", "advanced").strip().lower()
+        result[color] = AIPlayer(
+            color=color,
+            depth=depth,
+            algorithm=algo,
+            scoring=scoring,
+        )
+
+    return result

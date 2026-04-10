@@ -9,4 +9,4 @@ A complete Shatranj engine with:
 """
 
 __version__ = "0.4.0"
-__all__     = []
+__all__ = []
