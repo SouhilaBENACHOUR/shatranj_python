@@ -46,6 +46,23 @@ pip install -e .
 ```bash
 pip install pytest pytest-cov coverage flake8 black
 ```
+# Internationalisation (F3)
+The game supports English (default) and French.
+
+Usage
+```bash
+LANG=fr_FR.UTF-8 shatranj    # Launch in French
+LANG=en_US.UTF-8 shatranj    # Launch in English
+LANG=de_DE.UTF-8 shatranj    # Unsupported language → warning + English
+```
+
+# Troubleshooting
+If the language does not change, check your ~/.shatranjrc file.
+If the line language = en is present, remove it:
+```bash
+sed -i '/language/d' ~/.shatranjrc
+```
+
 # Usage
 Current command-line usage
 ```bash
