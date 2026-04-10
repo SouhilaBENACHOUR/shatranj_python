@@ -204,8 +204,8 @@ def main() -> int:
     parser = build_argument_parser()
     args = parser.parse_args()
     cfg.apply_args(args)
-    i18n_setup(language=cfg.get_str("language"))
-
+    lang = cfg.get_str("language") or None
+    i18n_setup(language=lang)
     if args.server is not None:
         from shatranj.domain.network import DiscoveryServer, GameServer
 

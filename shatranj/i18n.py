@@ -48,6 +48,13 @@ def _detect_language() -> str:
             lang = value.split("_")[0].split(".")[0].lower()
             if lang in SUPPORTED_LANGUAGES:
                 return lang
+            if lang not in ("", "c", "posix"):
+                print(
+                    f"Warning: language '{lang}' is not supported. "
+                    f"Falling back to English.",
+                    file=sys.stderr,
+                )
+                return DEFAULT_LANGUAGE
 
     try:
         locale_name, _encoding = locale.getlocale()

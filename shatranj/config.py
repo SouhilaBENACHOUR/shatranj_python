@@ -41,14 +41,14 @@ DEFAULTS: dict[str, str] = {
     "ai-mode": "alphabeta",
     "ai-depth": "3",
     "ai-scoring": "advanced",
-    "language": "en",
+    "language": "",
 }
 
 # Allowed values for restricted-choice keys
 VALID_VALUES: dict[str, set[str]] = {
     "ai-mode": {"minimax", "alphabeta", "mcts", "iterative"},
     "ai-scoring": {"material", "positional", "advanced"},
-    "language": {"en", "fr"},
+    "language": {"en", "fr", ""},
 }
 
 # Content of the minimal config file created automatically
