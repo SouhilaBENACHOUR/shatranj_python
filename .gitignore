@@ -2,7 +2,8 @@
 .venv/
 .venv-linux/
 venv/
-
+.venv-3/
+env/
 # Python cache
 __pycache__/
 *.pyc
@@ -27,7 +28,9 @@ docs/build/
 
 # LaTeX build artifacts (keep report.pdf)
 pdp/**/*.aux
-pdp/**/*.log
+pdp/**/*.
+pdp/**/*.bbl
+pdp/**/*.blg
 pdp/**/*.out
 pdp/**/*.toc
 pdp/02-final/_minted-*/

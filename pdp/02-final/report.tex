@@ -2,9 +2,6 @@
 
 \usepackage{pdp}
 
-%------------------------------------------------------------------------------
-% Packages supplémentaires
-%------------------------------------------------------------------------------
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{amsmath}
@@ -20,85 +17,21 @@
 \usepackage{longtable}
 \usepackage{tcolorbox}
 \usepackage{mdframed}
-
-\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc, babel,
-                fit, backgrounds, decorations.pathreplacing}
-
-\hypersetup{
-  colorlinks=true,
-  linkcolor=DarkBlue,
-  citecolor=DarkGreen,
-  urlcolor=DarkBlue
-}
+\usepackage{minted}
 
 %------------------------------------------------------------------------------
-% Commande mini-échiquier 5x5 (sans pgfmathparse conditionnel)
+% INFOS
 %------------------------------------------------------------------------------
-\newcommand{\boardpiece}[3]{%
-  \begin{tikzpicture}[scale=0.52]
-    \fill[white] (0,0) rectangle (5,5);
-    \draw[gray!40, thin, step=1] (0,0) grid (5,5);
-    \foreach \px/\py in {#1}{
-      \fill[gray!22] (\px,\py) rectangle ++(1,1);
-    }
-    \foreach \px/\py in {#2}{
-      \fill[green!50!black, opacity=0.45] (\px,\py) rectangle ++(1,1);
-    }
-    \draw[black, thick] (0,0) rectangle (5,5);
-    \foreach \px/\py/\ltr in {#3}{
-      \fill[blue!65, opacity=0.80] (\px,\py) rectangle ++(1,1);
-      \node[white, font=\bfseries\small] at (\px+0.5,\py+0.5) {\ltr};
-    }
-  \end{tikzpicture}%
-}
+\title{Shatranj --- Python}
+\subtitle{Rapport final de projet de programmation}
+\author{Benachour Souhila \\ Dries Amina \\ El Ghali Ayman \\ Marchoud Souhail \\ Meklat Sarah}
 
-%------------------------------------------------------------------------------
-% Commande mini-échiquier 8x4 pour fins de partie
-%------------------------------------------------------------------------------
-\newcommand{\endgameboard}[3]{%
-  % #1 = cases grises (décor damier), #2 = cases colorées spéciales,
-  % #3 = pièces (x/y/lettre/couleur_fond)
-  \begin{tikzpicture}[scale=0.48]
-    \fill[white] (0,0) rectangle (8,4);
-    % damier
-    \foreach \c in {0,...,7}{
-      \foreach \r in {0,...,3}{
-        \pgfmathparse{int(mod(\c+\r,2))}
-        \ifnum\pgfmathresult=1
-          \fill[gray!18] (\c,\r) rectangle ++(1,1);
-        \fi
-      }
-    }
-    \foreach \px/\py/\col in {#2}{
-      \fill[\col, opacity=0.55] (\px,\py) rectangle ++(1,1);
-    }
-    \draw[black, thick] (0,0) rectangle (8,4);
-    \foreach \px/\py/\ltr/\bg in {#3}{
-      \fill[\bg!75] (\px,\py) rectangle ++(1,1);
-      \node[white, font=\bfseries\footnotesize] at (\px+0.5,\py+0.5) {\ltr};
-    }
-  \end{tikzpicture}%
-}
-
-%------------------------------------------------------------------------------
-
-\title{
-Shatranj --- Python\\
-\large Rapport final de projet de programmation
-}\author{
-Dries Amina \\
-Meklat Sarah \\
-Benachour Souhila \\
-El Ghali Ayman \\
-Marchoud Souhail
-}
 %------------------------------------------------------------------------------
 
 \begin{document}
 
 \maketitle
 \thispagestyle{empty}
-
 
 %==============================================================================
 \section*{Introduction}
@@ -129,12 +62,12 @@ La section~\ref{sec:critique} dresse un bilan critique du projet.
 Le \emph{chaturanga} indien, attesté dès le \textsc{vi}\textsuperscript{e}
 siècle~\cite{Murray1913}, est l'ancêtre commun de tous les jeux d'échecs
 modernes. Il donna naissance au Shatranj en Perse sassanide~; ce jeu est
-décrit en détail dans le \emph{Kit\=ab al-Shatr\=anj} d'al-Adl\={\i}~\cite{AlAdli850},
+décrit en détail dans le \emph{Kit\=ab al-Shatr\=anj} d'al-Adl\={\i}~\cite{Murray1913},
 traité du \textsc{ix}\textsuperscript{e} siècle qui codifie les règles, les
 problèmes (\emph{mans\=ub\=at}) et les ouvertures. Le Shatranj se diffusa en
 Europe médiévale et évolua vers les échecs modernes entre le
 \textsc{xv}\textsuperscript{e} et le \textsc{xvi}\textsuperscript{e}
-siècle~\cite{Shenk2006,Eales1985}, notamment par l'acquisition par le Ferz
+siècle~\cite{Shenk2006,Davidson1949}, notamment par l'acquisition par le Ferz
 de la mobilité illimitée de la Dame moderne~\cite{Davidson1949}.
 
 La différence la plus frappante concerne précisément ce \emph{Ferz}~: il ne
@@ -167,198 +100,105 @@ interne, les cases sont numérotées de~0 (\texttt{a1}) à~63 (\texttt{h8})~:
 numéro~$3 \times 8 + 4 = 28$.
 
 \subsection{Les pièces et leurs déplacements}
-
 Le jeu comporte six types de pièces. Les blanches sont notées en majuscules,
 les noires en minuscules.
 
-%--- Shah ---
 \begin{figure}[H]
 \centering
-\begin{minipage}[t]{0.35\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{shah.png}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.60\textwidth}
-  \vspace{0pt}
-  \textbf{Shah (K/k) --- Le Roi}\\[0.3em]
-  Se déplace d'une case dans toutes les directions (horizontal, vertical,
+% --- Ligne 1 : Shah, Ferz, Tour ---
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=0.65\textwidth]{shah.png}\\[0.4em]
+  \textbf{Shah (K/k) --- Le Roi}\\[0.2em]
+  \small Se déplace d'une case dans toutes les directions (horizontal, vertical,
   diagonal)~\cite{Murray1913}. C'est la pièce à protéger absolument~:
   si le Shah est mis en échec et mat, la partie est perdue.
 \end{minipage}
-\caption{Shah}
-\end{figure}
-
-%--- Ferz ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.35\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{ferz.png}
-\end{minipage}
 \hfill
-\begin{minipage}[t]{0.60\textwidth}
-  \vspace{0pt}
-  \textbf{Ferz (F/f) --- Le Conseiller}\\[0.3em]
-  Se déplace d'une \emph{seule} case en diagonale~\cite{Davidson1949}.
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=0.65\textwidth]{ferz.png}\\[0.4em]
+  \textbf{Ferz (F/f) --- Le Conseiller}\\[0.2em]
+  \small Se déplace d'une \emph{seule} case en diagonale~\cite{Davidson1949}.
   C'est l'une des pièces les plus faibles du jeu.
 \end{minipage}
-\caption{Ferz}
-\end{figure}
-
-%--- Tour ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.35\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{tour.png}
-\end{minipage}
 \hfill
-\begin{minipage}[t]{0.60\textwidth}
-  \vspace{0pt}
-  \textbf{Rook (R/r) --- La Tour}\\[0.3em]
-  Se déplace en ligne droite (horizontale ou verticale) sur toute la
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=0.65\textwidth]{tour.png}\\[0.4em]
+  \textbf{Rook (R/r) --- La Tour}\\[0.2em]
+  \small Se déplace en ligne droite (horizontale ou verticale) sur toute la
   longueur du plateau~\cite{Murray1913}. Bloquée par les pièces sur son chemin.
 \end{minipage}
-\caption{Tour}
-\end{figure}
 
-%--- Alfil ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.35\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{alfil.png}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.60\textwidth}
-  \vspace{0pt}
-  \textbf{Alfil (A/a) --- L'Éléphant}\\[0.3em]
-  Saute exactement deux cases en diagonale en franchissant la case
+\vspace{1.5em}
+
+% --- Ligne 2 : Alfil, Cavalier, Pion ---
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=0.65\textwidth]{alfil.png}\\[0.4em]
+  \textbf{Alfil (A/a) --- L'Éléphant}\\[0.2em]
+  \small Saute exactement deux cases en diagonale en franchissant la case
   intermédiaire~\cite{Browne2012}. Ne change jamais de couleur de case.
 \end{minipage}
-\caption{Alfil}
-\end{figure}
-
-%--- Cavalier ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.35\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{cavalier.png}
-\end{minipage}
 \hfill
-\begin{minipage}[t]{0.60\textwidth}
-  \vspace{0pt}
-  \textbf{Knight (N/n) --- Le Cavalier}\\[0.3em]
-  Se déplace en \enquote{L}~: deux cases dans une direction puis une
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=0.65\textwidth]{cavalier.png}\\[0.4em]
+  \textbf{Knight (N/n) --- Le Cavalier}\\[0.2em]
+  \small Se déplace en \enquote{L}~: deux cases dans une direction puis une
   case perpendiculaire. Peut sauter par-dessus les autres pièces.
 \end{minipage}
-\caption{Cavalier}
-\end{figure}
-
-%--- Pion ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.35\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{pion.png}
-\end{minipage}
 \hfill
-\begin{minipage}[t]{0.60\textwidth}
-  \vspace{0pt}
-  \textbf{Pawn (P/p) --- Le Pion}\\[0.3em]
-  Avance d'une seule case vers l'avant. Capture en diagonale.
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=0.65\textwidth]{pion.png}\\[0.4em]
+  \textbf{Pawn (P/p) --- Le Pion}\\[0.2em]
+  \small Avance d'une seule case vers l'avant. Capture en diagonale.
   Pas de double pas initial, ni de prise en passant.
   La promotion se fait uniquement en Ferz~\cite{Murray1913}.
 \end{minipage}
-\caption{Pion}
+
+\caption{Les six pièces du jeu et leurs déplacements}
 \end{figure}
+
 \subsection{Conditions de fin de partie}
 \label{sec:finpartie}
-
-Le Shatranj connaît quatre conditions de fin de partie, dont deux
+Le Shatranj connaît trois conditions de fin de partie principales, dont deux
 (\textbf{Pat} et \textbf{Bare King}) diffèrent fondamentalement des
 échecs modernes.
 
-%--- Échec et mat ---
 \begin{figure}[H]
 \centering
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{echec_et_mat.png}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}
-  \textbf{Échec et mat}\\[0.3em]
-  Le Shah adverse est en échec et ne peut s'échapper~:
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{echec_et_mat.png}\\[0.4em]
+  \textbf{Échec et mat}\\[0.2em]
+  \small Le Shah adverse est en échec et ne peut s'échapper~:
   aucun coup légal ne le sort de la menace. Le joueur qui
-  donne mat gagne immédiatement.\\[0.4em]
-  Dans le code~: \texttt{is\_checkmate(board, color)} vérifie
-  simultanément \texttt{is\_in\_check} et l'absence de coups légaux.
-\end{minipage}
-\caption{Échec et mat}
-\end{figure}
-
-%--- Pat ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{le_pat.png}
+  donne mat gagne immédiatement.
+  \emph{(illustration générée par notebooklm)}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}
-  \textbf{Pat --- Règle propre au Shatranj}\\[0.3em]
-  Contrairement aux échecs modernes où le pat est nul, au Shatranj
-  le joueur n'ayant aucun coup légal \textbf{perd} la partie~\cite{AlAdli850}.\\[0.4em]
-  Dans le code~: \texttt{is\_stalemate(board, color)} retourne \texttt{True}
-  si le joueur n'est pas en échec mais n'a aucun coup légal~;
-  \texttt{\_check\_game\_over()} attribue la victoire à l'adversaire.
-\end{minipage}
-\caption{Pat (le joueur patté \textbf{perd})}
-\end{figure}
-
-%--- Bare King ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{bare_king.png}
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{le_pat.png}\\[0.4em]
+  \textbf{Pat --- Règle propre au Shatranj}\\[0.2em]
+  \small Contrairement aux échecs modernes où le pat est nul, au Shatranj
+  le joueur n'ayant aucun coup légal \textbf{perd} la partie~\cite{Murray1913,Davidson1949,Shenk2006}.
+  \emph{(illustration générée par notebooklm)}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}
-  \textbf{Bare King (\textit{Shah nu})}\\[0.3em]
-  Si toutes les pièces d'un joueur sont capturées (seul son Shah reste),
-  il perd immédiatement, même si ce Shah n'est pas en échec~\cite{AlAdli850}.\\[0.4em]
-  Dans le code~: \texttt{is\_bare\_king(board, color)} compte le nombre
-  de bits actifs dans tous les bitboards du joueur hors Shah~;
-  si ce compte vaut~0, la condition est déclenchée.
+\begin{minipage}[t]{0.30\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{bare_king.png}\\[0.4em]
+  \textbf{Bare King (\textit{Shah nu})}\\[0.2em]
+  \small Si toutes les pièces d'un joueur sont capturées (seul son Shah reste),
+  il perd immédiatement, même si ce Shah n'est pas en échec~\cite{Murray1913,Davidson1949,Shenk2006}.
+  \emph{(illustration générée par notebooklm)}
 \end{minipage}
-\caption{Bare King (Shah nu)}
-\end{figure}
 
-%--- Timeout ---
-\begin{figure}[H]
-\centering
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}\centering
-  \includegraphics[width=\textwidth]{blitz.png}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.48\textwidth}
-  \vspace{0pt}
-  \textbf{Timeout --- Mode Blitz}\\[0.3em]
-  En mode blitz, chaque joueur dispose d'un capital de temps fixe.
-  Lorsque le chronomètre d'un joueur atteint zéro, il perd
-  immédiatement quelle que soit la position.\\[0.4em]
-  Implémenté dans \texttt{\_finish\_active\_turn(moving\_color)}~:
-  si \texttt{remaining $\leq$ 0}, la victoire est accordée à l'adversaire.
-\end{minipage}
-\caption{Timeout (mode Blitz)}
+\caption{Les trois conditions de fin de partie du Shatranj}
 \end{figure}
 
 \subsection{Analyse de la complexité du jeu}
@@ -447,7 +287,7 @@ def get_bit_at(bitboard: int, square: int) -> int:
     return (bitboard >> square) & 1
 
 def count_bits(bitboard: int) -> int:
-    return bitboard.bit_count()     # méthode native Python 3.10+
+    return bitboard.bit_count()
 \end{minted}
 
 \paragraph{Astuce~: \texttt{bit\_count()} natif Python 3.10+.}
@@ -463,15 +303,16 @@ def get_lsb(bitboard: int) -> int:
         return -1
     return (bitboard & -bitboard).bit_length() - 1
 
+
 def pop_lsb(bitboard: int) -> tuple[int, int]:
     idx = get_lsb(bitboard)
     if idx == -1:
         return -1, 0
     return idx, bitboard ^ (1 << idx)
 
+
 def squares_from_bitboard(bitboard: int) -> list[int]:
-    """Itère efficacement sur toutes les cases occupées."""
-    squares = []
+    squares: list[int] = []
     bb = bitboard
     while bb:
         idx, bb = pop_lsb(bb)
@@ -491,43 +332,48 @@ et on active la case destination. En cas de capture, on efface en plus le bit
 adverse. Ces opérations sont toutes en $O(1)$~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
-def apply_move(self, move: Move) -> str | None:
-    # Retirer la pièce de la case source
-    self._boards[(move.piece_type, move.color)] = clear_bit_at(
-        self._boards[(move.piece_type, move.color)], move.from_square)
-    # La placer sur la case destination
-    self._boards[(move.piece_type, move.color)] = set_bit_at(
-        self._boards[(move.piece_type, move.color)], move.to_square)
-    # Capturer l'éventuelle pièce adverse
-    captured = None
-    for piece in PIECES:
-        if get_bit_at(self._boards[(piece, opponent)], move.to_square):
-            self._boards[(piece, opponent)] = clear_bit_at(
-                self._boards[(piece, opponent)], move.to_square)
-            captured = piece
-            break
-    return captured   # retourné pour undo_move
+def apply_move(self, move: Move) -> tuple[str, str] | None:
+        """Play a move and promote pawns reaching the last rank to ferz."""
+        captured = self.get_piece_at(move.to_square)
+        self.move_piece(move.from_square, move.to_square)
+        if self._is_promotion_move(move):
+            self.set_piece(FERZ, move.color, move.to_square)
+        return captured
+
+    def undo_move(self, move: Move, captured: tuple[str, str] | None) -> None:
+        """Undo a move, including promotion moves explored by the AI."""
+        self.clear_piece(move.to_square)
+        self.set_piece(move.piece_type, move.color, move.from_square)
+        if captured is not None:
+            piece, color = captured
+            self.set_piece(piece, color, move.to_square)
 \end{minted}
 
-\texttt{undo\_move} est la symétrique~: la pièce revient en \texttt{from\_square}
-et la pièce capturée (si elle existait) est remise sur \texttt{to\_square}.
+\texttt{apply\_move} retourne la pièce capturée sous forme de tuple 
+(type, couleur) ou None. \texttt{undo\_move} reçoit ce même tuple
 
 \subsubsection{Génération des coups légaux}
 
-\begin{minted}[frame=single,fontsize=\small]{text}
-FUNCTION generate_legal_moves(board, color):
-    pseudo <- generate_pseudo_legal_moves(board, color)
-    legal  <- []
-    FOR move IN pseudo:
-        captured <- board.apply_move(move)      -- O(1)
-        IF NOT is_in_check(board, color):       -- O(P)
-            legal.append(move)
-        board.undo_move(move, captured)         -- O(1)
-    RETURN legal
+\begin{minted}[frame=single,fontsize=\small]{python}
+def generate_legal_moves(self, board: Board, color: str) -> list[Move]:
+        legal = []
+        for move in self.generate_pseudo_legal_moves(board, color):
+            if not self.is_valid_move(board, move):
+                continue
+            captured = board.apply_move(move)  # joue le coup
+            in_check = self._is_in_check(board, color)  # Shah en danger ?
+            board.undo_move(move, captured)  # annule le coup
+            if not in_check:
+                legal.append(move)  # coup légal → on le garde
+        return legal
 \end{minted}
 
-\noindent\textbf{Complexité.} $O(P^2)$ avec $P \leq 32$ pièces --- au plus
-1\,024 opérations élémentaires, négligeable par rapport aux nœuds explorés.
+\noindent\textbf{Complexité.} Pour chaque coup pseudo-légal, \texttt{is\_in\_check} génère 
+tous les coups adverses en parcourant les 64 cases pour chaque type de pièce, soit une complexité 
+de $O(64 \times 6)$. 
+
+Au total, la complexité est $O(M \times 384)$, où $M$ est le nombre de coups pseudo-légaux.
+Avec $M \leq 100$ en pratique, cela reste négligeable par rapport aux nœuds explorés.
 
 \subsection{AlphaBeta (Minimax avec élagage)}
 
@@ -535,26 +381,114 @@ L'algorithme Minimax~\cite{Shannon1950} modélise le jeu comme un arbre
 alternant MAX (l'IA) et MIN (l'adversaire). L'élagage $\alpha$-$\beta$~\cite{Knuth1975}
 l'améliore~: dès que $\beta \leq \alpha$, la branche est abandonnée.
 
-\begin{minted}[frame=single,fontsize=\small]{text}
-FUNCTION alphabeta(board, depth, alpha, beta, is_max, color, opp):
-    IF depth = 0 OR terminal(board):
-        RETURN evaluate(board, color)
-    IF is_max:
-        FOR move IN legal_moves(board, color):
-            apply(move)
-            score <- alphabeta(board, depth-1, alpha, beta, FALSE, ...)
-            undo(move)
-            alpha <- max(alpha, score)
-            IF beta <= alpha: BREAK      (* coupure beta *)
-        RETURN alpha
-    ELSE:
-        FOR move IN legal_moves(board, opp):
-            apply(move)
-            score <- alphabeta(board, depth-1, alpha, beta, TRUE, ...)
-            undo(move)
-            beta <- min(beta, score)
-            IF beta <= alpha: BREAK      (* coupure alpha *)
-        RETURN beta
+\begin{minted}[frame=single,fontsize=\small]{python}
+def _alphabeta(
+        self,
+        board: Board,
+        depth: int,
+        alpha: float,
+        beta: float,
+        is_maximizing: bool,
+        ai_color: str,
+        current_color: str,
+        key: int,
+    ) -> float:
+        original_alpha = alpha
+        # --- Transposition Table lookup ---
+        tt_score, should_use = self._tt.get(key, depth, alpha, beta)
+        if should_use:
+            return tt_score
+        # --- Base case: depth reached ---
+        if depth == 0:
+            return self._evaluator.evaluate(board, ai_color)
+        legal_moves = self._engine.generate_legal_moves(board, current_color)
+        # --- Base case: no moves ---
+        if not legal_moves:
+            if self._engine._is_in_check(board, current_color):
+                return 9999.0 if not is_maximizing else -9999.0
+            return 0.0
+        opponent = BLACK if current_color == WHITE else WHITE
+        if is_maximizing:
+            best = float("-inf")
+            for move in legal_moves:
+                captured = board.apply_move(move)
+                result_piece = board.get_piece_at(move.to_square)[0]
+                captured_piece = captured[0] if captured else None
+                captured_color = captured[1] if captured else None
+                new_key = self._hasher.update_key(
+                    key=key,
+                    piece=move.piece_type,
+                    color=current_color,
+                    from_square=move.from_square,
+                    to_square=move.to_square,
+                    captured_piece=captured_piece,
+                    captured_color=captured_color,
+                    result_piece=result_piece,
+                )
+                score = self._alphabeta(
+                    board=board,
+                    depth=depth - 1,
+                    alpha=alpha,
+                    beta=beta,
+                    is_maximizing=False,
+                    ai_color=ai_color,
+                    current_color=opponent,
+                    key=new_key,
+                )
+                board.undo_move(move, captured)
+                best = max(best, score)
+                alpha = max(alpha, best)
+                if beta <= alpha:
+                    break  # beta cutoff
+            # --- Store in Transposition Table ---
+            if best <= original_alpha:
+                flag = UPPER_BOUND
+            if best >= beta:
+                flag = LOWER_BOUND
+            else:
+                flag = EXACT
+            self._tt.store(key, best, depth, flag)
+            return best
+        best = float("+inf")
+        for move in legal_moves:
+            captured = board.apply_move(move)
+            result_piece = board.get_piece_at(move.to_square)[0]
+            captured_color = current_color if captured else None
+            new_key = self._hasher.update_key(
+                key=key,
+                piece=move.piece_type,
+                color=current_color,def generate_legal_
+                from_square=move.from_square,
+                to_square=move.to_square,
+                captured_piece=captured,
+                captured_color=captured_color,
+                result_piece=result_piece,
+            )
+            score = self._alphabeta(
+                board=board,
+                depth=depth - 1,
+                alpha=alpha,
+                beta=beta,
+                is_maximizing=True,
+                ai_color=ai_color,
+                current_color=opponent,
+                key=new_key,
+            )
+            board.undo_move(move, captured)
+            best = min(best, score)
+            beta = min(beta, best)
+            if beta <= alpha:
+                break  # alpha cutoff
+        # --- Store in Transposition Table ---
+        if best <= original_alpha:
+            flag = UPPER_BOUND
+        if best >= beta:
+            flag = LOWER_BOUND
+        else:
+            flag = EXACT
+        self._tt.store(key, best, depth, flag)
+        return best
+
 \end{minted}
 
 \noindent\textbf{Déroulement.} Supposons $\alpha = 5$ (MAX a un coup valant~5).
@@ -569,25 +503,38 @@ itératif explore successivement les profondeurs 1, 2, \ldots, $d$. L'avantage
 principal est de toujours disposer d'un coup de repli si le temps s'écoule~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
-def best_move(self, board: Board, color: str) -> Move | None:
-    legal_moves = self._engine.generate_legal_moves(board, color)
-    best_move = legal_moves[0]      # coup de repli garanti
-    start_time = time.time()
-    for current_depth in range(1, self._depth + 1):
-        if self._time_limit is not None:
-            if time.time() - start_time >= self._time_limit:
-                break               # temps épuisé -> retourner le meilleur
-        self._ab._depth = current_depth
-        move = self._ab.best_move(board, color)
-        if move is not None:
-            best_move = move        # mise à jour avec la meilleure trouvée
-    return best_move
+def best_move(self, board: Board, color: str) -> Move | None:    
+        legal_moves = self._engine.generate_legal_moves(board, color)
+        if not legal_moves:
+            return None
+        best_move = legal_moves[0]  # fallback: first legal move
+        start_time = time.time()
+        for current_depth in range(1, self._depth + 1):
+            # check time limit before starting a new depth
+            if self._time_limit is not None:
+                elapsed = time.time() - start_time
+                if elapsed >= self._time_limit:
+                    break  # time is up → return best move from previous depth
+
+            # search at current depth using Alpha-Beta
+            self._ab._depth = current_depth
+            move = self._ab.best_move(board, color)
+            if move is not None:
+                best_move = move  # update best move
+            # check time limit after finishing a depth
+            if self._time_limit is not None:
+                if time.time() - start_time >= self._time_limit:
+                    break
+        return best_move
 \end{minted}
 
-\noindent\textbf{Avantage de l'ordonnancement des coups.} La table de
-transposition stocke les résultats de profondeur~$d-1$~: lors de la recherche
-à profondeur~$d$, les coups identifiés comme bons à la profondeur précédente
-sont explorés en premier, maximisant les coupures $\alpha$-$\beta$.
+\textbf{Avantage de l'ordonnancement des coups.} En théorie, la table de transposition pourrait 
+conserver les résultats de profondeur $d{-}1$
+pour guider l'ordonnancement à profondeur $d$.
+Dans notre implémentation actuelle, la table est vidée au début de chaque appel à 
+\texttt{best\_move}, ce qui limite cet avantage à l'intérieur d'une même profondeur.
+Une amélioration future consisterait à ne pas vider la table entre les itérations.
+
 
 %==============================================================================
 \subsection{Hachage de Zobrist et table de transposition}
@@ -601,7 +548,7 @@ nœuds. Or, la même position peut être atteinte par des séquences de coups
 différentes (\emph{transpositions})~: sans mémoïsation, ces positions seraient
 réévaluées inutilement. La \textbf{table de transposition} (TT) cache
 les résultats déjà calculés. Elle repose sur le \textbf{hachage de
-Zobrist}~\cite{Zobrist1970}~: une méthode ingénieuse pour calculer
+Zobrist}~\cite{Zobrist1970}~: une méthode pour calculer
 un identifiant unique (clé de 64 bits) pour chaque position du plateau.
 
 \subsubsection{Construction de la table aléatoire}
@@ -649,44 +596,17 @@ correspondant aux pièces effectivement présentes sur le plateau~:
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.82\textwidth]{constructionZ.png}
-  \caption{Construction de la clé Zobrist par XOR des nombres aléatoires}
+  \caption{Construction de la clé Zobrist par XOR des nombres aléatoires
+  \emph{(illustration générée par chatGpt)}}
   \label{fig:zobrist}
 \end{figure}
 
-\paragraph{Pourquoi XOR ?}
-L'opération XOR possède trois propriétés cruciales pour ce contexte~:
-\begin{enumerate}[noitemsep]
-  \item \textbf{Commutativité et associativité~:} l'ordre d'application
-    des pièces n'a pas d'importance~; toute position produit la même clé
-    quelle que soit l'ordre de parcours du plateau.
-  \item \textbf{Auto-inverse~:} $x \oplus x = 0$, donc XORer deux fois
-    le même nombre l'annule exactement. Retirer une pièce ou l'ajouter
-    utilisent la même opération.
-  \item \textbf{Complexité constante~:} une opération XOR sur 64~bits
-    prend $O(1)$ quelle que soit la taille des valeurs.
-\end{enumerate}
 
 \subsubsection{Mise à jour incrémentale après un coup --- $O(1)$}
 
 C'est ici que réside l'avantage décisif de Zobrist. Lorsqu'une pièce se déplace
 de \texttt{from\_square} vers \texttt{to\_square}, la clé est mise à jour
 avec \textbf{au maximum 3 XOR}~:
-
-\begin{minted}[frame=single,fontsize=\small]{python}
-def update_key_for_move(key: int, move: Move,
-                         captured_piece=None) -> int:
-    # 1. Retirer la pièce de sa case source  (XOR = annulation)
-    key ^= table[(move.piece_type, move.color, move.from_square)]
-    # 2. La placer sur sa case destination   (XOR = ajout)
-    key ^= table[(move.piece_type, move.color, move.to_square)]
-    # 3. Supprimer la pièce capturée (le cas échéant)
-    if captured_piece is not None:
-        opponent = BLACK if move.color == WHITE else WHITE
-        key ^= table[(captured_piece, opponent, move.to_square)]
-    # 4. Changer de joueur
-    key ^= black_to_move_key
-    return key
-\end{minted}
 
 \noindent\textbf{Comparaison avec un hachage naïf.}
 Un hachage naïf (ex.~\texttt{hash(str(board))}) nécessiterait de parcourir
@@ -701,7 +621,7 @@ mêmes XOR dans le même ordre.
 \subsubsection{Probabilité de collision}
 
 Deux positions différentes pourraient théoriquement produire la même clé de
-64~bits (\emph{fausse positive}). La probabilité est~:
+64~bits (\emph{faux positif}). La probabilité est~:
 
 \[
   P(\text{collision}) \approx \frac{1}{2^{64}} \approx 5.4 \times 10^{-20}
@@ -718,7 +638,8 @@ La TT associe chaque clé Zobrist à un triplet \textbf{(score, profondeur, flag
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.75\textwidth]{entreTransposition.png}
-  \caption{Structure d'une entrée dans la table de transposition}
+  \caption{Structure d'une entrée dans la table de transposition
+  \emph{(illustration générée par ChatGpt)}}
   \label{fig:tt-entry}
 \end{figure}
 
@@ -726,22 +647,22 @@ La TT associe chaque clé Zobrist à un triplet \textbf{(score, profondeur, flag
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 # --- Consultation de la TT au début de chaque nœud ---
-entry = self._table.get(key)
-if entry and entry["depth"] >= depth:
-    if entry["flag"] == EXACT:
-        return entry["score"], True          # résultat exact disponible
-    if entry["flag"] == LOWER_BOUND and entry["score"] >= beta:
-        return entry["score"], True          # coupure beta possible
-    if entry["flag"] == UPPER_BOUND and entry["score"] <= alpha:
-        return entry["score"], True          # coupure alpha possible
-
-# --- Mise à jour après calcul ---
-flag = EXACT
-if score <= alpha:
-    flag = UPPER_BOUND   # score maximum (alpha n'a pas bougé)
-elif score >= beta:
-    flag = LOWER_BOUND   # score minimum (coupure beta)
-self._table.store(key, score, depth, flag)
+def get(self, key: int, depth: int, alpha: float, beta: float):
+        entry = self._table.get(key)
+        if entry is None:
+            return None, False
+        # only use entries evaluated at sufficient depth
+        if entry["depth"] < depth:
+            return None, False
+        score = entry["score"]
+        flag = entry["flag"]
+        if flag == EXACT:
+            return score, True
+        if flag == LOWER_BOUND and score >= beta:
+            return score, True
+        if flag == UPPER_BOUND and score <= alpha:
+            return score, True
+        return None, False
 \end{minted}
 
 \subsubsection{Politique de remplacement et partage entre algorithmes}
@@ -750,18 +671,12 @@ La TT est limitée à \textbf{10\,000 entrées} avec la stratégie
 \emph{always-replace}~: si la table est pleine, la nouvelle entrée remplace
 simplement l'ancienne. Cette politique favorise les positions récemment vues,
 ce qui est cohérent avec l'approfondissement itératif.
-
-La TT est \textbf{partagée} entre AlphaBeta, Iterative Deepening et MCTS~:
-\begin{itemize}[noitemsep]
-  \item \textbf{AlphaBeta → MCTS~:} les positions bien évaluées par AlphaBeta
-    profitent directement aux rollouts du MCTS (consultation avant simulation).
-  \item \textbf{Iterative Deepening → AlphaBeta~:} les résultats de profondeur
-    $d-1$ guident l'ordonnancement des coups à profondeur $d$, maximisant les
-    coupures.
-\end{itemize}
-
-Sur les positions répétées (ouvertures, structures de fin de partie), la TT
-réduit le nombre de nœuds évalués de \textbf{30 à 50\,\%}.
+Chaque algorithme (AlphaBeta, Iterative Deepening, MCTS) instancie sa propre table de transposition.
+La table est vidée au début de chaque appel à \texttt{best\_move} afin d'éviter des résultats obsolètes
+entre deux coups. Les bénéfices de la TT s'appliquent donc à l'intérieur d'une recherche unique, pour
+les positions transposées rencontrées au cours de cette même recherche.
+Sur les positions transposées rencontrées au cours d'une même recherche,
+la TT réduit le nombre de nœuds évalués de \textbf{30 à 50\,\%}.
 
 \subsubsection{Synthèse des propriétés Zobrist}
 
@@ -777,7 +692,7 @@ Undo                      & $O(1)$ (mêmes XOR) & Symétrique \\
 Taille de la table        & 769 entiers 64 bits $\approx$ 6~Ko & Négligeable \\
 Probabilité de collision  & $\approx 5\times 10^{-20}$ & Ignorable \\
 Reproductibilité          & Graine fixe = 42 & Débogage facilité \\
-Partage entre algos       & Oui (AlphaBeta + MCTS) & Synergies \\
+Portée & Par recherche (table vidée entre les coups) & Évite les résultats obsolètes\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -791,14 +706,12 @@ Partage entre algos       & Oui (AlphaBeta + MCTS) & Synergies \\
 
 L'application suit une architecture en couches strictement séparées~\cite{Fowler2002}
 où chaque couche ne communique qu'avec la couche immédiatement inférieure.
-La figure~\ref{fig:archi} illustre les trois couches.
+La figure~\ref{fig:flux} illustre les trois couches.
 
-\begin{figure}[H]
-  \centering
-  \frame{\includegraphics[width=0.85\textwidth]{layered_architectures.png}}
-  \caption{Architecture en couches du projet Shatranj}
-  \label{fig:archi}
-\end{figure}
+La \textbf{couche Présentation} regroupe le CLI et le GUI GTK~4~: elle ne
+contient aucune règle de jeu. La \textbf{couche Métier} (Domain) est le cœur
+du programme~: moteur de règles, algorithmes d'IA, gestion de l'état via les
+bitboards.
 
 La \textbf{couche Présentation} regroupe le CLI et le GUI GTK~4~: elle ne
 contient aucune règle de jeu. La \textbf{couche Métier} (Domain) est le cœur
@@ -811,7 +724,8 @@ et les primitives bit-à-bit.
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.82\textwidth]{diagramme d'interaction.png}
-  \caption{Flux d'interaction entre les couches}
+  \caption{Flux d'interaction entre les couches
+  \emph{(illustration générée par ChatGpt)}}
   \label{fig:flux}
 \end{figure}
 
@@ -819,10 +733,9 @@ Lorsqu'un utilisateur joue un coup (CLI ou GUI), la couche Présentation
 construit un objet \texttt{Move} et le transmet au \texttt{RulesEngine}.
 Celui-ci vérifie la légalité via \texttt{MoveValidator}, puis appelle
 \texttt{Board.apply\_move()} qui modifie les bitboards en $O(1)$. Pour l'IA,
-\texttt{AIPlayer.choose\_move()} sélectionne l'algorithme configuré
-(AlphaBeta, Iterative Deepening ou MCTS), consulte la \texttt{TranspositionTable},
-et renvoie le meilleur coup. Dans le GUI, l'IA s'exécute dans un thread
-dédié afin de ne pas bloquer l'interface.
+\texttt{AIPlayer.choose\_move()} sélectionne l'algorithme configuré (AlphaBeta, Iterative
+Deepening ou MCTS),lequel gère en interne sa propre table de transposition, et renvoie le
+meilleur coup.Dans le GUI, l'IA s'exécute dans un thread dédié afin de ne pas bloquer l'interface.
 
 %------------------------------------------------------------------------------
 \subsection{Principales interfaces entre couches --- Schéma d'API}
@@ -834,108 +747,19 @@ interfaces contractuelles entre les couches, avec la direction du flux de
 données et les types échangés.
 
 \begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  layer/.style={draw, rounded corners=8pt, minimum width=10.5cm,
-                minimum height=1.1cm, align=center, font=\bfseries\small},
-  iface/.style={draw, rounded corners=4pt, fill=white,
-                minimum width=4.5cm, minimum height=0.7cm,
-                align=center, font=\ttfamily\footnotesize},
-  arr/.style={->, >=stealth, thick},
-  retarr/.style={<-, >=stealth, thick, dashed},
-  note/.style={font=\footnotesize\itshape, text width=4cm}
-]
-
-% ---- Couche Présentation ----
-\node[layer, fill=blue!12] (pres) at (0, 6.0)
-  {Couche Présentation \quad (CLI / GUI GTK~4)};
-
-% ---- Interface I1 : Présentation → Métier ----
-\node[iface, fill=orange!20] (i1a) at (-2.6, 4.5)
-  {generate\_legal\_moves(board, color)};
-\node[iface, fill=orange!20] (i1b) at ( 2.6, 4.5)
-  {choose\_move(board) : Move};
-
-\draw[arr]    (pres.south -| i1a) -- (i1a.north)
-  node[midway, left=2pt, note] {coup saisi};
-\draw[retarr] (pres.south -| i1b) -- (i1b.north)
-  node[midway, right=2pt, note] {meilleur coup};
-
-% ---- Couche Métier ----
-\node[layer, fill=green!12] (meta) at (0, 3.1)
-  {Couche Métier \quad (RulesEngine · AIPlayer · AlphaBeta · MCTS)};
-
-% ---- Interface I2 : Métier → Données ----
-\node[iface, fill=purple!18] (i2a) at (-2.6, 1.7)
-  {apply\_move(move) : str|None};
-\node[iface, fill=purple!18] (i2b) at ( 2.6, 1.7)
-  {undo\_move(move, captured)};
-
-\draw[arr]    (meta.south -| i2a) -- (i2a.north)
-  node[midway, left=2pt, note] {mutation};
-\draw[retarr] (meta.south -| i2b) -- (i2b.north)
-  node[midway, right=2pt, note] {annulation};
-
-% ---- Couche Données ----
-\node[layer, fill=gray!15] (data) at (0, 0.3)
-  {Couche Données \quad (Board · Bitboards · GameRepository)};
-
-% ---- Interface I3 : Persistance (vertical droit) ----
-\node[iface, fill=teal!18, minimum width=3.6cm] (i3) at (5.8, 3.1)
-  {save(state) / load(path)};
-
-\draw[arr] (pres.east) -| (i3.north)
-  node[midway, above right, note] {sauvegarde};
-\draw[retarr] (data.east) -| (i3.south)
-  node[midway, below right, note] {restauration};
-
-% ---- Annotations types ----
-\node[note, text width=3.8cm] at (-5.8, 4.5)
-  {\textbf{I1 — Jeu}\\
-   Entrée~: \texttt{Board}, couleur\\
-   Sortie~: \texttt{list[Move]}\\[2pt]
-   Entrée~: \texttt{Board}\\
-   Sortie~: \texttt{Move | None}};
-
-\node[note, text width=3.8cm] at (-5.8, 1.7)
-  {\textbf{I2 — Bitboards}\\
-   Entrée~: \texttt{Move}\\
-   Sortie~: pièce capturée\\[2pt]
-   Entrée~: \texttt{Move} + pièce\\
-   Sortie~: état restauré};
-
-\node[note, text width=3.2cm] at (5.8, 0.3)
-  {\textbf{I3 — Persistance}\\
-   Format ASCII~:\\
-   \texttt{[settings]}\\
-   \texttt{[game]}\\
-   \texttt{[history]}};
-
-\end{tikzpicture}
-\caption{Schéma des interfaces contractuelles entre les trois couches}
-\label{fig:interfaces}
+  \centering
+  \includegraphics[width=\textwidth]{interaction_interface.png}
+  \caption{Schéma des interfaces contractuelles entre les trois couches
+  \emph{(illustration réalisée par les auteurs sous Figma)}}
+  \label{fig:interfaces}
 \end{figure}
 
 \noindent\textbf{Lecture du schéma.}
 Les flèches pleines ($\to$) indiquent le sens de l'appel~; les flèches
-pointillées ($\dashleftarrow$) indiquent le retour de valeur. Chaque couche
+($\dashleftarrow$) indiquent le retour de valeur. Chaque couche
 n'est autorisée à importer que les symboles de la couche inférieure, ce qui
 garantit une séparation des responsabilités stricte et facilite les tests
 unitaires.
-
-\begin{itemize}[noitemsep]
-  \item \textbf{I1 — Interface Jeu}~:
-    \texttt{RulesEngine.generate\_legal\_moves(board, color)} est le point
-    d'entrée principal de la Présentation~; \texttt{AIPlayer.choose\_move(board)}
-    retourne le coup calculé par l'algorithme configuré (AlphaBeta, ID, MCTS).
-  \item \textbf{I2 — Interface Bitboards}~:
-    \texttt{Board.apply\_move(move)} modifie les bitboards en $O(1)$ et retourne
-    la pièce capturée~; \texttt{undo\_move(move, captured)} est la symétrique exacte.
-  \item \textbf{I3 — Interface Persistance}~:
-    \texttt{GameRepository.save(state)} / \texttt{load(path)} sérialisent
-    l'état complet (plateau, horloge, historique) au format ASCII structuré.
-    Le GUI réutilise directement la logique de parsing du CLI (\texttt{CLI.\_do\_load}).
-\end{itemize}
 
 %==============================================================================
 \section{Fonctionnalité approfondie~1 : Intelligence Artificielle}
@@ -948,14 +772,14 @@ Le module \texttt{domain/ai/} propose quatre algorithmes~:
 \texttt{AlphaBeta} (profondeur~4), \texttt{Minimax} basique,
 \texttt{IterativeDeepening} (profondeur~4 avec limite de temps) et
 \texttt{MCTS} (500~simulations par coup). Tous partagent le même
-\texttt{Evaluator} et la même \texttt{TranspositionTable}.
+\texttt{Evaluator}.
 
 \subsection{Fonction d'évaluation}
 
 L'\texttt{Evaluator} propose trois niveaux~:
 \begin{enumerate}[noitemsep]
   \item \textbf{Material~:} somme algébrique des valeurs (Pion=1,
-    Alfil=Ferz=2, Cavalier=6, Tour=9)~\cite{Berliner1999}.
+    Alfil=Ferz=2, Cavalier=6, Tour=9)~.
   \item \textbf{Positional~:} material + bonus positionnel par table de
     64~valeurs pour chaque type de pièce~; tables miroirs pour les noirs.
   \item \textbf{Advanced~:} positional + mobilité (nombre de coups légaux),
@@ -971,7 +795,8 @@ L'\texttt{Evaluator} propose trois niveaux~:
   \centering
   \includegraphics[width=0.82\textwidth]{mcts.png}
   \caption{Les quatre phases du MCTS~: sélection, expansion, simulation,
-           rétropropagation~\cite{Browne2012}}
+           rétropropagation~\cite{Browne2012}
+           \emph{(illustration générée par notebooklm)}}
   \label{fig:mcts}
 \end{figure}
 
@@ -985,16 +810,21 @@ Chaque nœud de l'arbre conserve les statistiques nécessaires à UCB1~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 class MCTSNode:
-    def __init__(self, move, parent, color):
-        self.move     = move
-        self.parent   = parent
-        self.color    = color
-        self.children : list["MCTSNode"] = []
-        self.wins  : float = 0.0    # victoires simulées depuis ce nœud
-        self.visits: int   = 0      # nombre de passages
-        self.untried: list[Move] = []   # coups non encore explorés
-
+    def __init__(
+        self,
+        move: Move | None,
+        parent: "MCTSNode | None",
+        color: str,
+    ) -> None:
+        self.move = move
+        self.parent = parent
+        self.color = color
+        self.children: list["MCTSNode"] = []
+        self.wins: float = 0.0
+        self.visits: int = 0
+        self.untried: list[Move] = []
     def is_fully_expanded(self) -> bool:
+        """Return True if all moves have been explored."""
         return len(self.untried) == 0
 \end{minted}
 
@@ -1010,11 +840,11 @@ $C\sqrt{\frac{\ln N}{n_i}}$ favorise l'\emph{exploration} des nœuds peu visité
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 def best_child(self, exploration: float = 1.41) -> "MCTSNode":
-    return max(
-        self.children,
-        key=lambda c: (c.wins / c.visits)
+        return max(
+            self.children,
+            key=lambda c: (c.wins / c.visits)
             + exploration * math.sqrt(math.log(self.visits) / c.visits),
-    )
+        )
 \end{minted}
 
 \subsubsection{Rollout avec table de transposition}
@@ -1024,48 +854,98 @@ avant de lancer un rollout aléatoire, on consulte la TT pour éviter de
 rejouer des positions déjà connues~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
-def _rollout(self, board, current_color, ai_color, max_moves=50):
-    color = current_color
-    key   = self._hasher.compute_key(board, color)
-    # Consultation TT : évite les rollouts redondants
-    tt_score, should_use = self._tt.get(key, 0, -inf, +inf)
-    if should_use:
-        return tt_score   # position déjà connue -> résultat immédiat
-    for _ in range(max_moves):
-        legal_moves = self._engine.generate_legal_moves(board, color)
-        if not legal_moves:
-            opp    = BLACK if color == WHITE else WHITE
-            result = 1.0 if opp == ai_color else 0.0
-            self._tt.store(key, result, 0, EXACT)
-            return result
-        if self._engine.is_bare_king(board, color):
-            opp    = BLACK if color == WHITE else WHITE
-            result = 1.0 if opp == ai_color else 0.0
-            self._tt.store(key, result, 0, EXACT)
-            return result
-        move = random.choice(legal_moves)
-        board.apply_move(move)
-        color = BLACK if color == WHITE else WHITE
-    self._tt.store(key, 0.5, 0, EXACT)
-    return 0.5
-\end{minted}
+
+    def _rollout(
+        self,
+        board: Board,
+        current_color: str,
+        ai_color: str,
+        max_moves: int = 50,
+    ) -> float:
+        color = current_color
+        # check TT for this position
+        key = self._hasher.compute_key(board, color)
+        tt_score, should_use = self._tt.get(key, 0, float("-inf"), float("+inf"))
+        if should_use:
+            return tt_score
+        for _ in range(max_moves):
+            legal_moves = self._engine.generate_legal_moves(board, color)
+            # no moves -> checkmate or stalemate
+            if not legal_moves:
+                if self._engine._is_in_check(board, color):
+                    opponent = BLACK if color == WHITE else WHITE
+                    result = 1.0 if opponent == ai_color else 0.0
+                else:
+                    result = 0.5
+                self._tt.store(key, result, 0, EXACT)
+                return result
+            # bare king -> opponent wins
+            if self._engine.is_bare_king(board, color):
+                opponent = BLACK if color == WHITE else WHITE
+                result = 1.0 if opponent == ai_color else 0.0
+                self._tt.store(key, result, 0, EXACT)
+                return result
+            # play a random move
+            move = random.choice(legal_moves)
+            board.apply_move(move)
+            color = BLACK if color == WHITE else WHITE
+        # move limit reached -> draw
+        self._tt.store(key, 0.5, 0, EXACT)
+        return 0.5
+        \end{minted}
+
+\noindent
+À partir du nœud nouvellement créé, une partie aléatoire est simulée jusqu'à
+l'obtention d'un état terminal ou jusqu'à la limite de \texttt{max\_moves}
+coups. À chaque tour, un coup légal est choisi uniformément au hasard parmi
+tous les coups disponibles. Le résultat est encodé~: 1,01{,}0
+1,0 si l'IA gagne (mat adverse ou Bare King), 0,00{,}0
+0,0 si elle perd, 0,50{,}5
+0,5 en cas de position nulle. Le pat --- aucun coup légal sans être en échec 
+--- est traité comme un résultat nul (0,50{,}5
+0,5) dans le MCTS, car la simulation ne peut pas déterminer avec certitude 
+qui a provoqué le pat. Ce traitement diverge légèrement de la règle officielle 
+(section~\ref{sec:finpartie}) et constitue une limite connue de notre implémentation MCTS.
+Avant de simuler, la position est indexée par sa clé de Zobrist~: si elle
+a déjà été simulée, le résultat mis en cache est retourné immédiatement,
+évitant ainsi des parties redondantes.
 
 \subsubsection{Rétropropagation et choix final}
 
 \begin{minted}[frame=single,fontsize=\small]{python}
-def _backpropagate(self, node, result: float) -> None:
-    while node is not None:
-        node.visits += 1
-        node.wins   += result
-        result = 1.0 - result   # inversion de perspective parent/enfant
-        node = node.parent
+def _backpropagate(self, node: "MCTSNode", result: float) -> None:
+
+        while node is not None:
+            node.visits += 1
+            node.wins += result
+            result = 1.0 - result
+            node = node.parent
 \end{minted}
 
-Le coup final est le plus \emph{visité} (non le meilleur ratio
+\noindent
+Le résultat $r \in \{0{,}0\;;\;0{,}5\;;\;1{,}0\}$ est propagé du nœud
+feuille jusqu'à la racine en remontant la chaîne de parents. À chaque nœud,
+\texttt{visits} est incrémenté de~$1$ et \texttt{wins} augmenté de~$r$.
+La valeur est ensuite \emph{inversée} ($r \leftarrow 1 - r$) avant de
+passer au nœud parent~: une victoire pour le fils est une défaite pour le
+père, garantissant ainsi la cohérence de la formule UCB1 à tous les niveaux
+de l'arbre.
+
+\noindent
+Le coup final retenu est le plus \emph{visité} (non le meilleur ratio
 victoires/visites)~: la fréquence de visite est un indicateur plus
 robuste~\cite{Browne2012}. Le MCTS utilise également une copie légère du
 plateau pour chaque simulation (\texttt{\_copy\_board} copie uniquement
 le dictionnaire de bitboards), ce qui évite les copies profondes coûteuses.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{exemple_mcts.png}
+  \caption{Illustration du MCTS~: exploration asymétrique, simulation aléatoire
+  et algorithme \textit{anytime}, comparés au Minimax classique.
+  \emph{(illustration générée par notebooklm)}}
+  \label{fig:mcts_exemple}
+\end{figure}
 
 %==============================================================================
 \section{Fonctionnalité approfondie~2 : Interface graphique GTK~4}
@@ -1089,17 +969,36 @@ pour charger les pièces au format SVG~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 class BoardWidget(Gtk.DrawingArea):
-    def __init__(self, engine: RulesEngine) -> None:
+ def __init__(self, engine: RulesEngine) -> None:
         super().__init__()
-        self._pieces = self._load_pieces()    # cache SVG en mémoire
-        self.set_draw_func(self._draw)        # callback de rendu Cairo
+        self._engine = engine
+        self._board: Board | None = None
+        self._current_color: str = WHITE
+        self._interaction_enabled: bool = True
+        self._flipped: bool = False
+        # Click-to-move state
+        self._selected_square: int | None = None
+        self._valid_moves: list[Move] = []
+        # Drag'n'drop state
+        self._drag_square: int | None = None
+        self._drag_x: float = 0.0
+        self._drag_y: float = 0.0
+        self._dragging: bool = False
+        # Callback called when a move is played: fn(move: Move)
+        self.on_move_played = None
+        # Load SVG piece images
+        self._pieces = self._load_pieces()
+        # Drawing
+        self.set_draw_func(self._draw)
+        # Click handler (click-to-move)
         click = Gtk.GestureClick.new()
         click.connect("pressed", self._on_click)
-        drag  = Gtk.GestureDrag.new()
-        drag.connect("drag-begin",  self._on_drag_begin)
-        drag.connect("drag-update", self._on_drag_update)
-        drag.connect("drag-end",    self._on_drag_end)
         self.add_controller(click)
+        # Drag handler (drag'n'drop)
+        drag = Gtk.GestureDrag.new()
+        drag.connect("drag-begin", self._on_drag_begin)
+        drag.connect("drag-update", self._on_drag_update)
+        drag.connect("drag-end", self._on_drag_end)
         self.add_controller(drag)
 \end{minted}
 
@@ -1121,12 +1020,11 @@ et mise en cache dans \texttt{self.\_pieces}. Le rendu à l'écran utilise
 du widget~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
-def _board_geometry(width, height):
-    """Retourne la taille d'une case et les offsets pour centrer le plateau."""
-    board_size  = min(width, height)
-    square_size = board_size / BOARD_SIZE     # BOARD_SIZE = 8
-    offset_x    = (width  - board_size) / 2
-    offset_y    = (height - board_size) / 2
+def _board_geometry(width: int, height: int) -> tuple[float, float, float]:
+    board_size = min(width, height)
+    square_size = board_size / BOARD_SIZE
+    offset_x = (width - board_size) / 2
+    offset_y = (height - board_size) / 2
     return square_size, offset_x, offset_y
 \end{minted}
 
@@ -1135,14 +1033,14 @@ taille de la fenêtre. Les pièces sont mises à l'échelle dynamiquement~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 has_size, svg_w, svg_h = handle.get_intrinsic_size_in_pixels()
-if not has_size or svg_w == 0 or svg_h == 0:
-    svg_w, svg_h = 45.0, 45.0        # fallback si SVG sans taille
-scale = sq / max(svg_w, svg_h)       # sq = taille d'une case en pixels
-cr.save()
-cr.translate(x, y)
-cr.scale(scale, scale)
-handle.render_cairo(cr)
-cr.restore()
+            if not has_size or svg_w == 0 or svg_h == 0:
+                svg_w, svg_h = 45.0, 45.0
+            scale = sq / max(svg_w, svg_h)
+            cr.save()
+            cr.translate(x, y)
+            cr.scale(scale, scale)
+            handle.render_cairo(cr)
+            cr.restore()
 \end{minted}
 
 La formule \texttt{scale = sq / max(svg\_w, svg\_h)} assure que quelle que
@@ -1188,16 +1086,19 @@ y compris après un undo/redo~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 def _captured_pieces_from_history(history) -> dict[str, list[str]] | None:
-    captured = {WHITE: [], BLACK: []}
+    captured = {
+        WHITE: [],
+        BLACK: [],
+    }
     for move in history:
         if not move.captured_piece:
             continue
-        # La pièce capturée appartient à l'adversaire du joueur qui a joué
+        if move.captured_piece not in STARTING_PIECE_COUNTS:
+            return None
         captured_color = BLACK if move.color == WHITE else WHITE
         captured[captured_color].append(move.captured_piece)
     return {
-        color: _sort_captured_piece_types(captured[color])
-        for color in (WHITE, BLACK)
+        color: _sort_captured_piece_types(captured[color]) for color in (WHITE, BLACK)
     }
 \end{minted}
 
@@ -1210,10 +1111,25 @@ plateau avec les effectifs de départ~:
 STARTING_PIECE_COUNTS = {FERZ: 1, ROOK: 2, ALFIL: 2, KNIGHT: 2, PAWN: 8}
 
 def _captured_pieces_from_board(board) -> dict[str, list[str]]:
-    remaining = {WHITE: {...}, BLACK: {...}}    # compte les pièces actuelles
-    captured  = {WHITE: [], BLACK: []}
+    """Fallback capture view for legacy saves without capture detail."""
+    remaining = {
+        WHITE: {piece: 0 for piece in STARTING_PIECE_COUNTS},
+        BLACK: {piece: 0 for piece in STARTING_PIECE_COUNTS},
+    }
+    for square in range(64):
+        piece_info = board.get_piece_at(square)
+        if piece_info is None:
+            continue
+
+        piece, color = piece_info
+        if piece in STARTING_PIECE_COUNTS:
+            remaining[color][piece] += 1
+    captured = {
+        WHITE: [],
+        BLACK: [],
+    }
     for color in (WHITE, BLACK):
-        for piece in CAPTURE_DISPLAY_ORDER:    # ordre visuel stable
+        for piece in CAPTURE_DISPLAY_ORDER:
             missing = STARTING_PIECE_COUNTS[piece] - remaining[color][piece]
             captured[color].extend([piece] * max(0, missing))
     return captured
@@ -1225,19 +1141,23 @@ Chaque pièce capturée est représentée par une icône de \textbf{20×20 pixel
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 def _make_captured_piece_widget(self, piece: str, color: str):
-    path = get_piece_asset_path(piece, color)  # même thème que le plateau
-    if path is not None:
-        picture = Gtk.Picture.new_for_filename(path)
-        picture.set_size_request(20, 20)       # dimensions fixes identiques
-        picture.set_can_shrink(True)
-        picture.set_keep_aspect_ratio(True)    # ratio SVG préservé
-        picture.set_tooltip_text(
-            PIECE_LABELS.get(piece, piece.title())
-        )
-        return picture
-    # Repli textuel si le SVG est introuvable
-    label = Gtk.Label(label=piece[:1].upper())
-    return label
+        """Build one small piece icon for the capture strips."""
+        path = get_piece_asset_path(piece, color)
+        if path is not None:
+            picture = Gtk.Picture.new_for_filename(path)
+            picture.set_size_request(20, 20)
+            if hasattr(picture, "set_can_shrink"):
+                picture.set_can_shrink(True)
+            if hasattr(picture, "set_keep_aspect_ratio"):
+                picture.set_keep_aspect_ratio(True)
+            picture.set_tooltip_text(PIECE_LABELS.get(piece, piece.title()))
+            return picture
+
+        label = Gtk.Label(label=piece[:1].upper())
+        label.set_halign(Gtk.Align.CENTER)
+        label.set_valign(Gtk.Align.CENTER)
+        label.set_tooltip_text(PIECE_LABELS.get(piece, piece.title()))
+        return label
 \end{minted}
 
 \textbf{Point clé --- Cohérence des dimensions.}
@@ -1258,18 +1178,20 @@ remplit avec les nouvelles icônes~:
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 def _update_captured_pieces(self) -> None:
-    captured = _captured_pieces_for_display(self._state)
-    # strip du haut = pièces blanches prises (par les noirs)
-    # strip du bas  = pièces noires prises  (par les blancs)
-    for captured_color, strip in (
-        (WHITE, self._black_capture_strip),   # blanches au-dessus
-        (BLACK, self._white_capture_strip),   # noires en dessous
-    ):
-        self._clear_box_children(strip)
-        for piece in captured[captured_color]:
-            strip.append(
-                self._make_captured_piece_widget(piece, captured_color)
-            )
+        """Refresh the captured-piece strips above and below the board."""
+        if not hasattr(self, "_black_capture_strip"):
+            return
+        captured = _captured_pieces_for_display(self._state)
+        top_color, bottom_color = _captured_piece_colors_for_display(
+            self._network_my_color
+        )
+        for captured_color, strip in (
+            (top_color, self._black_capture_strip),
+            (bottom_color, self._white_capture_strip),
+        ):
+            self._clear_box_children(strip)
+            for piece in captured[captured_color]:
+                strip.append(self._make_captured_piece_widget(piece, captured_color))
 \end{minted}
 
 \subsubsection{Ordre d'affichage des captures}
@@ -1318,7 +1240,6 @@ GTK~4 n'utilise plus le système DND de GTK~3~; nous utilisons
 
 \begin{minted}[frame=single,fontsize=\small]{python}
 def _on_drag_begin(self, gesture, x, y) -> None:
-    """Sélectionne la pièce et calcule les coups légaux."""
     square = self._pixel_to_square(x, y)
     piece  = self._board.get_piece_at(square)
     if piece is None or piece[1] != self._current_color:
@@ -1331,16 +1252,14 @@ def _on_drag_begin(self, gesture, x, y) -> None:
     self.queue_draw()
 
 def _on_drag_update(self, gesture, dx, dy) -> None:
-    """Met à jour la position de la pièce sous le curseur."""
     ok, start_x, start_y = gesture.get_start_point()
     if not ok:
         return
     self._drag_x = start_x + dx
     self._drag_y = start_y + dy
-    self.queue_draw()          # redessine à chaque mouvement
+    self.queue_draw()
 
 def _on_drag_end(self, gesture, dx, dy) -> None:
-    """Joue le coup si la case de dépôt est valide."""
     ok, start_x, start_y = gesture.get_start_point()
     end_x, end_y = start_x + dx, start_y + dy
     target = self._pixel_to_square_from_pos(end_x, end_y)
@@ -1377,22 +1296,30 @@ repasser dans le thread GTK principal avant toute modification d'état~:
 \begin{minted}[frame=single,fontsize=\small]{python}
 def _auto_play_ai_turns(self) -> None:
     def ai_thread():
-        while self._state is not None and \
-              self._state.current_color in self._ai_players:
-            if self._game_paused:
-                time.sleep(0.05)
-                continue
-            ai   = self._ai_players[self._state.current_color]
-            move = ai.choose_move(self._state.board)
-            if move is None:
-                break
-            done_event = threading.Event()
-            # GLib.idle_add : retour dans le thread GTK
-            GLib.idle_add(self._apply_ai_move, move, done_event)
-            done_event.wait(timeout=5)   # attend la fin de l'application
-
-    thread = threading.Thread(target=ai_thread, daemon=True)
-    thread.start()
+            while (
+                self._state is not None
+                and self._state.current_color in self._ai_players
+            ):
+                if self._game_paused:
+                    time.sleep(0.05)
+                    continue
+                ai = self._ai_players[self._state.current_color]
+                move = ai.choose_move(self._state.board)
+                if move is None:
+                    break
+                while self._game_paused and self._state is not None:
+                    time.sleep(0.05)
+                if (
+                    self._state is None
+                    or self._state.current_color not in self._ai_players
+                ):
+                    break
+                # GLib.idle_add ensures GTK updates happen in the main thread
+                done_event = threading.Event()
+                GLib.idle_add(self._apply_ai_move, move, done_event)
+                done_event.wait(timeout=5)
+        thread = threading.Thread(target=ai_thread, daemon=True)
+        thread.start()
 \end{minted}
 
 \texttt{done\_event} est un \texttt{threading.Event} qui synchronise le thread
@@ -1426,22 +1353,13 @@ actif que quand un preset ou une valeur custom est sélectionnée.
 
 \subsection{Astuces et découvertes techniques}
 
-\paragraph{Réutilisation du CLI pour la sauvegarde/chargement.}
-Plutôt que de réécrire la logique de sérialisation, le GUI instancie
-directement la classe \texttt{CLI} et réutilise ses méthodes \texttt{\_do\_load}
-et \texttt{\_save\_to\_file}~:
-
-\begin{minted}[frame=single,fontsize=\small]{python}
-from shatranj.presentation.cli.cli import CLI
-cli = CLI(verbose=False, debug=False)
-cli._do_load([path])           # parsing complet avec commentaires
-if cli._state is not None:
-    self._state = cli._state   # récupération du GameState parsé
-\end{minted}
-
-Cela garantit que le format de fichier est identique entre CLI et GUI,
-et que les commentaires \texttt{\#} et blocs \texttt{\{\}} sont correctement
-ignorés.
+\paragraph{Sauvegarde et chargement via le module \texttt{persistence}.}
+Le GUI utilise directement les fonctions \texttt{load\_game\_file} et
+\texttt{save\_game\_file} du module \texttt{shatranj/persistence.py},
+qui encapsulent la sérialisation complète de l'état (plateau, horloge,
+historique, configuration IA) au format ASCII structuré. Cette approche
+garantit un format de fichier identique entre CLI et GUI sans duplication
+de logique.
 
 \paragraph{Conversion coordonnées pixel $\to$ case.}
 Le plateau est redimensionnable. La conversion utilise \texttt{\_board\_geometry}~:
@@ -1464,34 +1382,18 @@ l'application d'un coup humain et le calcul de l'IA dans le thread secondaire.
 \label{sec:critique}
 %==============================================================================
 
-\subsection{Ce qui a été réalisé}
-
-\begin{itemize}[noitemsep]
-  \item Moteur de règles complet~: validation, détection de l'échec, mat,
-    pat et Bare King pour toutes les pièces.
-  \item CLI interactif (prompt \texttt{>>}, Tab, historique, undo/redo,
-    sauvegarde/chargement avec commentaires, hint, mode blitz avec chronomètre).
-  \item GUI GTK~4 avec plateau SVG, deux thèmes de pièces, drag-and-drop,
-    horloge CSS intégrée, dialogue de configuration complet, bandeaux de
-    captures avec icônes SVG identiques à celles du plateau (20×20~px).
-  \item IA fonctionnelle~: AlphaBeta (profondeur~4), Iterative Deepening
-    (avec limite de temps), et MCTS (500~simulations) avec TT partagée.
-  \item Internationalisation français/anglais via \texttt{gettext}.
-  \item Tests automatisés (\texttt{pytest}) avec couverture (\texttt{pytest-cov}).
-\end{itemize}
-
 \subsection{Ce qui n'a pas été réalisé}
 
 \begin{itemize}[noitemsep]
-  \item \textbf{Iterative Deepening dans le GUI~:} l'algorithme
-    \texttt{IterativeDeepening} est disponible dans le CLI mais n'est pas
-    exposé dans le dialogue de configuration du GUI~; seuls AlphaBeta,
-    Minimax et MCTS y sont proposés.
-  \item \textbf{Jeu en réseau~:} module \texttt{domain/network/} prévu
-    (architecture client-serveur TCP avec découverte UDP) mais non implémenté
-    dans le GUI.
-  \item \textbf{Machine Learning~:} intégration Keras pour remplacer UCT dans
-    le MCTS non développée faute de temps.
+  
+  \item \textbf{Machine Learning~:} l'intégration de Keras pour remplacer
+    la sélection UCT dans le MCTS n'a pas été développée. Cette approche
+    nécessite un corpus de parties de Shatranj de qualité pour l'entraînement~;
+    or, contrairement aux échecs modernes qui disposent de millions de parties
+    annotées (bases Lichess, ChessBase), le Shatranj est un jeu ancien dont
+    les parties enregistrées sont rarissimes. Générer nous-mêmes ce corpus
+    par auto-jeu aurait requis plusieurs jours de calcul, incompatibles avec
+    les délais du projet.
 \end{itemize}
 
 \subsection{Performances}
@@ -1499,37 +1401,50 @@ l'application d'un coup humain et le calcul de l'IA dans le thread secondaire.
 L'AlphaBeta à profondeur~4 répond en moins de cinq secondes sur des positions
 ouvertes. L'Iterative Deepening avec une limite de 5~secondes est plus robuste
 en fin de partie~: il explore plus profondément quand le facteur de branchement
-diminue. La table de transposition partagée réduit le nombre de nœuds évalués
-de 30 à~50\,\% sur les positions répétées. Le MCTS avec 500~simulations offre
+diminue. La table de transposition réduit le nombre de nœuds évalués de 30 à 50\,\%
+sur les positions transposées au sein d'une même recherche. Le MCTS avec 500~simulations offre
 une variété de jeu intéressante mais est plus lent~: environ 2~à~3~secondes par
 coup en position ouverte.
 
 \subsection{Cas limites et bugs identifiés}
 
 \begin{itemize}[noitemsep]
-  \item \textbf{Alfil en finale~:} ses 8~cases fixes de même couleur le
-    rendent quasi inutilisable. L'évaluateur devrait pondérer l'Alfil
-    différemment selon la phase de jeu (ouverture, milieu, finale).
-  \item \textbf{Détection de répétition triplee~:} comparaison en $O(n)$
-    sur l'historique complet~; peut ralentir les parties très longues.
-  \item \textbf{Thread IA et undo~:} si le joueur clique sur Undo pendant que
-    l'IA calcule, le \texttt{done\_event.wait(timeout=5)} peut expirer.
-    Un verrou supplémentaire serait nécessaire pour une synchronisation parfaite.
+  \item \textbf{Bug flag TT dans AlphaBeta~:} voir section~\ref{sec:_alphabeta}.
+  \item \textbf{Pat dans le MCTS~:} le rollout traite le pat comme nul ($0{,}5$)
+    plutôt que comme une défaite pour le joueur bloqué, ce qui sous-estime
+    la valeur de forcer le pat contre l'adversaire.
+  \item \textbf{TT vidée entre les itérations ID~:} \texttt{best\_move} appelle
+    \texttt{self.\_tt.clear()} à chaque profondeur, annulant l'ordonnancement
+    inter-profondeur théoriquement attendu.
+    \item \textbf{Clé Zobrist figée dans le rollout MCTS~:}
+    dans \texttt{\_rollout}, la clé de hachage est calculée une seule fois
+    avant la boucle de simulation via
+    \texttt{self.\_hasher.compute\_key(board, color)},
+    puis n'est plus mise à jour après chaque coup joué
+    (\texttt{board.apply\_move(move)}).
+    Les résultats sont donc stockés dans la table de transposition
+    sous la clé de la position \emph{initiale} du rollout,
+    et non sous celle de la position terminale.
+    Cela réduit l'efficacité du cache sans affecter la correction
+    du résultat retourné.
 \end{itemize}
 
 \subsection{Améliorations possibles}
 
 \begin{itemize}[noitemsep]
-  \item Développer le module réseau (TCP/UDP, tableau des scores).
-  \item Ajouter l'ordonnancement des coups dans AlphaBeta~\cite{RussellNorvig2020}
-    (captures en premier) pour maximiser les coupures.
-  \item Pondérer l'Alfil selon la phase de jeu dans l'évaluateur.
-  \item Utiliser un verrou explicite pour la synchronisation thread IA / undo.
-  \item Intégrer Keras pour remplacer UCT dans le MCTS.
+  \item Conserver la table de transposition entre les itérations de
+    l'Iterative Deepening pour bénéficier de l'ordonnancement des coups.
+  \item Corriger le traitement du pat dans le rollout MCTS pour qu'il
+    corresponde aux règles officielles du Shatranj.
+  \item Ajouter des benchmarks de performance pour mesurer le nombre de
+    nœuds explorés et le temps de réponse moyen à profondeur~4.
+    \item Mettre à jour la clé Zobrist de manière incrémentale à chaque coup
+    joué dans \texttt{\_rollout} via \texttt{update\_key()},
+    afin que chaque position simulée soit correctement indexée
+    dans la table de transposition.
 \end{itemize}
 
 %==============================================================================
-\nocite{*}
 \bibliographystyle{plain}
 \bibliography{bibliography}
 %==============================================================================
@@ -1574,12 +1489,12 @@ F4  & Interface CLI par défaut & Fait \\
 F5  & Mode Blitz avec chronomètre & Fait \\
 F6  & Mode Contest (entrée fichier, sortie stdout) & Fait \\
 F7  & Interface graphique GTK (\texttt{-g}) & Fait \\
-F8  & Mode IA joueur (\texttt{-a W/B/A}) & Fait \\
+F8  & Mode IA joueur (\texttt{-a W/B/A}) & Partiel \\
 
 \midrule
 \multicolumn{3}{l}{\textbf{Gestion du jeu}} \\
 F9  & Validation des coups et mise à jour de l'état & Fait \\
-F10 & Gestion des erreurs utilisateur (messages stderr) & Fait \\
+F10 & Gestion des erreurs utilisateur (messages stderr) & Partiel \\
 F11 & Undo / Redo & Fait \\
 F12 & Hints (suggestion de coup via IA) & Fait \\
 F13 & Blitz : décompte, pause, timeout & Fait \\
@@ -1590,7 +1505,7 @@ F14 & Shell interactif avec prompt \texttt{>>} & Fait \\
 F15 & Proposition de sauvegarde avant de quitter & Fait \\
 F16 & Édition de la ligne de commande (\texttt{readline}) & Fait \\
 F17 & Historique des commandes (flèches, Ctrl+R) & Fait \\
-F18 & Complétion Tab & Fait \\
+F18 & Complétion Tab & partiel \\
 F19 & Notation algébrique des coups & Fait \\
 
 \midrule
@@ -1620,13 +1535,13 @@ F33 & Approfondissement itératif & Fait \\
 F34 & Profondeur de recherche configurable & Fait \\
 F35 & Monte Carlo Tree Search (MCTS) & Fait \\
 F36 & Sélection par Machine Learning (Keras) & Non fait \\
-F37 & Tables de transposition (Zobrist) & Fait \\
+F37 & Tables de transposition (Zobrist) & Partiel \\
 
 \midrule
 \multicolumn{3}{l}{\textbf{Jeu en réseau}} \\
-F38 & Découverte de serveurs (UDP) et connexion TCP & Fait \\
-F39 & Serveur multi-clients, tableau des scores & Fait \\
-F40 & Système d'invitations, statuts des joueurs & Fait \\
+F38 & Découverte de serveurs (UDP) et connexion TCP & Partiel \\
+F39 & Serveur multi-clients, tableau des scores & Partiel \\
+F40 & Système d'invitations, statuts des joueurs & Partiel \\
 
 \end{longtable}
 
