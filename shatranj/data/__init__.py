@@ -2,10 +2,10 @@
 Data layer for Shatranj.
 
 This package contains low-level technical modules only:
-- bit-level helpers for bitboards
-- persistence adapters (save/load/config)
+  - bitboards : bit-level helpers for 64-bit board representation
+ 
 
-Game rules and board state orchestration are implemented in the domain layer.
+Game rules and board state orchestration live in the domain layer.
 """
 
 __all__ = []
