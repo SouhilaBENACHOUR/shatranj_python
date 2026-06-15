@@ -62,6 +62,19 @@ If the line language = en is present, remove it:
 ```bash
 sed -i '/language/d' ~/.shatranjrc
 ```
+## GUI display issues (missing text / invisible labels)
+If the GTK interface shows empty radio buttons or missing text, it is a theme conflict.
+
+**Temporary fix:**
+```bash
+GTK_THEME=Adwaita shatranj -g
+```
+
+**Permanent fix** (add to your `~/.bashrc`):
+```bash
+echo 'export GTK_THEME=Adwaita' >> ~/.bashrc
+source ~/.bashrc
+```
 
 # Usage
 Current command-line usage
