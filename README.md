@@ -1,85 +1,53 @@
-# Shatranj (Python)
-Implementation of the historical Shatranj game in Python.
+# Shatranj
 
-# Description
-This project is a Python implementation of the historical Persian chess game "Shatranj", developed as part of a software engineering project at University of Bordeaux (Master's degre computer science 2025-2026).
+> A Python implementation of Shatranj — the ancient Persian predecessor to modern chess — featuring a full game engine, GTK GUI, multiple AI algorithms, network multiplayer, and internationalization.
 
-The goal is to build a modular, testable, and extensible game engine following modern software engineering principles.
-Shatranj is the ancestor of modern chess, originating from Persia and India. Key differences from modern chess include:
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![Version](https://img.shields.io/badge/version-0.4.0-green) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
- Ferz (Advisor): Moves only 1 square diagonally (not like the modern Queen)
- Alfil (Elephant): Jumps exactly 2 squares diagonally (not like the modern Bishop)
- Pawn: No double-step initial move, promotes only to Ferz
+---
 
-Keywords: Board game, two players, deterministic, perfect information
+## Features
 
-# Badges
+- **Game engine** — Full Shatranj rules with bitboard representation
+- **CLI** — Interactive shell with algebraic notation, undo/redo, hints
+- **GUI** — GTK 3 graphical interface with drag & drop, piece themes, blitz clock
+- **AI** — Minimax, Alpha-Beta pruning, MCTS, iterative deepening, transposition table
+- **Network** — Local multiplayer server with LAN discovery
+- **i18n** — English and French support via gettext
+- **Save/Load** — Persistent games in `.shatranj` format
 
-# Visuals
+---
 
-# Installation
+## Shatranj vs Modern Chess
 
- # Requirements
+| Piece | Shatranj | Modern Chess |
+|-------|----------|--------------|
+| Ferz (Advisor) | 1 square diagonally | Queen (any direction) |
+| Alfil (Elephant) | Jumps exactly 2 squares diagonally | Bishop (any diagonal) |
+| Pawn | No double step, promotes to Ferz only | Double step + multiple promotions |
 
- Python 3.10+
- PyGObject (for GUI)
- GTK 4.x (for GUI)
+---
 
-# Setup
+## Installation
+
+**Requirements:** Python 3.10+, GTK 3 (for GUI)
+
 ```bash
-Clone the repository
-git clone https://gitlab.emi.u-bordeaux.fr/pdp-2026/shatranj-python.git
-cd shatranj-python
-```
+git clone https://github.com/SouhilaBENACHOUR/shatranj_python.git
+cd shatranj_python
 
-# Create virtual environment (recommended)
-```bash
-python3 -m venv venv
-source venv/bin/activate # On Linux/Mac
-# venv\Scripts\activate # On Windows
-```
-# Install the project
-```bash
+python3 -m venv .venv
+source .venv/bin/activate
+
 pip install -e .
 ```
-# Install development dependencies (testing, code quality)
-```bash
-pip install pytest pytest-cov coverage flake8 black
-```
-# Internationalisation (F3)
-The game supports English (default) and French.
 
-Usage
-```bash
-LANG=fr_FR.UTF-8 shatranj    # Launch in French
-LANG=en_US.UTF-8 shatranj    # Launch in English
-LANG=de_DE.UTF-8 shatranj    # Unsupported language → warning + English
-```
+---
 
-# Troubleshooting
-If the language does not change, check your ~/.shatranjrc file.
-If the line language = en is present, remove it:
-```bash
-sed -i '/language/d' ~/.shatranjrc
-```
-## GUI display issues (missing text / invisible labels)
-If the GTK interface shows empty radio buttons or missing text, it is a theme conflict.
+## Usage
 
-**Temporary fix:**
 ```bash
-GTK_THEME=Adwaita shatranj -g
-```
-
-**Permanent fix** (add to your `~/.bashrc`):
-```bash
-echo 'export GTK_THEME=Adwaita' >> ~/.bashrc
-source ~/.bashrc
-```
-
-# Usage
-Current command-line usage
-```bash
-Launch CLI (default)
+# Launch CLI (default)
 shatranj
 
 # Launch GUI
@@ -98,152 +66,91 @@ shatranj game.shatranj
 # Start multiplayer server
 shatranj --server 12345
 ```
-### Command Line Options
+
+### CLI Commands
+new [ARGS]          Start new game
+
+load FILE           Load game
+
+save FILE           Save game
+
+hint                Show AI hint
+
+undo [N]            Undo last move(s)
+
+redo [N]            Redo move(s)
+
+show board          Display board
+
+show history        Move history
+
+show time           Remaining time
+
+server start [PORT] Start local server
+
+join [HOST:PORT]    Connect to server
+
+set PARAM=VALUE     Change configuration
+
+quit                Exit
+
+### Move Notation
+e2-e4       Simple move
+
+e4xe5       Capture
+
+---
+
+## Internationalization
+
 ```bash
--h, --help Show help message
--V, --version Show version
--v, --verbose Verbose mode
--d, --debug Debug mode
--g, --gui Launch graphical interface
--b, --blitz Blitz mode
--t TIME, --time TIME Time per player (minutes)
--a [COLOR], --ai [COLOR] Play against AI (W/B/A)
---ai-mode MODE Select AI algorithm
---ai-depth DEPTH Generic AI depth / simulation count
---ai-minimax-depth DEPTH Alias for minimax-style searches
---ai-scoring SCORING Evaluation mode
---ai-minimax-scoring SCORING Alias for minimax scoring
---ai-time SECONDS Per-move limit for iterative AI
---ai-mcts-selection POLICY MCTS selection policy
--c, --contest Contest mode
--s [PORT], --server [PORT] Start server
---daemon Headless server mode
+LANG=fr_FR.UTF-8 shatranj    # French
+LANG=en_US.UTF-8 shatranj    # English
 ```
 
-### Interactive Shell Commands
-```bash
-new [ARGS] Start new game
-help [CMD] Show help
-quit Exit program
-load FILE Load game
-save FILE Save game
-pause Pause timer (Blitz)
-hint Show AI hint
-undo [N] Undo last move(s)
-redo [N] Redo move(s)
-show board Display board
-show history Display move history
-show time Display remaining time
-show configuration Display CLI configuration
-server list Discover servers on local network
-server start [PORT] Start local multiplayer server
-server stop Stop local multiplayer server
-server status Show local server status
-join [HOST:PORT] Connect to a multiplayer server
-ping Measure server latency
-players Show connected players
-scoreboard Show multiplayer scoreboard
-accept/decline/cancel Manage invitations
-away/back Change lobby availability
-set PARAM=VALUE Change configuration
-```
-# Move Notation
-Moves will follow algebraic notation:
+---
 
-Simple move: e2-e4 (move from e2 to e4)
-Capture: e4xe5 (capture piece at e5)
+## Development
 
-# Support
-For questions or issues:
-
-GitLab Issues: Issue Tracker
-Contact: Through Université de Bordeaux academic channels
-
-# Roadmap
-
-# Current Phase: Foundation
-
- Project setup (pyproject.toml, git repository)
- Bitboard implementation (in progress)
- Game rules engine (in progress)
- Move generation and validation
- Basic CLI interface
-
-Phase 2: Interfaces
-
- Interactive CLI shell
- GUI with PyGObject/GTK 4.x
- Save/Load functionality (.shatranj format)
-
-Phase 3: AI
-
- Minimax with Alpha-Beta pruning
- Monte Carlo Tree Search (MCTS)
- ML-enhanced MCTS with Random Forest
- Multiple heuristic evaluation functions
-
-Phase 4: Advanced Features
-
- Network multiplayer
- Blitz mode with time control
- Internationalization (EN/FR)
- Complete documentation
-
-Phase 5: Polish
-
- Test coverage ≥85%
- Performance optimization
- Full documentation with Sphinx
-
-# Contributing
-
-
-# Development Guidelines
-
-Follow PEP 8 coding standards
-Write docstrings for all functions/classes
-Maintain test coverage target of ≥85%
-Run tests before committing: pytest
-
-Running Tests
-Run all tests
 ```bash
 pytest
-# Run with coverage report
-pytest --cov=shatranj --cov-report=term-missing
 
-# Generate HTML coverage report
-pytest --cov-report=html
+flake8 shatranj/
+black shatranj/
 ```
 
-# Code Quality
+Coverage target: **≥ 85%**
 
-# Check code style (detects PEP 8 violations)
-flake8 shatranj/
+---
 
-# Auto-format code (fixes formatting automatically)
-black shatranj/
+## Troubleshooting
 
-# Authors and Acknowledgment
-Development Team:
+**Language not changing?** Remove the cached config:
+```bash
+sed -i '/language/d' ~/.shatranjrc
+```
 
-EL GHALI Ayman
-MARCHOUD Souhail
-MEKLAT Sarah
-DRIES Amina
-BENACHOUR Souhila
+**GTK GUI — missing text / invisible labels?**
+```bash
+# Temporary fix
+GTK_THEME=Adwaita shatranj -g
 
-# Academic Context:
-Master Informatique - Université de Bordeaux
-Academic Year: 2025-2026
+# Permanent fix
+echo 'export GTK_THEME=Adwaita' >> ~/.bashrc
+source ~/.bashrc
+```
 
-# References:
-Browne, C. (2014). Bitboard methods for games. ICGA Journal, 37(2), 67-84
-Chess Programming Wiki
-Shatranj Rules (Wikipedia)
+---
 
-# License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Authors
 
-# Project Status
-Course project delivery version.
+- BENACHOUR Souhila
+- DRIES Amina
+- EL GHALI Ayman
+- MARCHOUD Souhail
+- MEKLAT Sarah
+---
+
+## License
+
+MIT License — see [LICENSE](LICENSE) for details.
